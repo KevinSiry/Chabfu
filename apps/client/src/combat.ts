@@ -24,6 +24,7 @@ import {
   monsterThreatZone,
   previewCastDetailed,
   previewEnemyTurn,
+  samePos,
   turnOrder,
   unitAt,
   willGainConcentrationNextTurn,
@@ -60,6 +61,9 @@ import {
   type Scene,
 } from './render';
 import { icon } from './ui/icons';
+import { confirmModal, openSheet, toast, type SheetHandle } from './ui/components';
+import { getSettings } from './ui/settings';
+import './combat.css';
 
 export interface RunHooks {
   onExit(): void;
@@ -114,12 +118,17 @@ interface RunView {
   focusUnit: string | null;
   showThreat: boolean;
   hoverEndTurn: boolean;
+  /** Toucher : case visée en attente de confirmation (second toucher ou bouton Confirmer). */
+  pending: Pos | null;
+  /** Fiche ouverte au toucher sur le joueur. */
+  showPlayer: boolean;
   acting: string | null;
   busy: boolean;
   startedAt: number;
   endedAt: number | null;
   board: BoardRenderer | null;
   overlayKey: string;
+  layoutKey: string;
   overlay: Overlay | null;
 }
 
@@ -186,9 +195,15 @@ function zoneOf(v: RunView, id: string): ThreatZone {
 
 interface BoardRenderer {
   canvas: HTMLCanvasElement;
+  /** Coordonnées en px CSS relatives au conteneur du plateau. */
   screenToScene(x: number, y: number): { x: number; y: number };
   render(scene: Scene): void;
   destroy(): void;
+  setInsets?(i: { top: number; right: number; bottom: number; left: number }): void;
+  zoomAt?(factor: number, cx: number, cy: number): void;
+  panBy?(dx: number, dy: number): void;
+  resetView?(): void;
+  readonly zoomed?: boolean;
 }
 
 let currentBoard: BoardRenderer | null = null;
@@ -206,9 +221,16 @@ async function createBoard(wrap: HTMLElement): Promise<BoardRenderer> {
     const dpr = window.devicePixelRatio || 1;
     placeholder.width = CANVAS_W * dpr;
     placeholder.height = CANVAS_H * dpr;
+    placeholder.classList.add('cb-fallback');
     const ctx = placeholder.getContext('2d')!;
     ctx.scale(dpr, dpr);
-    return { canvas: placeholder, render: (scene) => draw(ctx, scene), destroy: () => undefined, screenToScene: (x, y) => ({ x, y }) };
+    toast('Affichage simplifié : WebGL indisponible sur cet appareil.', 'info', 4000);
+    const toScene = (x: number, y: number) => {
+      const r = placeholder.getBoundingClientRect();
+      const wr = wrap.getBoundingClientRect();
+      return { x: ((x - (r.left - wr.left)) / r.width) * CANVAS_W, y: ((y - (r.top - wr.top)) / r.height) * CANVAS_H };
+    };
+    return { canvas: placeholder, render: (scene) => draw(ctx, scene), destroy: () => undefined, screenToScene: toScene };
   }
 }
 
@@ -222,40 +244,41 @@ export function leaveRun(): void {
 
 export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): void {
   app.innerHTML = `
-    <div class="run" style="--scene-art: url('${assetUrl(`dungeons/${config.dungeonId}.webp`)}')">
-      <header class="hud-top">
-        <div class="turn-order" id="turn-order"></div>
-      </header>
-      <div class="main-col">
-        <div class="board" id="board-wrap">
-          <canvas id="board" width="${CANVAS_W}" height="${CANVAS_H}"></canvas>
-          <div class="topbar"><span id="room"></span><span id="turn"></span><span id="clock"></span></div>
-          <div class="board-tools">
-            <button class="tool" id="toggle-threat" title="Afficher les cases où les ennemis peuvent vous toucher à leur prochain tour (T)">Zones de menace <kbd>T</kbd></button>
-          </div>
-          <div class="cursor-tip" id="cursor-tip" hidden></div>
-        </div>
+    <div class="cb" style="--scene-art: url('${assetUrl(`dungeons/${config.dungeonId}.webp`)}')">
+      <div class="cb-stage" id="board-wrap">
+        <canvas id="board" width="${CANVAS_W}" height="${CANVAS_H}"></canvas>
+        <div class="cursor-tip" id="cursor-tip" hidden></div>
       </div>
-      <aside class="side">
-        <section class="frame inspector-frame">
-          <div class="panel-title">Fiche</div>
-          <div class="inspector" id="inspector"></div>
-        </section>
-        <section class="frame log-frame">
-          <div class="panel-title">Journal</div>
-          <div class="log" id="log"></div>
-        </section>
-        <button class="ghost abandon" id="abandon">Abandonner le run</button>
+      <header class="cb-top">
+        <div class="cb-where"><span class="cb-pill" id="room"></span><span class="cb-pill" id="turn"></span></div>
+        <div class="cb-order turn-order" id="turn-order" aria-label="Ordre des tours"></div>
+        <div class="cb-tr">
+          <span class="cb-pill num" id="clock"></span>
+          <button class="ui-icon-btn" id="open-log" aria-label="Journal du combat">${icon('logbook')}</button>
+          <button class="ui-icon-btn" id="open-menu" aria-label="Pause">${icon('pause')}</button>
+        </div>
+      </header>
+      <div class="cb-tools">
+        <button class="ui-icon-btn" id="toggle-threat" aria-pressed="false" aria-label="Zones de menace : cases où les ennemis peuvent vous toucher à leur prochain tour">${icon('eye')}<kbd>T</kbd></button>
+        <button class="ui-icon-btn" id="reset-view" aria-label="Recadrer le plateau" hidden>${icon('target')}</button>
+      </div>
+      <aside class="cb-info" id="info-panel" hidden aria-live="polite">
+        <button class="ui-icon-btn ui-icon-btn--sm cb-info-close" id="info-close" aria-label="Fermer la fiche">${icon('close')}</button>
+        <div class="inspector" id="inspector"></div>
       </aside>
-      <footer class="hud-dock">
-        <div class="dock-player frame" id="hud"></div>
-        <div class="dock-spells frame">
+      <div class="cb-confirm" id="confirm-bar" hidden>
+        <button class="ui-btn ui-btn--danger ui-btn--sm" id="confirm-cancel" aria-label="Annuler">${icon('close')}</button>
+        <button class="ui-btn ui-btn--primary" id="confirm-go"></button>
+      </div>
+      <footer class="cb-dock">
+        <div class="cb-player" id="hud"></div>
+        <div class="cb-spells">
           <div class="spellbar" id="spellbar"></div>
           <div class="spell-tip" id="spell-tip" hidden></div>
         </div>
-        <div class="dock-end frame">
-          <button class="end-turn" id="end-turn"><span>Fin du tour</span><kbd>Espace</kbd></button>
+        <div class="cb-end">
           <div class="end-preview" id="end-preview"></div>
+          <button class="ui-btn ui-btn--primary cb-endturn" id="end-turn"><span>Fin du tour</span><kbd>Espace</kbd></button>
         </div>
       </footer>
     </div>`;
@@ -286,12 +309,15 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
     focusUnit: null,
     showThreat: false,
     hoverEndTurn: false,
+    pending: null,
+    showPlayer: false,
     acting: null,
     busy: false,
     startedAt: performance.now(),
     endedAt: null,
     board: null,
     overlayKey: '',
+    layoutKey: '',
     overlay: null,
   };
 
@@ -309,22 +335,45 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
 
     if (!view) return;
   const endBtn = app.querySelector('#end-turn') as HTMLButtonElement;
-  endBtn.addEventListener('click', () => act({ type: 'endTurn' }));
+  // Appui long sur « Fin du tour » (ou survol à la souris) : montre ce que feront les ennemis, sans finir le tour.
+  let endHold = 0;
+  let endHeld = false;
+  endBtn.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') return;
+    endHeld = false;
+    endHold = window.setTimeout(() => {
+      endHeld = true;
+      if (view) view.hoverEndTurn = true;
+      vibrate(12);
+    }, 380);
+  });
+  const endRelease = () => {
+    clearTimeout(endHold);
+    if (view && endHeld) setTimeout(() => view && (view.hoverEndTurn = false), 50);
+  };
+  endBtn.addEventListener('pointerup', endRelease);
+  endBtn.addEventListener('pointercancel', endRelease);
+  endBtn.addEventListener('click', (e) => {
+    if (endHeld) {
+      endHeld = false;
+      e.preventDefault();
+      return;
+    }
+    act({ type: 'endTurn' });
+  });
   endBtn.addEventListener('mouseenter', () => view && (view.hoverEndTurn = true));
   endBtn.addEventListener('mouseleave', () => view && (view.hoverEndTurn = false));
   app.querySelector('#toggle-threat')!.addEventListener('click', toggleThreat);
-  app.querySelector('#abandon')!.addEventListener('click', () => {
-    if (!view || view.busy) return;
-    if (view.state.actionLog.length === 0) {
-      leaveRun();
-      hooks.onExit();
-      return;
-    }
-    // Abandon en cours de run : plus aucune action possible, l'écran de fin prend le relais.
-    view.busy = true;
-    view.endedAt = performance.now();
-    updateClock();
-    hooks.onFinish(view.config, view.state, Math.round(view.endedAt - view.startedAt));
+  app.querySelector('#reset-view')!.addEventListener('click', () => {
+    view?.board?.resetView?.();
+    updateResetButton();
+  });
+  app.querySelector('#open-menu')!.addEventListener('click', openPauseMenu);
+  app.querySelector('#open-log')!.addEventListener('click', openLog);
+  app.querySelector('#info-close')!.addEventListener('click', clearSelection);
+  app.querySelector('#confirm-cancel')!.addEventListener('click', clearSelection);
+  app.querySelector('#confirm-go')!.addEventListener('click', () => {
+    if (view?.pending) commitCell(view.pending);
   });
 
   // Infobulles de la barre de sorts (délégation : la barre est reconstruite à chaque changement).
@@ -342,8 +391,16 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
   });
   bar.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.spell-btn');
-    if (!view || !b || b.disabled) return;
-    selectSpell(view.selectedSpell === b.dataset.spell ? null : b.dataset.spell!);
+    if (!view || !b || b.disabled || view.busy) return;
+    const id = b.dataset.spell!;
+    const err = getCastError(view.state, id);
+    if (err) {
+      toast(esc(err), 'error', 1800);
+      vibrate(8);
+      return;
+    }
+    view.pending = null;
+    selectSpell(view.selectedSpell === id ? null : id);
   });
 
   const order = app.querySelector('#turn-order') as HTMLElement;
@@ -354,8 +411,13 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
   order.addEventListener('mouseleave', () => view && (view.focusUnit = null));
   order.addEventListener('click', (e) => {
     const c = (e.target as HTMLElement).closest<HTMLElement>('.to-chip');
-    if (!view || !c || c.dataset.unit === PLAYER_ID) return;
-    view.pinned = view.pinned === c.dataset.unit ? null : c.dataset.unit!;
+    if (!view || !c) return;
+    if (c.dataset.unit === PLAYER_ID) {
+      view.showPlayer = !view.showPlayer;
+      view.pinned = null;
+    } else view.pinned = view.pinned === c.dataset.unit ? null : c.dataset.unit!;
+    view.pending = null;
+    renderSelection();
   });
 
   renderHud();
@@ -371,26 +433,109 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
 
 
 function bindBoardEvents(canvas: HTMLCanvasElement, wrap: HTMLElement): void {
-  canvas.addEventListener('mousemove', (e) => {
-    if (!view) return;
-    const r = canvas.getBoundingClientRect();
-    const sp = view.board?.screenToScene(((e.clientX - r.left) / r.width) * CANVAS_W, ((e.clientY - r.top) / r.height) * CANVAS_H);
-    view.hover = sp ? toCell(view.displayRoom, sp.x, sp.y) : null;
+  const local = (e: { clientX: number; clientY: number }) => {
     const wr = wrap.getBoundingClientRect();
-    view.mouse = { x: e.clientX - wr.left, y: e.clientY - wr.top };
+    return { x: e.clientX - wr.left, y: e.clientY - wr.top };
+  };
+  const cellAt = (e: { clientX: number; clientY: number }): Pos | null => {
+    if (!view?.board) return null;
+    const l = local(e);
+    const sp = view.board.screenToScene(l.x, l.y);
+    return toCell(view.displayRoom, sp.x, sp.y);
+  };
+  canvas.style.touchAction = 'none';
+
+  // --- Souris : survol = aperçu, clic = action directe ---
+  canvas.addEventListener('pointermove', (e) => {
+    if (!view || e.pointerType !== 'mouse') return;
+    view.hover = cellAt(e);
+    view.mouse = local(e);
   });
-  canvas.addEventListener('mouseleave', () => {
-    if (!view) return;
+  canvas.addEventListener('pointerleave', (e) => {
+    if (!view || e.pointerType !== 'mouse') return;
     view.hover = null;
     view.mouse = null;
   });
-  canvas.addEventListener('click', () => view?.hover && onCellClick(view.hover));
+  canvas.addEventListener('wheel', (e) => {
+    if (!view?.board?.zoomAt) return;
+    e.preventDefault();
+    const l = local(e);
+    view.board.zoomAt(e.deltaY < 0 ? 1.12 : 1 / 1.12, l.x, l.y);
+    updateResetButton();
+  }, { passive: false });
   canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    if (!view) return;
-    if (view.selectedSpell) selectSpell(null);
-    else view.pinned = null;
+    clearSelection();
   });
+
+  // --- Toucher : toucher = viser / aperçu, second toucher ou « Confirmer » = action ; appui long = fiche ; pincer = zoom ---
+  const pts = new Map<number, { x: number; y: number }>();
+  let tap: { x: number; y: number; t: number; moved: boolean } | null = null;
+  let hold = 0;
+  let pinch: { d: number; mx: number; my: number } | null = null;
+  const dist = () => {
+    const [a, b] = [...pts.values()];
+    return { d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+  };
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!view) return;
+    if (e.pointerType === 'mouse') {
+      if (e.button !== 0) return;
+      const c = cellAt(e);
+      if (c) onCellClick(c);
+      return;
+    }
+    canvas.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, local(e));
+    clearTimeout(hold);
+    if (pts.size === 2) {
+      tap = null;
+      pinch = dist();
+      return;
+    }
+    tap = { ...local(e), t: performance.now(), moved: false };
+    const start = e;
+    hold = window.setTimeout(() => {
+      if (!view || !tap || tap.moved) return;
+      tap = null;
+      const c = cellAt(start);
+      if (c) inspectCell(c);
+    }, 420);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!view || e.pointerType === 'mouse' || !pts.has(e.pointerId)) return;
+    const prev = pts.get(e.pointerId)!;
+    const now = local(e);
+    pts.set(e.pointerId, now);
+    if (pinch && pts.size >= 2) {
+      const d = dist();
+      view.board?.zoomAt?.(d.d / pinch.d, d.mx, d.my);
+      view.board?.panBy?.(d.mx - pinch.mx, d.my - pinch.my);
+      pinch = d;
+      updateResetButton();
+      return;
+    }
+    if (tap && Math.hypot(now.x - tap.x, now.y - tap.y) > 10) {
+      tap.moved = true;
+      clearTimeout(hold);
+    }
+    // Un doigt qui glisse déplace le plateau quand il est zoomé.
+    if (tap?.moved && view.board?.zoomed) view.board.panBy?.(now.x - prev.x, now.y - prev.y);
+  });
+  const up = (e: PointerEvent) => {
+    if (!view || e.pointerType === 'mouse') return;
+    pts.delete(e.pointerId);
+    clearTimeout(hold);
+    if (pts.size < 2) pinch = null;
+    if (e.type === 'pointerup' && tap && !tap.moved && pts.size === 0) {
+      const c = cellAt(e);
+      if (c) onCellTap(c);
+      else clearSelection();
+    }
+    if (pts.size === 0) tap = null;
+  };
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
 }
 
 window.addEventListener('keydown', (e) => {
@@ -399,8 +544,8 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     act({ type: 'endTurn' });
   } else if (e.key === 'Escape') {
-    if (view.selectedSpell) selectSpell(null);
-    else view.pinned = null;
+    if (document.querySelector('.ui-sheet.is-open, .ui-modal-scrim')) return;
+    clearSelection();
   } else if (e.key === 't' || e.key === 'T') {
     toggleThreat();
   } else if (slotFromKey(e) >= 0) {
@@ -415,7 +560,70 @@ window.addEventListener('keydown', (e) => {
 function toggleThreat(): void {
   if (!view) return;
   view.showThreat = !view.showThreat;
-  document.getElementById('toggle-threat')?.classList.toggle('on', view.showThreat);
+  const b = document.getElementById('toggle-threat');
+  b?.classList.toggle('is-on', view.showThreat);
+  b?.setAttribute('aria-pressed', String(view.showThreat));
+}
+
+// ---------------------------------------------------------------------------
+// Menu pause et journal
+// ---------------------------------------------------------------------------
+
+let logSheet: SheetHandle | null = null;
+
+function openLog(): void {
+  if (!view) return;
+  logSheet = openSheet({ title: 'Journal du combat', html: '<div class="log" id="log"></div>', cls: 'cb-log-sheet', modeless: true, onClose: () => (logSheet = null) });
+  renderLog();
+}
+
+function openPauseMenu(): void {
+  if (!view) return;
+  const v = view;
+  const speed = getSettings().speed;
+  const sheet = openSheet({
+    title: 'Pause',
+    html: `<div class="cb-menu">
+      <button class="ui-btn ui-btn--primary ui-btn--block" data-m="resume">${icon('forward')} Reprendre</button>
+      <button class="ui-btn ui-btn--blue ui-btn--block" data-m="legend">${icon('help')} Lire le plateau</button>
+      <p class="cb-menu-note">Vitesse des animations : ×${speed} · réglable dans les paramètres</p>
+      <button class="ui-btn ui-btn--danger ui-btn--block" data-m="quit">${icon('flag')} Abandonner le run</button>
+    </div>`,
+  });
+  sheet.body.addEventListener('click', async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-m]');
+    if (!b) return;
+    if (b.dataset.m === 'resume') sheet.close();
+    else if (b.dataset.m === 'legend') sheet.setContent(legendHtml(), 'Lire le plateau');
+    else if (b.dataset.m === 'quit') {
+      sheet.close();
+      if (view !== v || v.busy) return;
+      if (v.state.actionLog.length === 0) {
+        leaveRun();
+        v.hooks.onExit();
+        return;
+      }
+      const ok = await confirmModal({ title: 'Abandonner le run ?', text: 'Vous gardez l’XP des monstres déjà vaincus. Le run ne compte pas au classement.', confirm: 'Abandonner', danger: true });
+      if (!ok || view !== v || v.busy) return;
+      v.busy = true;
+      v.endedAt = performance.now();
+      updateClock();
+      v.hooks.onFinish(v.config, v.state, Math.round(v.endedAt - v.startedAt));
+    }
+  });
+}
+
+function legendHtml(): string {
+  const row = (cls: string, title: string, text: string) => `<li><i class="lg-sw ${cls}"></i><span><b>${title}</b>${text}</span></li>`;
+  return `<ul class="cb-legend">
+    ${row('move', 'Déplacement', 'Cases atteignables avec vos PM. Chaque PM dépensé fait perdre 1 de Concentration.')}
+    ${row('range', 'Portée du sort', 'Cases où vous pouvez lancer le sort choisi.')}
+    ${row('nolos', 'Sans ligne de vue', 'À portée, mais un obstacle ou une unité bloque le tir (hachures).')}
+    ${row('zone', 'Zone d’effet', 'Cases touchées par le sort sur la cible visée.')}
+    ${row('enemy', 'Déplacement ennemi', 'Où le monstre choisi peut aller à son tour.')}
+    ${row('threat', 'Menace', 'Cases où les ennemis peuvent vous toucher au prochain tour (bouton œil).')}
+  </ul>
+  <p class="cb-menu-note">Au doigt : touchez une case pour voir l’aperçu, touchez-la encore (ou « Confirmer ») pour agir. Appui long sur une unité : sa fiche. Pincez pour zoomer.</p>`;
 }
 
 function selectSpell(id: string | null): void {
@@ -425,21 +633,143 @@ function selectSpell(id: string | null): void {
     return;
   }
   view.selectedSpell = id && !getCastError(view.state, id) ? id : null;
+  if (!view.selectedSpell) view.pending = null;
   renderHud();
+  renderSelection();
 }
 
+/** Clic souris : action directe (le survol a déjà montré l'aperçu). */
 function onCellClick(cell: Pos): void {
   if (!view || view.busy) return;
+  view.showPlayer = false;
+  commitCell(cell);
+}
+
+/** Exécute l'action sur la case : lancer le sort armé, épingler un monstre ou se déplacer. */
+function commitCell(cell: Pos): void {
+  if (!view || view.busy) return;
+  view.pending = null;
   if (view.selectedSpell) {
-    if (!getCastError(view.state, view.selectedSpell, cell)) act({ type: 'cast', spellId: view.selectedSpell, target: cell });
+    const err = getCastError(view.state, view.selectedSpell, cell);
+    if (!err) act({ type: 'cast', spellId: view.selectedSpell, target: cell });
+    else {
+      toast(esc(err), 'error', 1600);
+      vibrate(8);
+    }
     return;
   }
   const u = unitAt(view.state.units, cell);
   if (u && u.team === 'monster') {
     view.pinned = view.pinned === u.id ? null : u.id;
+    renderSelection();
     return;
   }
   if (view.analysis.reach.has(key(cell))) act({ type: 'move', to: cell });
+}
+
+/** Toucher : premier toucher = aperçu (et bouton Confirmer), second toucher sur la même case = action. */
+function onCellTap(cell: Pos): void {
+  if (!view || view.busy) return;
+  const v = view;
+  const same = v.pending && samePos(v.pending, cell);
+  const u = unitAt(v.state.units, cell);
+  if (v.selectedSpell) {
+    if (same) return commitCell(cell);
+    v.pending = cell;
+    v.hover = cell;
+    vibrate(6);
+    renderSelection();
+    return;
+  }
+  if (u && u.team === 'monster') {
+    v.pending = null;
+    v.hover = null;
+    v.showPlayer = false;
+    v.pinned = v.pinned === u.id ? null : u.id;
+    vibrate(6);
+    renderSelection();
+    return;
+  }
+  if (u && u.id === PLAYER_ID) {
+    v.pending = null;
+    v.hover = null;
+    v.pinned = null;
+    v.showPlayer = !v.showPlayer;
+    renderSelection();
+    return;
+  }
+  if (v.analysis.reach.has(key(cell))) {
+    if (same) return commitCell(cell);
+    v.pending = cell;
+    v.hover = cell;
+    v.pinned = null;
+    v.showPlayer = false;
+    vibrate(6);
+    renderSelection();
+    return;
+  }
+  clearSelection();
+}
+
+/** Appui long : fiche de l'unité, sans rien jouer. */
+function inspectCell(cell: Pos): void {
+  if (!view) return;
+  const u = unitAt(view.state.units, cell);
+  if (!u) return;
+  vibrate(15);
+  view.pending = null;
+  if (u.id === PLAYER_ID) {
+    view.showPlayer = true;
+    view.pinned = null;
+  } else view.pinned = u.id;
+  view.hover = null;
+  renderSelection();
+}
+
+function clearSelection(): void {
+  if (!view) return;
+  view.pending = null;
+  view.pinned = null;
+  view.showPlayer = false;
+  if (!view.mouse) view.hover = null;
+  if (view.selectedSpell) selectSpell(null);
+  else renderSelection();
+}
+
+function vibrate(ms: number): void {
+  if (getSettings().vibrate) navigator.vibrate?.(ms);
+}
+
+function updateResetButton(): void {
+  const b = document.getElementById('reset-view');
+  if (b) b.hidden = !view?.board?.zoomed;
+}
+
+/** Barre de confirmation (toucher) : libellé de l'action en attente. */
+function renderSelection(): void {
+  if (!view) return;
+  const v = view;
+  const bar = document.getElementById('confirm-bar');
+  const go = document.getElementById('confirm-go') as HTMLButtonElement | null;
+  if (!bar || !go) return;
+  let label = '';
+  let ok = false;
+  if (v.pending) {
+    if (v.selectedSpell) {
+      const err = getCastError(v.state, v.selectedSpell, v.pending);
+      ok = !err;
+      label = ok ? `Lancer ${getSpell(v.selectedSpell).name}` : (err ?? '');
+    } else {
+      const path = v.analysis.reach.get(key(v.pending));
+      ok = !!path;
+      label = path ? `Aller ici (${path.length} PM)` : '';
+    }
+  }
+  bar.hidden = !v.pending && !v.selectedSpell;
+  go.hidden = !v.pending;
+  go.disabled = !ok;
+  go.textContent = label;
+  v.overlayKey = '';
 }
 
 function act(action: Action): void {
@@ -453,6 +783,9 @@ function act(action: Action): void {
     return;
   }
   const v = view;
+  v.pending = null;
+  v.showPlayer = false;
+  renderSelection();
   const before = v.state;
   v.state = result.state;
   v.stateId += 1;
@@ -659,7 +992,7 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
 
 function overlayKey(v: RunView): string {
   const h = v.hover ? key(v.hover) : '-';
-  return [v.stateId, h, v.selectedSpell, v.hoverSpell, v.pinned, v.focusUnit, v.showThreat, v.hoverEndTurn, v.busy, v.acting].join('|');
+  return [v.stateId, h, v.selectedSpell, v.hoverSpell, v.pinned, v.focusUnit, v.showThreat, v.hoverEndTurn, v.busy, v.acting, v.pending ? key(v.pending) : '-', v.showPlayer].join('|');
 }
 
 function refreshOverlay(): void {
@@ -809,6 +1142,7 @@ function computeOverlay(v: RunView): Overlay {
       o.inspector = playerCard(v);
     }
   }
+  if (v.showPlayer && !v.selectedSpell && !subjectId) o.inspector = playerCard(v);
   if (!o.tooltip && hoveredMonster && !v.selectedSpell) {
     o.tooltip = `<b>${esc(hoveredMonster.name)}</b> · ${hoveredMonster.hp}/${hoveredMonster.maxHp} PV`;
   }
@@ -827,6 +1161,7 @@ function drawBoard(): void {
   v.floats = v.floats.filter((f) => now - f.born < 1300);
   v.projectiles = v.projectiles.filter((p) => now - p.born < p.duration);
   if (!v.board) return;
+  syncInsets();
   v.board.render({
     room: v.displayRoom,
     theme: v.config.dungeonId,
@@ -911,24 +1246,18 @@ function renderHud(): void {
 
   const hpPct = (100 * player.hp) / player.maxHp;
   document.getElementById('hud')!.innerHTML = `
-    <div class="hp-orb-wrap">
-      <div class="hp-orb ${hpPct <= 30 ? 'low' : ''}" title="Points de vie" style="--fill:${hpPct}%">
-        <div class="hp-orb-fill"></div>
-        <div class="hp-orb-text"><b>${player.hp}</b><small>/ ${player.maxHp}</small></div>
-      </div>
+    <div class="cb-hp ${hpPct <= 30 ? 'low' : ''}" role="meter" aria-label="Points de vie" aria-valuenow="${player.hp}" aria-valuemax="${player.maxHp}">
+      <i style="width:${hpPct}%"></i><b class="num">${player.hp} / ${player.maxHp}</b>
     </div>
-    <div class="dock-stats">
-      <div class="dock-name">${esc(getCharacter()?.name ?? 'Archer')}</div>
-      <div class="gems">
-        <div class="gem gem-pa" title="Points d'action"><b>${player.pa}</b><small>PA</small></div>
-        <div class="gem gem-pm" title="Points de mouvement"><b>${player.pm}</b><small>PM</small></div>
-        <div class="gem gem-conc" title="Concentration"><b id="conc-value">${state.player.concentration}</b><small>Conc.</small></div>
-      </div>
-      <div class="conc-wrap" id="conc"></div>
-      <div class="dock-states">
-        ${player.burn ? `<span class="chip fire">Brûlure ${player.burn.damage} × ${player.burn.turns}</span>` : ''}
-        ${state.player.nextShotDouble ? '<span class="chip conc">Prochain tir ×2</span>' : ''}
-      </div>
+    <div class="cb-res">
+      <span class="cb-gem pa" title="Points d'action">${icon('pa')}<b>${player.pa}</b><small>PA</small></span>
+      <span class="cb-gem pm" title="Points de mouvement">${icon('pm')}<b>${player.pm}</b><small>PM</small></span>
+      <span class="cb-gem conc" title="Concentration">${icon('conc')}<b id="conc-value">${state.player.concentration}</b><small>Conc.</small></span>
+    </div>
+    <div class="conc-wrap" id="conc"></div>
+    <div class="dock-states">
+      ${player.burn ? `<span class="ui-chip ui-chip--danger">${icon('burn')} Brûlure ${player.burn.damage} × ${player.burn.turns}</span>` : ''}
+      ${state.player.nextShotDouble ? `<span class="ui-chip ui-chip--gold">${icon('conc')} Prochain tir ×2</span>` : ''}
     </div>`;
 
   const bar = document.getElementById('spellbar')!;
@@ -948,7 +1277,7 @@ function renderHud(): void {
         ${cc ? `<span class="slot-conc">${cc}</span>` : ''}
         ${s.maxPerTurn ? `<span class="slot-uses">${uses}/${s.maxPerTurn}</span>` : ''}
         <span class="slot-name">${s.name}</span>
-        <span class="slot-range">${range}</span>
+        <span class="slot-range">${icon('range')}${range}</span>
         ${err && !v.busy ? `<span class="why">${esc(err)}</span>` : ''}
       </button>`;
     })
@@ -965,6 +1294,7 @@ function renderHud(): void {
   renderTurnOrder();
   renderLog();
   renderConcentration();
+  renderSelection();
 }
 
 function deckSlots(): number {
@@ -1063,8 +1393,54 @@ function renderConcentration(): void {
 
 function renderInspector(): void {
   if (!view) return;
+  const v = view;
   const el = document.getElementById('inspector');
-  if (el && view.overlay) el.innerHTML = view.overlay.inspector;
+  const panel = document.getElementById('info-panel');
+  if (!el || !panel || !v.overlay) return;
+  const o = v.overlay;
+  const idle = o.inspector === defaultInspector() || o.inspector === '<p class="muted">…</p>';
+  // Au toucher, pas d'infobulle qui suit le curseur : la carte de visée va en tête de la fiche.
+  const tip = !v.mouse && v.pending && o.tooltip && o.tooltip.includes('class="tp') ? o.tooltip : '';
+  const html = idle ? tip : tip + o.inspector;
+  const show = !!html && !v.busy;
+  if (panel.hidden === show) {
+    panel.hidden = !show;
+    v.layoutKey = '';
+  }
+  if (el.dataset.html !== html) {
+    el.innerHTML = html;
+    el.dataset.html = html;
+  }
+}
+
+/** Marges du HUD à laisser libres pour cadrer la salle (recalculées quand la mise en page change). */
+function syncInsets(): void {
+  const v = view;
+  if (!v?.board?.setInsets) return;
+  const k = `${innerWidth}x${innerHeight}|${document.getElementById('info-panel')?.hidden}`;
+  if (k === v.layoutKey) return;
+  v.layoutKey = k;
+  const stage = document.getElementById('board-wrap')!.getBoundingClientRect();
+  // Le plateau iso est un losange : seuls les éléments centrés (ordre des tours, sorts) le gênent,
+  // les coins (PV, fin du tour) tombent à côté de ses pointes.
+  const portrait = innerWidth < 700 && innerHeight > innerWidth;
+  const top = document.querySelector(portrait ? '.cb-top' : '.cb-order')!.getBoundingClientRect();
+  const dock = document.querySelector(portrait ? '.cb-dock' : '.cb-spells')!.getBoundingClientRect();
+  const panel = document.getElementById('info-panel')!;
+  const wide = innerWidth >= 1100;
+  // Sur grand écran la colonne de la fiche est toujours réservée (pas de saut du plateau au survol).
+  const cb = document.querySelector('.cb') as HTMLElement;
+  const dockFull = document.querySelector('.cb-dock')!.getBoundingClientRect();
+  cb.style.setProperty('--dock-h', `${Math.round(dockFull.height)}px`);
+  let bottom = Math.max(0, stage.bottom - dock.top) + 4;
+  let right = wide ? 380 : 8;
+  if (!panel.hidden && !wide) {
+    // En portrait la fiche monte du bas : le plateau se cale au-dessus. Ailleurs elle occupe la droite.
+    const r = panel.getBoundingClientRect();
+    if (portrait) bottom = Math.max(bottom, stage.bottom - r.top + 4);
+    else right = r.width + 16;
+  }
+  v.board.setInsets({ top: Math.max(0, top.bottom - stage.top) + 4, bottom, left: innerWidth < 700 ? 8 : 56, right });
 }
 
 function renderLog(): void {
