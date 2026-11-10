@@ -2,7 +2,9 @@
  * Écran des paramètres (fiche) : son, vibrations, vitesse des combats, accessibilité, tutoriel.
  * Ouvert depuis la roue dentée de la barre du haut ou depuis le menu pause du combat.
  */
-import { openPanel, segmented, bindSegmented, toast } from './components';
+import { migrateSave, SaveError } from '@chabfu/engine';
+import { openPanel, segmented, bindSegmented, toast, confirmModal } from './components';
+import { applySave, currentSave, getSaveStatus, onSaveStatus, pushNow, type SaveStatus } from '../save/sync';
 import { icon } from './icons';
 import { getSettings, updateSettings, type Settings } from './settings';
 import { sfx } from './sfx';
@@ -34,6 +36,47 @@ function choice(id: keyof Settings, label: string, ico: string, options: { value
   </div>`;
 }
 
+const SAVE_STATUS: Record<SaveStatus, { label: string; hint: string }> = {
+  server: { label: 'Enregistrée', hint: 'Partie enregistrée dans la base de données' },
+  pending: { label: 'Envoi…', hint: "Derniers changements en cours d'envoi à la base de données" },
+  offline: { label: 'Hors ligne', hint: 'Serveur injoignable : partie gardée sur cet appareil, envoyée dès son retour' },
+};
+
+function saveChip(s: SaveStatus): string {
+  const st = SAVE_STATUS[s];
+  return `<span class="st-save-chip is-${s}" id="st-save-status" title="${st.hint}" aria-label="${st.hint}">${s === 'server' ? icon('check') : ''}${st.label}</span>`;
+}
+
+function exportSave(): void {
+  const json = JSON.stringify(currentSave(), null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  a.download = `chabfu-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('Sauvegarde exportée', 'success');
+}
+
+async function importSave(file: File): Promise<void> {
+  let save;
+  try {
+    save = migrateSave(JSON.parse(await file.text()));
+  } catch (e) {
+    toast(e instanceof SaveError ? e.message : "Ce fichier n'est pas une sauvegarde Chabfu", 'error');
+    return;
+  }
+  const ok = await confirmModal({
+    title: 'Importer la sauvegarde ?',
+    text: 'La partie actuelle sera remplacée par celle du fichier. Pense à exporter la partie actuelle avant si tu veux la garder.',
+    confirm: 'Importer',
+    danger: true,
+  });
+  if (!ok) return;
+  applySave(save, true);
+  await pushNow();
+  location.reload();
+}
+
 export function openSettings(o: { onTutorial?: () => void } = {}): void {
   const html = `<div class="st">
     <div class="st-col">
@@ -54,6 +97,13 @@ export function openSettings(o: { onTutorial?: () => void } = {}): void {
     <section class="st-group"><h3>Aide</h3>
       <button type="button" class="ui-btn ui-btn--blue ui-btn--block" id="st-tuto">${icon('help')} Revoir le tutoriel</button>
     </section>
+    <section class="st-group"><h3 class="st-save-head">Sauvegarde ${saveChip(getSaveStatus())}</h3>
+      <div class="st-save-btns">
+        <button type="button" class="ui-btn ui-btn--sm" id="st-export">${icon('arrowDown')} Exporter</button>
+        <button type="button" class="ui-btn ui-btn--sm" id="st-import">${icon('arrowUp')} Importer</button>
+      </div>
+      <input type="file" accept="application/json,.json" id="st-import-file" hidden>
+    </section>
     </div>
     <div class="st-col">
     <section class="st-group"><h3>Confort</h3>
@@ -70,7 +120,7 @@ export function openSettings(o: { onTutorial?: () => void } = {}): void {
       ${toggle('cvd', 'Couleurs adaptées', 'eye', 'Motifs en plus des couleurs (daltonisme)')}
     </section>
     </div>
-    <p class="st-foot">Chabfu · prototype · réglages enregistrés sur cet appareil</p>
+    <p class="st-foot">Chabfu · prototype · partie et réglages enregistrés dans la base de données</p>
   </div>`;
   const sheet = openPanel({ title: 'Paramètres', tabs: [{ id: 'all', label: 'Paramètres', html: () => html }], cls: 'st-sheet' });
   const body = sheet.body;
@@ -96,6 +146,19 @@ export function openSettings(o: { onTutorial?: () => void } = {}): void {
   bindSegmented(body, 'st-speed', (v) => updateSettings({ speed: Number(v) as Settings['speed'] }));
   bindSegmented(body, 'st-text', (v) => updateSettings({ text: v as Settings['text'] }));
   bindSegmented(body, 'st-motion', (v) => updateSettings({ motion: v as Settings['motion'] }));
+  const off = onSaveStatus((st) => {
+    const el = body.querySelector<HTMLElement>('#st-save-status');
+    if (!el?.isConnected) return off();
+    el.outerHTML = saveChip(st);
+  });
+  body.querySelector('#st-export')!.addEventListener('click', exportSave);
+  const fileInput = body.querySelector<HTMLInputElement>('#st-import-file')!;
+  body.querySelector('#st-import')!.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files?.[0];
+    fileInput.value = '';
+    if (f) void importSave(f);
+  });
   body.querySelector('#st-tuto')!.addEventListener('click', () => {
     updateSettings({ seenTips: [], tutorialDone: false });
     sheet.close();

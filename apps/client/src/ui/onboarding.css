@@ -128,3 +128,13 @@
 #app .lb-dots button, #app .lb-steps button, #app .chips .chip, #app .hb-top .tranche-btn, #app .gr-slot { position: relative; }
 #app .lb-dots button::after, #app .lb-steps button::after, #app .chips .chip::after, #app .hb-top .tranche-btn::after, #app .gr-slot::after { content: ''; position: absolute; inset: -6px -2px; }
 #app .lb-dots button::after { inset: -16px -6px; }
+
+/* Sauvegarde : export et import côte à côte. */
+.st-save-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.st-save-btns .ui-btn { width: 100%; }
+.st-save-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.st-save-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 99px; font: 800 12px/1.4 var(--font-ui); letter-spacing: 0; color: #fff; background: var(--c-well, #140c38); box-shadow: var(--outline-2); }
+.st-save-chip svg { width: 14px; height: 14px; }
+.st-save-chip.is-server { background: linear-gradient(180deg, #6fd84a, #3fb823); }
+.st-save-chip.is-pending { background: linear-gradient(180deg, #ffc94d, #e08a00); }
+.st-save-chip.is-offline { background: linear-gradient(180deg, #ff7a6b, #d63a2a); }
