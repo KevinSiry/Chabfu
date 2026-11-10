@@ -29,7 +29,10 @@ import {
 } from '@chabfu/engine';
 import { equipmentSummaryHtml, renderEquipmentScreen } from './stuff/equipment-screen';
 import { bindLootPanel, lootPanelHtml } from './stuff/loot-panel';
-import { grantBossLoot, withEquipment } from './stuff/store';
+import { withEquipment } from './stuff/store';
+import { rewardsPanelHtml } from './craft/rewards-panel';
+import { grantRunRewards } from './craft/store';
+import { renderWorkshopScreen } from './craft/workshop-screen';
 import { CANVAS_H, CANVAS_W, ELEMENT_COLORS, draw, toCell, type DisplayUnit, type FloatingText, type Highlight } from './render';
 
 const app = document.getElementById('app')!;
@@ -109,6 +112,11 @@ function renderSetup(): void {
           </div>
           ${equipmentSummaryHtml(tranche.id)}
           <div class="card">
+            <h3>Atelier</h3>
+            <p class="muted">Ressources du donjon, craft à rareté fixe et recyclage en éclats.</p>
+            <button class="secondary" id="open-workshop" style="width:100%">Craft et recyclage</button>
+          </div>
+          <div class="card">
             <h3>Meilleurs runs</h3>
             ${
               best.length
@@ -146,6 +154,11 @@ function renderSetup(): void {
     save.difficulty = Number(diff.value);
     writeSave(save);
     openEquipment();
+  });
+  app.querySelector('#open-workshop')!.addEventListener('click', () => {
+    save.difficulty = Number(diff.value);
+    writeSave(save);
+    openWorkshop();
   });
   app.querySelector('#start')!.addEventListener('click', () => {
     // Ordre du deck = ordre du catalogue, pour des raccourcis stables.
@@ -213,6 +226,10 @@ function buildDisplay(state: RunState): Map<string, DisplayUnit> {
 
 function openEquipment(): void {
   renderEquipmentScreen(app, { trancheId: tranche.id, dungeonId: dungeon.id, difficulty: save.difficulty, onBack: renderSetup });
+}
+
+function openWorkshop(): void {
+  renderWorkshopScreen(app, { trancheId: tranche.id, dungeonId: dungeon.id, onBack: renderSetup });
 }
 
 function startRun(baseConfig: RunConfig): void {
@@ -558,18 +575,22 @@ function finishRun(v: RunView): void {
     writeSave(save);
   }
   // Butin : uniquement pour une victoire au replay validé.
-  const loot = won && check?.valid ? grantBossLoot(v.config) : [];
+  // Recyclage automatique et ressources du donjon : voir craft/store.ts.
+  const rewards = won && check?.valid ? grantRunRewards(v.config, v.state.actionLog) : null;
+  const loot = rewards?.kept ?? [];
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.innerHTML = `
-    <div class="card${loot.length ? ' with-loot' : ''}">
+    <div class="card${rewards ? ' with-loot' : ''}">
       <h2 class="${won ? 'ok' : 'ko'}">${won ? 'Donjon terminé !' : 'Défaite'}</h2>
       <p>Difficulté ${v.config.difficulty} · ${v.state.turn} tours · ${formatTime(timeMs)}</p>
       ${check ? `<p class="${check.valid ? 'ok' : 'ko'}">${check.valid ? '✓ Replay validé (même moteur que le serveur)' : `✗ Replay invalide : ${check.reason}`}</p>` : `<p class="muted">Salle ${v.state.roomIndex + 1} atteinte.</p>`}
       ${loot.length ? lootPanelHtml(loot, v.config) : ''}
+      ${rewards ? rewardsPanelHtml(rewards) : ''}
       <div class="row">
         <button class="primary" id="again">Rejouer</button>
         <button class="secondary" id="equipment">Équipement</button>
+        <button class="secondary" id="workshop">Atelier</button>
         <button class="secondary" id="back">Changer de deck</button>
         <button class="secondary" id="copy">Copier le replay</button>
       </div>
@@ -584,6 +605,11 @@ function finishRun(v: RunView): void {
     overlay.remove();
     view = null;
     openEquipment();
+  });
+  overlay.querySelector('#workshop')!.addEventListener('click', () => {
+    overlay.remove();
+    view = null;
+    openWorkshop();
   });
   overlay.querySelector('#back')!.addEventListener('click', () => {
     overlay.remove();
