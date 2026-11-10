@@ -20,7 +20,7 @@ import {
   type RunScore,
   type RunState,
 } from '@chabfu/engine';
-import { equipmentSummaryHtml, renderEquipmentScreen } from './stuff/equipment-screen';
+import { renderEquipmentScreen } from './stuff/equipment-screen';
 import { bindLootPanel, lootPanelHtml } from './stuff/loot-panel';
 import { withEquipment } from './stuff/store';
 import { rewardsPanelHtml } from './craft/rewards-panel';
@@ -30,14 +30,22 @@ import { formatTime, leaveRun, startRun as startCombat } from './combat';
 import { ELEMENT_LABEL, rangeLabel } from './info';
 import { spellSheet } from './spell-info';
 import { slotKeyLabel, slotKeysRange } from './keys';
-import { dungeonBannerImg, spellIconImg } from './ui/assets';
+import { assetUrl, dungeonBannerImg, spellIconImg } from './ui/assets';
+import './ui/lobby.css';
 import { bindHubTabs, hubBarHtml, type HubTab } from './ui/hub';
 import { renderRunEndSections } from './character/run-end';
 import { getCharacter, saveCharacter } from './character/store';
 import { bindCharacterBanner, renderCharacterCreation } from './character/ui';
-// Habillages : peint (bois et or), puis « new gen » (verre nocturne) qui le remplace quand html[data-skin] est posé.
-import './ui/skin.css';
+// Habillage « Verre nocturne » (actif par html[data-skin="nuit"]), jetons dans ui/tokens.css.
+import './ui/legacy.css';
 import './ui/skin-ng.css';
+import './ui/components.css';
+import { coachTour, type CoachStep } from './ui/coach';
+import './ui/onboarding.css';
+import { openSheet, trackInputMode } from './ui/components';
+import { sfx, unlockAudio } from './ui/sfx';
+import { applySettings } from './ui/settings';
+import { elementIcon, icon } from './ui/icons';
 
 
 const app = document.getElementById('app')!;
@@ -95,7 +103,7 @@ function dungeonListHtml(dungeons: DungeonDef[], selected: DungeonDef | undefine
             <div class="head">${d.name}</div>
             <div class="meta"><span class="el el-${d.dominantElement}"></span>${ELEMENT_LABEL[d.dominantElement]} · craint ${ELEMENT_LABEL[d.weakElement]} <span class="el el-${d.weakElement}"></span></div>
             <div class="meta">${d.rooms.length - 1} salle${d.rooms.length > 2 ? 's' : ''} + ${boss?.name ?? 'boss'}</div>
-            <div class="record ${best ? 'done' : ''}">${best ? `★ Diff. ${best.difficulty} · ${best.turns} tours` : 'Pas encore terminé'}</div>
+            <div class="record ${best ? 'done' : ''}">${best ? `${icon('trophy')} Diff. ${best.difficulty} · ${best.turns} tours` : 'Pas encore terminé'}</div>
           </div>
         </button>`;
         })
@@ -103,7 +111,7 @@ function dungeonListHtml(dungeons: DungeonDef[], selected: DungeonDef | undefine
     </div>`;
 }
 
-const ELEMENT_SIGIL: Record<string, string> = { fire: '🜂', water: '🜄', earth: '🜃', air: '🜁', neutral: '◈' };
+const ELEMENT_SIGIL: Record<string, string> = { fire: elementIcon('fire'), water: elementIcon('water'), earth: elementIcon('earth'), air: elementIcon('air'), neutral: elementIcon('neutral') };
 
 // ---------------------------------------------------------------------------
 // Hub (personnage, donjons, grimoire)
@@ -137,7 +145,25 @@ function hubShell(active: HubTab): HTMLElement | null {
   bindHubTabs(app, goTab);
   bindCharacterBanner(app, refreshCurrent);
   window.scrollTo(0, 0);
+  setTimeout(() => hubTips(active), 450);
   return app.querySelector<HTMLElement>('#hub-screen');
+}
+
+/** Première visite de chaque écran : courte visite guidée (une seule fois, coupée par « Passer »). */
+function hubTips(tab: HubTab): void {
+  if (currentTab !== tab || !app.classList.contains('has-hub') || document.querySelector('.ui-sheet.is-open, .overlay, .end-ov')) return;
+  const tours: Record<HubTab, CoachStep[]> = {
+    dungeons: [
+      { target: '.lb-dungeon', title: 'Choisissez un donjon', text: 'Chaque donjon enchaîne plusieurs salles de monstres, puis un boss. Les flèches font défiler les donjons de votre tranche.' },
+      { target: '.lb-steps', title: 'Difficulté', text: 'Plus la difficulté monte, plus les monstres sont résistants… et plus ils rapportent d’XP et de butin.' },
+      { target: '.lb-deck-panel', title: 'Votre deck', text: 'Les sorts que vous emportez au combat. Changez-les dans le Grimoire, votre stuff dans l’Équipement.' },
+      { target: '#start', title: 'À l’attaque !', text: 'Lancez le run. Un petit guide vous attend dans le premier combat.' },
+    ],
+    grimoire: [{ target: '.gr-grid', title: 'Le Grimoire', text: 'Touchez un sort pour lire sa fiche et l’ajouter à votre deck ou l’en retirer. De nouveaux sorts arrivent avec les niveaux.' }],
+    equipment: [{ target: '.eq-doll', title: 'Équipement', text: 'Touchez un objet pour voir ses stats et l’équiper. La flèche verte signale un objet meilleur que celui porté.' }],
+    workshop: [{ target: '[data-seg="ws-mode"]', title: 'L’Atelier', text: 'Fabriquez des objets avec les ressources des donjons, ou recyclez le butin en trop contre des éclats.' }],
+  };
+  if (document.querySelector(tours[tab][0].target as string)) void coachTour(`hub-${tab}`, tours[tab]);
 }
 
 function refreshCurrent(): void {
@@ -175,121 +201,125 @@ function renderSetup(): void {
       }).join('')}
     </div>`;
 
-  const dungeonsTab = `
-    <div class="hub-grid">
-      <div class="hub-main">
-        <section class="card">
-          <div class="panel-title">Choix du donjon</div>
-          ${dungeons.length ? dungeonListHtml(dungeons, dungeon) : `<p class="muted">La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p>`}
-        </section>
-        ${
-          dungeon
-            ? `<section class="card dungeon-detail el-theme-${dungeon.dominantElement}">
-                <div class="dungeon-detail-head">
-                  <span class="dungeon-sigil big">${ELEMENT_SIGIL[dungeon.dominantElement]}${dungeonBannerImg(dungeon.id)}</span>
-                  <div><h2>${dungeon.name}</h2>
-                  <p class="muted">${dungeon.description}</p></div>
-                </div>
-                <div class="room-path">
-                  ${dungeon.rooms
-                    .map((r, i) => {
-                      const isBoss = i === dungeon.rooms.length - 1;
-                      return `<div class="room-step ${isBoss ? 'boss' : ''}"><b>${isBoss ? '☠' : i + 1}</b><span>${r.name}</span><small>${r.monsters.length} monstre${r.monsters.length > 1 ? 's' : ''}</small></div>`;
-                    })
-                    .join('<span class="room-link"></span>')}
-                </div>
-                <p class="muted small">Salles et placements toujours identiques. Boss : <b>${boss?.name ?? '—'}</b>.</p>
-              </section>`
-            : ''
-        }
-      </div>
-      <aside class="side">
-        <section class="card expedition">
-          <div class="panel-title">Expédition</div>
-          <h3>${dungeon?.name ?? 'Aucun donjon'}</h3>
-          <label class="muted small" for="diff">Difficulté</label>
-          <div class="difficulty"><input type="range" min="1" max="${MAX_DIFFICULTY}" value="${save.difficulty}" id="diff" /><strong id="diff-v">${save.difficulty}</strong></div>
-          <p class="muted small" id="diff-mult">PV, dégâts et XP des monstres : ×${difficultyMultiplier(save.difficulty).toFixed(2).replace('.', ',')} à cette difficulté (D5 ×1,70, D10 ×2,84).</p>
-          ${deckStrip}
-          <button class="ghost small-link" id="edit-deck">Modifier le grimoire ›</button>
-          <button class="primary launch" id="start">Lancer le donjon</button>
-          <p class="muted" id="deck-error"></p>
-        </section>
-        ${equipmentSummaryHtml(tranche.id)}
-        <section class="card">
-          <div class="panel-title">Meilleurs runs</div>
-          ${
-            best.length
-              ? `<table class="scores"><tr><th>Diff.</th><th>Tours</th><th>Chrono</th></tr>${best
-                  .map((s) => `<tr><td>${s.difficulty}</td><td>${s.turns}</td><td>${formatTime(s.timeMs)}</td></tr>`)
-                  .join('')}</table>`
-              : '<p class="muted">Aucun run terminé pour l’instant.</p>'
-          }
-        </section>
-      </aside>
-    </div>`;
+  const di = dungeon ? dungeons.indexOf(dungeon) : -1;
+  const prev = di > 0 ? dungeons[di - 1] : undefined;
+  const next = di >= 0 && di < dungeons.length - 1 ? dungeons[di + 1] : undefined;
+  const record = dungeon ? best[0] : undefined;
+  const multLabel = (d: number) => `Monstres : PV, dégâts et XP ×${difficultyMultiplier(d).toFixed(2).replace('.', ',')}`;
+  const dungeonsTab = dungeon
+    ? `
+    <div class="lobby">
+      <section class="lb-stage">
+        <article class="lb-dungeon el-theme-${dungeon.dominantElement}">
+          <div class="lb-art">${dungeonBannerImg(dungeon.id)}
+            ${boss ? `<img class="lb-boss" src="${assetUrl(`units/${boss.id}.png`)}" alt="" draggable="false">` : ''}
+            <span class="lb-ribbon">${record ? `${icon('trophy')} Record : diff. ${record.difficulty} · ${record.turns} tours` : 'Pas encore terminé'}</span>
+            ${prev ? `<button class="ui-icon-btn lb-nav prev" data-dungeon="${prev.id}" aria-label="Donjon précédent : ${prev.name}">${icon('back')}</button>` : ''}
+            ${next ? `<button class="ui-icon-btn lb-nav next" data-dungeon="${next.id}" aria-label="Donjon suivant : ${next.name}">${icon('chevronRight')}</button>` : ''}
+          </div>
+          <div class="lb-body">
+            <h2 class="lb-name">${dungeon.name}</h2>
+            <div class="lb-tags">
+              <span class="ui-chip">${elementIcon(dungeon.dominantElement)} ${ELEMENT_LABEL[dungeon.dominantElement]}</span>
+              <span class="ui-chip lb-weak">Craint ${elementIcon(dungeon.weakElement)} ${ELEMENT_LABEL[dungeon.weakElement]}</span>
+            </div>
+            <div class="lb-rooms">
+              ${dungeon.rooms
+                .map((r, i) => {
+                  const isBoss = i === dungeon.rooms.length - 1;
+                  return `<span class="lb-room ${isBoss ? 'boss' : ''}" title="${r.name} · ${r.monsters.length} monstre${r.monsters.length > 1 ? 's' : ''}">${isBoss ? icon('skull') : i + 1}</span>`;
+                })
+                .join('<i></i>')}
+              <small>${boss ? `Boss : ${boss.name}` : ''}</small>
+            </div>
+          </div>
+        </article>
+        <div class="lb-dots">${dungeons.map((d) => `<button class="${d.id === dungeon.id ? 'on' : ''}" data-dungeon="${d.id}" aria-label="${d.name}"></button>`).join('')}</div>
+      </section>
+      <section class="lb-side">
+        <div class="ui-panel lb-panel">
+          <div class="lb-panel-head">Difficulté <b id="diff-v">${save.difficulty}</b></div>
+          <div class="lb-steps" role="radiogroup" aria-label="Difficulté">
+            ${Array.from({ length: MAX_DIFFICULTY }, (_, i) => i + 1)
+              .map((d) => `<button role="radio" aria-checked="${d === save.difficulty}" class="${d === save.difficulty ? 'on' : ''} ${record && d <= record.difficulty ? 'done' : ''}" data-diff="${d}">${d}</button>`)
+              .join('')}
+          </div>
+          <p class="lb-note" id="diff-mult">${multLabel(save.difficulty)}</p>
+        </div>
+        <div class="ui-panel lb-panel lb-deck-panel">
+          <div class="lb-deck">
+            ${Array.from({ length: tranche.deckSize }, (_, i) => {
+              const sp = loadout.deck[i] ? SPELLS.find((x) => x.id === loadout.deck[i]) : undefined;
+              return sp
+                ? `<div class="lb-card" title="${sp.name}">${spellIconImg(sp.id)}<span class="lb-cost">${sp.pa}</span></div>`
+                : `<div class="lb-card empty"></div>`;
+            }).join('')}
+          </div>
+          <div class="lb-deck-actions">
+            <button class="ui-btn ui-btn--blue ui-btn--sm" id="edit-deck">${icon('grimoire')} Grimoire</button>
+            <button class="ui-btn ui-btn--blue ui-btn--sm" id="open-equipment">${icon('equipment')} Équipement </button>
+          </div>
+        </div>
+        <button class="ui-btn ui-btn--primary ui-btn--xl lb-go" id="start">Combattre</button>
+        <p class="lb-error" id="deck-error"></p>
+      </section>
+    </div>`
+    : `<div class="ui-empty"><b>Aucun donjon</b><p>La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p></div>`;
 
+  const inDeck = new Set(loadout.deck);
   const grimoireTab = `
-    <div class="hub-grid">
-      <div class="hub-main">
-        <section class="card">
-          <div class="panel-title">Sorts <span class="muted" id="deck-count"></span></div>
-          <p class="muted small">Choisissez jusqu’à ${tranche.deckSize} sorts. L’ordre du deck suit celui du grimoire et donne les raccourcis (${slotKeysRange(tranche.deckSize)}).</p>
-          <div class="spell-list">
-            ${spells
-              .map((s) => {
-                const locked = s.level > effLevel;
-                return `
-              <button class="spell-card el-theme-${s.element} ${locked ? 'locked' : ''}" data-spell="${s.id}" ${locked ? 'disabled' : ''}>
-                <span class="spell-card-icon">${spellIconImg(s.id)}</span>
-                <div class="head"><span><span class="el el-${s.element}"></span>${s.name}</span><span class="cost">${locked ? `🔒 Niv. ${s.level}` : `${s.pa} PA`}</span></div>
-                <div class="meta">Niv. ${s.level} · ${ELEMENT_LABEL[s.element]} · ${rangeLabel(s.minRange, s.maxRange)}${s.maxPerTurn ? ` · ${s.maxPerTurn}/tour` : ''}</div>
-                <div class="desc">${s.description}</div>
-              </button>`;
-              })
-              .join('')}
-          </div>
-        </section>
-        <section class="card">
-          <div class="panel-title">Passifs <span class="muted" id="passive-count"></span></div>
-          <div class="passive-list">
-            ${passives
-              .map((p) => {
-                const locked = p.level > effLevel;
-                return `
-              <button class="passive-card ${locked ? 'locked' : ''}" data-passive="${p.id}" ${locked ? 'disabled' : ''}>
-                <div class="head"><span>${p.name}</span><span class="muted">${locked ? '🔒 ' : ''}Niv. ${p.level}</span></div>
-                <div class="desc">${p.description}</div>
-              </button>`;
-              })
-              .join('')}
-          </div>
-        </section>
-      </div>
-      <aside class="side">
-        <section class="card">
-          <div class="panel-title">Barre de sorts</div>
-          ${deckStrip}
-          <button class="primary launch" id="start">Lancer le donjon</button>
-          <p class="muted" id="deck-error"></p>
-        </section>
-        <section class="card hint">
-          <div class="panel-title">Commandes</div>
-          Clic : se déplacer · ${slotKeysRange(tranche.deckSize)} (ou pavé numérique) : choisir un sort · Espace : fin du tour · T : zones de menace · Échap / clic droit : annuler.
-          La Concentration monte de 1 si vous n’avez pas bougé au tour précédent, et baisse de 1 par PM dépensé.
-        </section>
-      </aside>
+    <div class="gr">
+      <section class="ui-panel gr-deck-panel">
+        <div class="gr-head"><span>Deck</span> <b id="deck-count"></b></div>
+        <div class="gr-deck">
+          ${Array.from({ length: tranche.deckSize }, (_, i) => {
+            const sp = loadout.deck[i] ? SPELLS.find((x) => x.id === loadout.deck[i]) : undefined;
+            return sp
+              ? `<button class="lb-card gr-slot" data-open="${sp.id}" aria-label="${sp.name}">${spellIconImg(sp.id)}<span class="lb-cost">${sp.pa}</span></button>`
+              : `<div class="lb-card empty"></div>`;
+          }).join('')}
+        </div>
+        <button class="ui-btn ui-btn--primary ui-btn--lg gr-go" id="start">Combattre</button>
+        <p class="lb-error" id="deck-error"></p>
+      </section>
+      <section class="gr-section">
+        <div class="gr-title">Sorts <small>Touchez une carte pour la voir en détail et l’ajouter au deck.</small></div>
+        <div class="gr-grid">
+          ${spells
+            .map((sp) => {
+              const locked = sp.level > effLevel;
+              return `
+            <button class="gr-card el-theme-${sp.element} ${locked ? 'locked' : ''} ${inDeck.has(sp.id) ? 'in' : ''}" data-open="${sp.id}">
+              <span class="gr-art">${spellIconImg(sp.id)}${locked ? `<span class="gr-lock">${icon('lock')}<b>Niv. ${sp.level}</b></span>` : `<span class="lb-cost">${sp.pa}</span>`}${inDeck.has(sp.id) ? `<span class="gr-check">${icon('check')}</span>` : ''}</span>
+              <span class="gr-name">${sp.name}</span>
+            </button>`;
+            })
+            .join('')}
+        </div>
+      </section>
+      <section class="gr-section">
+        <div class="gr-title">Passifs <b id="passive-count"></b></div>
+        <div class="gr-passives">
+          ${passives
+            .map((pa) => {
+              const locked = pa.level > effLevel;
+              return `
+            <button class="passive-card gr-passive ${locked ? 'locked' : ''}" data-passive="${pa.id}" ${locked ? 'disabled' : ''}>
+              <span class="gr-passive-head"><b>${pa.name}</b><span class="ui-chip">${locked ? icon('lock') + ' ' : ''}Niv. ${pa.level}</span></span>
+              <span class="gr-passive-desc">${pa.description}</span>
+            </button>`;
+            })
+            .join('')}
+        </div>
+      </section>
     </div>`;
 
   const keepScroll = currentTab === tab && app.classList.contains('has-hub') ? window.scrollY : 0;
   const screen = hubShell(tab)!;
   const header =
-    tab === 'dungeons'
-      ? `<header><h1>Donjons</h1><p>Tranche T${tranche.id} · choisissez un donjon, sa difficulté, puis lancez l’expédition</p></header>`
-      : `<header><h1>Grimoire</h1><p>Tranche T${tranche.id} · sorts et passifs emportés en donjon</p></header>`;
+    '';
   screen.innerHTML = `<div class="setup hub">${header}${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>
     <div class="spell-tip grimoire-tip" id="grimoire-tip" hidden></div>`;
-  if (tab === 'grimoire' && dungeon) bindGrimoireSheets(characterRunConfig(character, dungeon.id, save.difficulty), loadout.deck);
   // Le grimoire se redessine à chaque clic : on garde la position de défilement.
   window.scrollTo(0, keepScroll);
   const deck = new Set(loadout.deck);
@@ -306,7 +336,6 @@ function renderSetup(): void {
     );
   };
   const refresh = () => {
-    app.querySelectorAll<HTMLButtonElement>('.spell-card').forEach((b) => b.classList.toggle('selected', deck.has(b.dataset.spell!)));
     app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) => b.classList.toggle('selected', chosenPassives.has(b.dataset.passive!)));
     const dc = app.querySelector('#deck-count');
     if (dc) dc.textContent = `${deck.size} / ${tranche.deckSize}`;
@@ -316,13 +345,30 @@ function renderSetup(): void {
   };
   // Le grimoire redessine l'écran pour mettre à jour la barre de sorts.
   const rerender = () => renderSetup();
-  app.querySelectorAll<HTMLButtonElement>('.spell-card').forEach((b) =>
+  app.querySelectorAll<HTMLButtonElement>('[data-open]').forEach((b) =>
     b.addEventListener('click', () => {
-      const id = b.dataset.spell!;
-      if (deck.has(id)) deck.delete(id);
-      else if (deck.size < tranche.deckSize) deck.add(id);
-      persist();
-      rerender();
+      const id = b.dataset.open!;
+      const sp = SPELLS.find((x) => x.id === id)!;
+      const locked = sp.level > effLevel;
+      const has = deck.has(id);
+      const full = deck.size >= tranche.deckSize;
+      const st = dungeon ? grimoireState(characterRunConfig(character, dungeon.id, save.difficulty), loadout.deck) : null;
+      const action = locked
+        ? `<button class="ui-btn ui-btn--block" disabled>${icon('lock')} Débloqué au niveau ${sp.level}</button>`
+        : has
+          ? `<button class="ui-btn ui-btn--danger ui-btn--block" id="gr-toggle">Retirer du deck</button>`
+          : `<button class="ui-btn ui-btn--primary ui-btn--block" id="gr-toggle" ${full ? 'disabled' : ''}>${full ? `Deck plein (${tranche.deckSize} sorts)` : 'Ajouter au deck'}</button>`;
+      const sheet = openSheet({
+        title: 'Fiche du sort',
+        html: `<div class="gr-sheet">${st ? spellSheet(st, id, { outOfCombat: true }) : `<p>${sp.description}</p>`}</div><div class="gr-sheet-action">${action}</div>`,
+      });
+      sheet.el.querySelector('#gr-toggle')?.addEventListener('click', () => {
+        if (deck.has(id)) deck.delete(id);
+        else if (deck.size < tranche.deckSize) deck.add(id);
+        persist();
+        sheet.close();
+        rerender();
+      });
     }),
   );
   app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) =>
@@ -344,18 +390,21 @@ function renderSetup(): void {
       renderSetup();
     }),
   );
-  const diff = app.querySelector('#diff') as HTMLInputElement | null;
-  const keepDifficulty = () => {
-    if (!diff) return;
-    save.difficulty = Number(diff.value);
-    writeSave(save);
-  };
-  diff?.addEventListener('input', () => {
-    app.querySelector('#diff-v')!.textContent = diff.value;
-    const mult = app.querySelector('#diff-mult');
-    if (mult) mult.textContent = `PV, dégâts et XP des monstres : ×${difficultyMultiplier(Number(diff.value)).toFixed(2).replace('.', ',')} à cette difficulté (D5 ×1,70, D10 ×2,84).`;
-    keepDifficulty();
-  });
+  const keepDifficulty = () => writeSave(save);
+  app.querySelectorAll<HTMLButtonElement>('[data-diff]').forEach((b) =>
+    b.addEventListener('click', () => {
+      save.difficulty = Number(b.dataset.diff);
+      keepDifficulty();
+      app.querySelectorAll<HTMLButtonElement>('[data-diff]').forEach((x) => {
+        const on = x === b;
+        x.classList.toggle('on', on);
+        x.setAttribute('aria-checked', String(on));
+      });
+      app.querySelector('#diff-v')!.textContent = String(save.difficulty);
+      const mult = app.querySelector('#diff-mult');
+      if (mult) mult.textContent = multLabel(save.difficulty);
+    }),
+  );
   app.querySelector('#edit-deck')?.addEventListener('click', () => goTab('grimoire'));
   app.querySelector('#open-equipment')?.addEventListener('click', () => {
     keepDifficulty();
@@ -381,31 +430,16 @@ function renderSetup(): void {
 // Run
 // ---------------------------------------------------------------------------
 
-/**
- * Fiche complète au survol des sorts du grimoire, avec les chiffres réels du personnage
- * (maîtrises de l'équipement porté, passifs choisis) calculés sur un run fictif du donjon choisi.
- */
-function bindGrimoireSheets(baseConfig: RunConfig, deck: string[]): void {
-  let state: RunState;
+/** Run fictif du donjon choisi, pour afficher les chiffres réels des sorts (équipement, passifs) hors combat. */
+function grimoireState(baseConfig: RunConfig, deck: string[]): RunState | null {
   try {
     const config = withEquipment(baseConfig);
-    state = createRun(config.deck.length ? config : { ...config, deck: [SPELLS[0].id] });
+    const state = createRun(config.deck.length ? config : { ...config, deck: [SPELLS[0].id] });
+    state.player.deck = [...deck];
+    return state;
   } catch {
-    return;
+    return null;
   }
-  state.player.deck = [...deck];
-  const tip = app.querySelector('#grimoire-tip') as HTMLElement;
-  app.querySelectorAll<HTMLElement>('.spell-card').forEach((card) => {
-    card.addEventListener('mouseenter', () => {
-      tip.innerHTML = spellSheet(state, card.dataset.spell!, { outOfCombat: true });
-      tip.hidden = false;
-      const r = card.getBoundingClientRect();
-      const left = r.right + 12 + tip.offsetWidth < window.innerWidth ? r.right + 12 : r.left - tip.offsetWidth - 12;
-      tip.style.left = `${Math.max(8, left)}px`;
-      tip.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - tip.offsetHeight - 8))}px`;
-    });
-    card.addEventListener('mouseleave', () => (tip.hidden = true));
-  });
 }
 
 function openEquipment(): void {
@@ -465,28 +499,38 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     sections = renderRunEndSections({ config: v.config, state: v.state, summary, report, character, validated: !!check?.valid });
   }
   const overlay = document.createElement('div');
-  overlay.className = 'overlay';
+  overlay.className = `overlay end-ov ${won ? 'won' : 'lost'}`;
+  const title = won ? 'Victoire !' : abandoned ? 'Run abandonné' : 'Défaite';
   overlay.innerHTML = `
-    <div class="card${rewards ? ' with-loot' : ''}">
-      <div class="end-banner ${won ? 'ok' : 'ko'}"><h2>${won ? 'Victoire !' : abandoned ? 'Run abandonné' : 'Défaite'}</h2></div>
-      <div class="end-stats"><span>Difficulté ${v.config.difficulty}</span><span>${v.state.turn} tours</span><span>⏱ ${formatTime(timeMs)}</span></div>
-      ${check ? `<p class="${check.valid ? 'ok' : 'ko'}">${check.valid ? '✓ Replay validé (même moteur que le serveur)' : `✗ Replay invalide : ${check.reason}`}</p>` : `<p class="muted">Salle ${v.state.roomIndex + 1} atteinte.</p>`}
-      ${loot.length ? lootPanelHtml(loot, v.config) : ''}
-      ${rewards ? rewardsPanelHtml(rewards) : ''}
-      <div class="row">
-        <button class="primary" id="again">Rejouer</button>
-        <button class="secondary" id="equipment">Équipement</button>
-        <button class="secondary" id="workshop">Atelier</button>
-        <button class="secondary" id="back">Préparation</button>
-        <button class="secondary" id="copy">Copier le replay</button>
+    <div class="end-rays" aria-hidden="true"></div>
+    <div class="end-wrap">
+      <div class="end-title"><span>${title}</span></div>
+      <div class="end-chips">
+        <span class="ui-chip">${icon('skull')} Difficulté ${v.config.difficulty}</span>
+        <span class="ui-chip">${icon('turns')} ${v.state.turn} tours</span>
+        <span class="ui-chip">${icon('clock')} ${formatTime(timeMs)}</span>
+        ${check ? `<span class="ui-chip ${check.valid ? 'end-ok' : 'end-ko'}">${check.valid ? `${icon('check')} Score vérifié` : `${icon('cross')} Non vérifié : ${check.reason}`}</span>` : `<span class="ui-chip">Salle ${v.state.roomIndex + 1} atteinte</span>`}
+      </div>
+      <div class="end-body">
+        ${loot.length ? lootPanelHtml(loot, v.config) : ''}
+        ${rewards ? rewardsPanelHtml(rewards) : ''}
+      </div>
+      <div class="end-actions">
+        <button class="ui-btn ui-btn--blue ui-btn--lg" id="back">${icon('home')} Continuer</button>
+        <button class="ui-btn ui-btn--primary ui-btn--lg" id="again">${icon('replay')} Rejouer</button>
+      </div>
+      <div class="end-links">
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="equipment">${icon('equipment')} Équipement</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="workshop">${icon('workshop')} Atelier</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="copy">Copier le replay</button>
       </div>
     </div>`;
-  const sectionsEl = document.createElement('div');
-  sectionsEl.className = 'end-sections';
-  sections.forEach((el) => sectionsEl.appendChild(el));
-  // XP d'abord, puis le butin du boss.
-  overlay.querySelector('.card')!.insertBefore(sectionsEl, overlay.querySelector('.loot') ?? overlay.querySelector('.rewards') ?? overlay.querySelector('.row'));
+  const body = overlay.querySelector('.end-body')!;
+  // XP d'abord, puis le butin du boss et les ressources ; chaque bloc apparaît à son tour.
+  sections.reverse().forEach((el) => body.prepend(el));
+  [...body.children].forEach((el, i) => (el as HTMLElement).style.setProperty('--i', String(i)));
   document.body.appendChild(overlay);
+  if (won) loot.forEach((_, i) => setTimeout(() => sfx('coin'), 900 + i * 220));
   overlay.querySelector('#again')!.addEventListener('click', () => {
     overlay.remove();
     // Le personnage a pu gagner des niveaux : on reprend sa configuration à jour (même deck, même donjon).
@@ -513,7 +557,7 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     const payload = JSON.stringify({ config: v.config, actions: v.state.actionLog, turns: v.state.turn });
     try {
       await navigator.clipboard.writeText(payload);
-      (overlay.querySelector('#copy') as HTMLButtonElement).textContent = 'Copié ✓';
+      (overlay.querySelector('#copy') as HTMLButtonElement).innerHTML = `Copié ${icon('check')}`;
     } catch {
       console.log(payload);
     }
@@ -528,4 +572,56 @@ document.addEventListener('keydown', (e) => {
   if (top && top.querySelector('[data-close]')) top.remove();
 });
 
-renderSetup();
+applySettings();
+trackInputMode();
+unlockAudio();
+// Petit « clic » sur tous les boutons du jeu.
+document.addEventListener('pointerdown', (e) => {
+  const b = (e.target as HTMLElement).closest('.ui-btn:not(:disabled), .ui-icon-btn, .hub-tab, .chip, .gr-card, .eq-tile:not(.empty), .lb-steps button, .lb-dots button');
+  if (b) sfx('tap');
+});
+if (new URLSearchParams(location.search).get('dev') === 'da') {
+  document.getElementById('boot')?.remove();
+  void import('./ui/da-mock').then((m) => m.renderDaMock(app));
+} else if (new URLSearchParams(location.search).get('dev') === 'ui') {
+  document.getElementById('boot')?.remove();
+  void import('./ui/gallery').then((m) => m.renderGallery(app));
+} else {
+  void boot();
+}
+
+
+/** Écran de chargement : polices et images principales, puis le hub (ou la création du personnage). */
+async function boot(): Promise<void> {
+  const BOOT_TIPS = [
+    'Astuce : finir son tour hors de portée des monstres vaut souvent mieux qu’un coup de plus.',
+    'Astuce : chaque PM dépensé fait perdre 1 de Concentration.',
+    'Astuce : les objets mythiques donnent beaucoup plus de stats que les communs.',
+    'Astuce : l’œil du combat montre les zones de menace ennemies.',
+    'Astuce : recyclez le butin en trop à l’Atelier pour fabriquer mieux.',
+  ];
+  const bar = document.getElementById('boot-bar');
+  const tip = document.getElementById('boot-tip');
+  if (tip) tip.textContent = BOOT_TIPS[Math.floor(Math.random() * BOOT_TIPS.length)];
+  const c = getCharacter();
+  const trancheId = c?.trancheId ?? 1;
+  const urls = [
+    'units/archer.png',
+    'ui/hub-bg.webp',
+    ...DUNGEONS.filter((d) => d.tranche === trancheId).flatMap((d) => {
+      const boss = d.rooms[d.rooms.length - 1].monsters.map((m) => getMonster(m.templateId)).find((m) => m.isBoss);
+      return [`dungeons/${d.id}.webp`, ...(boss ? [`units/${boss.id}.png`] : [])];
+    }),
+  ].map(assetUrl);
+  const jobs: Promise<unknown>[] = [document.fonts?.ready ?? Promise.resolve(), ...urls.map((u) => new Promise((r) => { const img = new Image(); img.onload = img.onerror = r; img.src = u; }))];
+  let done = 0;
+  jobs.forEach((j) => void j.then(() => { done++; if (bar) bar.style.width = `${8 + (92 * done) / jobs.length}%`; }));
+  const started = performance.now();
+  await Promise.race([Promise.all(jobs), new Promise((r) => setTimeout(r, 4000))]);
+  // Assez long pour lire la barre pleine, sans jamais faire attendre pour rien.
+  await new Promise((r) => setTimeout(r, Math.max(0, 450 - (performance.now() - started))));
+  renderSetup();
+  const el = document.getElementById('boot');
+  el?.classList.add('is-done');
+  setTimeout(() => el?.remove(), 400);
+}

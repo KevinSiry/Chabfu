@@ -26,6 +26,9 @@ import '../stuff/stuff.css';
 import './craft.css';
 import { itemIconImg } from '../ui/assets';
 import { getCrafting, setCrafting } from './store';
+import { icon } from '../ui/icons';
+import { bindSegmented, openSheet, segmented } from '../ui/components';
+import { itemCardHtml } from '../stuff/item-view';
 
 export interface WorkshopScreenOptions {
   trancheId: number;
@@ -36,6 +39,7 @@ export interface WorkshopScreenOptions {
 let rarityFilter: CraftRarity | 'all' = 'all';
 let dungeonFilter: string | null = null;
 let flash = '';
+let mode: 'craft' | 'recycle' = 'craft';
 
 /** Atelier : ressources et éclats, recettes de craft à rareté fixe, recyclage manuel et automatique. */
 export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions): void {
@@ -51,133 +55,117 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     .filter(([id]) => getItem(id).tranche === o.trancheId)
     .sort((a, b) => b[1] - a[1]);
 
-  app.innerHTML = `
-    <div class="setup stuff">
-      <header><h1>Atelier</h1><p>Tranche T${o.trancheId} · craft et recyclage</p>
-        <button class="secondary" id="craft-back" style="margin-left:auto">← Retour</button></header>
-      <div class="craft-grid">
-        <div class="side">
-          <div class="card">
-            <h3>Éclats T${o.trancheId}</h3>
-            <div class="shards">${shards}</div>
-            <p class="muted">Obtenus en recyclant les objets de la tranche. Ils servent au craft.</p>
-          </div>
-          <div class="card">
-            <h3>Ressources</h3>
-            ${dungeons
-              .map(
-                (d) => `<h4 class="res-dungeon">${d.name}</h4>
-            <div class="res-list">
-              ${dungeonResources(d.id)
-                .map((r) => {
-                  const n = st.resources[r.id] ?? 0;
-                  return `<div class="res-row tier-${r.tier}${n ? '' : ' none'}">
-                    <span>${r.name}<small>${RESOURCE_TIERS[r.tier].label} · dès difficulté ${r.refDifficulty}</small></span><b>${n}</b>
-                  </div>`;
-                })
+  const res = dungeonResources(dungeonId);
+  const craftPane = `
+      <div class="ws-res">
+        <span class="ws-shards">${icon('shard')}<b>${shards}</b><small>Éclats T${o.trancheId}</small></span>
+        ${res
+          .map((r) => {
+            const n = st.resources[r.id] ?? 0;
+            return `<span class="ws-pill tier-${r.tier}${n ? '' : ' none'}" title="${RESOURCE_TIERS[r.tier].label} · dès difficulté ${r.refDifficulty}"><b>${n}</b>${r.name}</span>`;
+          })
+          .join('')}
+      </div>
+      <div class="chips">
+        ${dungeons.map((d) => `<button class="chip${d.id === dungeonId ? ' on' : ''}" data-dfilter="${d.id}">${d.name}</button>`).join('')}
+      </div>
+      <div class="chips">
+        ${(['all', ...CRAFT_RARITIES] as const)
+          .map((r) => `<button class="chip${rarityFilter === r ? ' on' : ''}" data-rfilter="${r}">${r === 'all' ? 'Toutes' : RARITIES[r].label}</button>`)
+          .join('')}
+      </div>
+      <div class="ws-recipes">
+        ${recipes
+          .map((r) => {
+            const miss = missingForRecipe(st, r);
+            const ok = canCraft(st, r);
+            const def = getItem(r.itemId);
+            const ing = (name: string, have: number, need: number, missing: boolean) =>
+              `<div class="ws-ing${missing ? ' miss' : ''}"><span>${name}</span><b>${have}/${need}</b><i style="width:${Math.min(100, (100 * have) / need)}%"></i></div>`;
+            return `<div class="ws-recipe rarity-${r.rarity}">
+              <div class="ws-recipe-head"><span class="eq-tile rarity-${r.rarity}">${itemIconImg(def.kind)}</span><div><b>${def.name}</b><span class="rarity-label">${RARITIES[r.rarity].label}</span></div></div>
+              ${Object.entries(r.resources)
+                .map(([id, n]) => ing(getResource(id).name, st.resources[id] ?? 0, n, !!miss.resources[id]))
                 .join('')}
-            </div>`,
-              )
+              ${r.shards ? ing(`Éclats T${r.tranche}`, shards, r.shards, !!miss.shards) : ''}
+              <button class="ui-btn ${ok ? 'ui-btn--primary' : ''} ui-btn--sm ui-btn--block" data-craft="${r.id}" ${ok ? '' : 'disabled'}>${icon('hammer')} Fabriquer</button>
+            </div>`;
+          })
+          .join('')}
+      </div>`;
+  const recyclePane = `
+      <div class="ws-recycle-top">
+        <span class="ws-shards">${icon('shard')}<b>${shards}</b><small>Éclats T${o.trancheId}</small></span>
+        <label class="ws-field">Recyclage auto après chaque run
+          <select id="auto-recycle">
+            <option value="">Désactivé</option>
+            ${RARITY_ORDER.slice(1)
+              .map((r) => `<option value="${r}" ${st.autoRecycleBelow === r ? 'selected' : ''}>Sous ${RARITIES[r].label}</option>`)
               .join('')}
-            <p class="muted">Tombent à la fin de chaque donjon gagné. Plus la difficulté est haute, plus elles tombent.</p>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>Recettes</h3>
-          <div class="chips">
-            ${dungeons
-              .map((d) => `<button class="chip${d.id === dungeonId ? ' on' : ''}" data-dfilter="${d.id}">${d.name}</button>`)
-              .join('')}
-          </div>
-          <div class="chips">
-            ${(['all', ...CRAFT_RARITIES] as const)
-              .map((r) => `<button class="chip${rarityFilter === r ? ' on' : ''}" data-rfilter="${r}">${r === 'all' ? 'Toutes' : RARITIES[r].label}</button>`)
-              .join('')}
-          </div>
-          <p class="craft-flash" id="craft-flash">${flash}</p>
-          <div class="recipe-list">
-            ${recipes
-              .map((r) => {
-                const miss = missingForRecipe(st, r);
-                const ok = canCraft(st, r);
-                const def = getItem(r.itemId);
-                return `<div class="recipe rarity-${r.rarity}">
-                  <div class="recipe-head"><span class="item-icon kind-${def.kind}">${itemIconImg(def.kind)}</span><div><b>${def.name}</b><br><span class="rarity-label">${RARITIES[r.rarity].label}</span></div></div>
-                  ${Object.entries(r.resources)
-                    .map(
-                      ([id, n]) =>
-                        `<div class="ing${miss.resources[id] ? ' miss' : ''}"><span>${getResource(id).name}</span><span>${st.resources[id] ?? 0}/${n}</span></div>`,
-                    )
-                    .join('')}
-                  ${r.shards ? `<div class="ing${miss.shards ? ' miss' : ''}"><span>Éclats T${r.tranche}</span><span>${shards}/${r.shards}</span></div>` : ''}
-                  <button class="${ok ? 'primary' : 'secondary'}" data-craft="${r.id}" ${ok ? '' : 'disabled'}>Fabriquer</button>
-                </div>`;
-              })
-              .join('')}
-          </div>
-        </div>
-
-        <div class="side">
-          <div class="card">
-            <h3>Recyclage automatique</h3>
-            <p class="muted">Le butin sous cette rareté est recyclé en éclats dès la fin du run.</p>
-            <select id="auto-recycle">
-              <option value="">Désactivé</option>
-              ${RARITY_ORDER.slice(1)
-                .map((r) => `<option value="${r}" ${st.autoRecycleBelow === r ? 'selected' : ''}>Sous ${RARITIES[r].label}</option>`)
-                .join('')}
-            </select>
-          </div>
-          <div class="card">
-            <h3>Sac <span class="muted">${bag.length}</span></h3>
-            <div class="bulk">
-              Recycler tout sous
-              <select id="bulk-rarity">${RARITY_ORDER.slice(1)
-                .map((r) => `<option value="${r}">${RARITIES[r].label}</option>`)
-                .join('')}</select>
-              <button class="secondary" id="bulk-recycle">Recycler</button>
-            </div>
-            <div class="bag-list">
-              ${
-                bag.length
-                  ? bag
-                      .map((it) => {
-                        const eq = isEquipped(inv, it.uid);
-                        return `<div class="bag-row rarity-${it.rarity}">
-                          <span class="bag-name"><span class="item-icon small kind-${getItem(it.itemId).kind}">${itemIconImg(getItem(it.itemId).kind)}</span><span>${getItem(it.itemId).name}<br><span class="rarity-label">${RARITIES[it.rarity].label}</span></span></span>
-                          ${eq ? '<span class="eq-note">Équipé</span>' : `<button class="secondary" data-recycle="${it.uid}">+${SHARDS_BY_RARITY[it.rarity]} éclats</button>`}
-                        </div>`;
-                      })
-                      .join('')
-                  : '<p class="muted">Sac vide.</p>'
-              }
-            </div>
-            <p class="muted">Les objets équipés ne sont jamais recyclés.</p>
-          </div>
-          <div class="card">
-            <h3>Maîtrise d'objet</h3>
-            ${
-              masteries.length
-                ? masteries
-                    .map(([id, n]) => {
-                      const lvl = masteryLevel(n);
-                      const next = MASTERY_THRESHOLDS[lvl];
-                      return `<div class="mastery-row"><span>${getItem(id).name}</span><span>Palier ${lvl} · ${n}${next ? `/${next}` : ''}</span></div>`;
-                    })
-                    .join('')
-                : '<p class="muted">Recyclez plusieurs exemplaires d’un objet pour progresser dans sa maîtrise.</p>'
-            }
-          </div>
+          </select></label>
+        <div class="ws-field ws-bulk">Tout recycler sous
+          <select id="bulk-rarity">${RARITY_ORDER.slice(1)
+            .map((r) => `<option value="${r}">${RARITIES[r].label}</option>`)
+            .join('')}</select>
+          <button class="ui-btn ui-btn--gold ui-btn--sm" id="bulk-recycle">${icon('recycle')} Recycler</button>
         </div>
       </div>
+      ${
+        bag.length
+          ? `<div class="eq-grid ws-bag">${bag
+              .map((it) => {
+                const eq = isEquipped(inv, it.uid);
+                return `<button class="eq-tile rarity-${it.rarity} ${eq ? 'worn' : ''}" data-ritem="${it.uid}" aria-label="${getItem(it.itemId).name}">${itemIconImg(getItem(it.itemId).kind)}</button>`;
+              })
+              .join('')}</div><p class="muted">Touchez un objet pour le recycler. Les objets équipés ne sont jamais recyclés.</p>`
+          : `<div class="ui-empty eq-empty">${icon('bag')}<b>Sac vide</b><p>Le butin des boss arrive ici.</p></div>`
+      }
+      <h3 class="ws-sub">Maîtrise d'objet</h3>
+      ${
+        masteries.length
+          ? masteries
+              .map(([id, n]) => {
+                const lvl = masteryLevel(n);
+                const next = MASTERY_THRESHOLDS[lvl];
+                return `<div class="mastery-row"><span>${getItem(id).name}</span><span>Palier ${lvl} · ${n}${next ? `/${next}` : ''}</span></div>`;
+              })
+              .join('')
+          : '<p class="muted">Recyclez plusieurs exemplaires d’un objet pour progresser dans sa maîtrise.</p>'
+      }`;
+
+  app.innerHTML = `
+    <div class="setup stuff ws">
+      ${segmented('ws-mode', [{ value: 'craft', label: `${icon('hammer')} Fabriquer` }, { value: 'recycle', label: `${icon('recycle')} Recycler` }], mode)}
+      <p class="craft-flash" id="craft-flash">${flash}</p>
+      <section class="ui-panel ws-pane">${mode === 'craft' ? craftPane : recyclePane}</section>
     </div>`;
 
   const rerender = () => renderWorkshopScreen(app, o);
-  app.querySelector('#craft-back')!.addEventListener('click', () => {
+  bindSegmented(app, 'ws-mode', (v) => {
+    mode = v as 'craft' | 'recycle';
     flash = '';
-    o.onBack();
+    rerender();
   });
+  app.querySelectorAll<HTMLButtonElement>('[data-ritem]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const cur = getInventory();
+      const it = cur.items.find((x) => x.uid === b.dataset.ritem);
+      if (!it) return;
+      const eq = isEquipped(cur, it.uid);
+      const sheet = openSheet({
+        title: 'Recycler',
+        html: `${itemCardHtml(it, { inv: cur, trancheId: o.trancheId })}<div class="gr-sheet-action">${
+          eq
+            ? '<button class="ui-btn ui-btn--block" disabled>Équipé : retirez-le d’abord</button>'
+            : `<button class="ui-btn ui-btn--gold ui-btn--block" id="ws-recycle">${icon('recycle')} Recycler : +${SHARDS_BY_RARITY[it.rarity]} éclats</button>`
+        }</div>`,
+      });
+      sheet.el.querySelector('#ws-recycle')?.addEventListener('click', () => {
+        sheet.close();
+        recycle([it.uid]);
+      });
+    }),
+  );
   app.querySelectorAll<HTMLButtonElement>('[data-rfilter]').forEach((b) =>
     b.addEventListener('click', () => {
       rarityFilter = b.dataset.rfilter as CraftRarity | 'all';
@@ -195,7 +183,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
       const res = craft(getInventory(), getCrafting(), b.dataset.craft!);
       setInventory(res.inventory);
       setCrafting(res.crafting);
-      flash = `✓ ${getItem(res.item.itemId).name} (${RARITIES[res.item.rarity].label}) ajouté au sac.`;
+      flash = `${icon('check')} ${getItem(res.item.itemId).name} (${RARITIES[res.item.rarity].label}) ajouté au sac.`;
       rerender();
     }),
   );
@@ -204,16 +192,16 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     setInventory(res.inventory);
     setCrafting(res.crafting);
     const gained = res.shardsGained[o.trancheId] ?? 0;
-    flash = res.recycled.length ? `♻ ${res.recycled.length} objet${res.recycled.length > 1 ? 's' : ''} recyclé${res.recycled.length > 1 ? 's' : ''} : +${gained} éclats.` : '';
+    flash = res.recycled.length ? `${icon('recycle')} ${res.recycled.length} objet${res.recycled.length > 1 ? 's' : ''} recyclé${res.recycled.length > 1 ? 's' : ''} : +${gained} éclats.` : '';
     rerender();
   };
   app.querySelectorAll<HTMLButtonElement>('[data-recycle]').forEach((b) => b.addEventListener('click', () => recycle([b.dataset.recycle!])));
-  app.querySelector('#bulk-recycle')!.addEventListener('click', () => {
+  app.querySelector('#bulk-recycle')?.addEventListener('click', () => {
     const below = (app.querySelector('#bulk-rarity') as HTMLSelectElement).value as Rarity;
     const rank = RARITY_ORDER.indexOf(below);
     recycle(bag.filter((it) => RARITY_ORDER.indexOf(it.rarity) < rank).map((it) => it.uid));
   });
-  app.querySelector('#auto-recycle')!.addEventListener('change', (e) => {
+  app.querySelector('#auto-recycle')?.addEventListener('change', (e) => {
     const v = (e.target as HTMLSelectElement).value;
     setCrafting(setAutoRecycle(getCrafting(), v ? (v as Rarity) : null));
   });

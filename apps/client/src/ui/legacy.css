@@ -1,16 +1,16 @@
 /*
- * Habillage peint (public/assets/ui) : cadres en 9-slice, boutons, emplacements, médaillons.
+ * Règles de mise en page héritées de l'ancien habillage (images retirées). À vider écran par écran.
  * Chargé après les styles de base : si une image manque, le style CSS de base reste dessous.
  */
 :root {
-  --img-panel: url('/assets/ui/panel.webp');
-  --img-btn-gold: url('/assets/ui/btn-gold.webp');
-  --img-btn-wood: url('/assets/ui/btn-wood.webp');
-  --img-slot: url('/assets/ui/slot.webp');
-  --img-medal: url('/assets/ui/medal-frame.webp');
-  --img-orb: url('/assets/ui/orb-frame.webp');
-  --img-wood: url('/assets/ui/wood.webp');
-  --img-hub-bg: url('/assets/ui/hub-bg.webp');
+  --img-panel: none;
+  --img-btn-gold: none;
+  --img-btn-wood: none;
+  --img-slot: none;
+  --img-medal: none;
+  --img-orb: none;
+  --img-wood: none;
+  --img-hub-bg: none;
 }
 
 body { background: linear-gradient(180deg, rgba(14, 10, 7, 0.55), rgba(14, 10, 7, 0.85)), var(--img-wood) 0 0 / 256px repeat, var(--wood-950); }
@@ -105,8 +105,6 @@ body { background: linear-gradient(180deg, rgba(14, 10, 7, 0.55), rgba(14, 10, 7
 .item-icon.small { width: 34px; height: 34px; border-radius: 8px; }
 .item-icon::before { content: ''; font-size: 22px; opacity: 0.45; }
 .item-icon:has(> img)::before { content: none; }
-.kind-arc::before { content: '🏹'; } .kind-carquois::before { content: '➶'; } .kind-coiffe::before { content: '⛑'; } .kind-cape::before { content: '🍂'; }
-.kind-plastron::before { content: '⛨'; } .kind-bottes::before { content: '👢'; } .kind-amulette::before { content: '✧'; } .kind-anneau::before { content: '◍'; }
 
 .item-card { padding: 12px; border: 3px solid var(--wood-950); box-shadow: 0 0 0 2px var(--r), 0 5px 0 var(--wood-950), 0 10px 18px rgba(0, 0, 0, 0.45); background: linear-gradient(180deg, color-mix(in srgb, var(--r) 14%, var(--wood-700)), var(--wood-800)); border-radius: var(--radius); }
 .item-card.rarity-legendary { box-shadow: 0 0 0 2px var(--r), 0 5px 0 var(--wood-950), 0 0 22px rgba(242, 160, 61, 0.6); }
@@ -151,9 +149,9 @@ table.scores td:last-child { white-space: nowrap; text-align: right; }
 .overlay .card { max-width: 520px; }
 .overlay .card.with-loot { max-width: 800px; }
 .end-banner { position: relative; margin: -6px auto 6px; display: grid; place-items: center; min-height: 92px; }
-.end-banner::before { content: ''; position: absolute; left: 50%; top: 50%; width: 520px; height: 520px; transform: translate(-50%, -50%); background: url('/assets/ui/rays.webp') center / contain no-repeat; opacity: 0.8; animation: rays-spin 24s linear infinite; pointer-events: none; z-index: -1; }
+.end-banner::before { content: ''; position: absolute; left: 50%; top: 50%; width: 520px; height: 520px; transform: translate(-50%, -50%); background: none center / contain no-repeat; opacity: 0.8; animation: rays-spin 24s linear infinite; pointer-events: none; z-index: -1; }
 .end-banner.ko::before { display: none; }
-.end-banner h2 { position: relative; margin: 0; padding: 20px 120px 30px; font-size: 38px; color: #fff; background: url('/assets/ui/ribbon.webp') center / 100% 100% no-repeat; text-shadow: 0 3px 0 #5a1208, 2px 2px 0 #5a1208, -2px 2px 0 #5a1208, 2px -2px 0 #5a1208, -2px -2px 0 #5a1208, 0 6px 10px rgba(0, 0, 0, 0.5); animation: pop 0.5s ease-out; }
+.end-banner h2 { position: relative; margin: 0; padding: 20px 120px 30px; font-size: 38px; color: #fff; background: none center / 100% 100% no-repeat; text-shadow: 0 3px 0 #5a1208, 2px 2px 0 #5a1208, -2px 2px 0 #5a1208, 2px -2px 0 #5a1208, -2px -2px 0 #5a1208, 0 6px 10px rgba(0, 0, 0, 0.5); animation: pop 0.5s ease-out; }
 .end-banner.ko h2 { filter: grayscale(0.7) brightness(0.8); }
 @keyframes rays-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 .end-stats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 6px 0; }

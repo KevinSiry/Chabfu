@@ -3,36 +3,34 @@
  * Actif quand <html data-skin="nuit"> (posé dans index.html). Remplace les cadres peints en 9-slice
  * par des surfaces lisses (verre dépoli, aplats, dégradés doux) et une typographie nette.
  */
-@import '@fontsource/outfit/500.css';
-@import '@fontsource/outfit/600.css';
-@import '@fontsource/outfit/700.css';
 
 /* ---------- Jetons ---------- */
 :root[data-skin='nuit'] {
-  --ng-bg: #0b1020;
-  --ng-surface: rgba(17, 23, 39, 0.74);
-  --ng-surface-2: rgba(255, 255, 255, 0.06);
-  --ng-surface-solid: #141b2d;
-  --ng-border: rgba(255, 255, 255, 0.1);
-  --ng-border-strong: rgba(255, 255, 255, 0.24);
-  --ng-text: #eef2fb;
-  --ng-muted: #93a0b8;
-  --ng-title: #ffffff;
-  --ng-accent: #5ee0d0;
-  --ng-cta-a: #ffd56e;
-  --ng-cta-b: #f59e2b;
-  --ng-cta-ink: #2a1600;
-  --ng-cta-glow: rgba(245, 158, 43, 0.35);
-  --ng-track: rgba(255, 255, 255, 0.08);
-  --ng-slot: linear-gradient(180deg, #24324d, #141c2f);
-  --ng-veil: linear-gradient(180deg, rgba(8, 12, 24, 0.5), rgba(8, 12, 24, 0.86));
-  --ng-scene-veil: radial-gradient(ellipse at 50% 45%, rgba(8, 12, 24, 0.15), rgba(8, 12, 24, 0.75));
-  --ng-bg-blur: 6px;
-  --ng-bg-bright: 0.8;
-  --ng-bar: rgba(12, 17, 30, 0.72);
-  --ng-title-font: 'Outfit', system-ui, sans-serif;
-  --ng-title-weight: 700;
-  --ng-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  /* Remappés sur les jetons de la direction « Arène » (tokens.css). */
+  --ng-bg: var(--c-bg);
+  --ng-surface: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b));
+  --ng-surface-2: var(--c-fill);
+  --ng-surface-solid: var(--c-surface-solid);
+  --ng-border: var(--c-line);
+  --ng-border-strong: var(--c-line-strong);
+  --ng-text: var(--c-text);
+  --ng-muted: var(--c-text-2);
+  --ng-title: #fff;
+  --ng-accent: var(--c-accent);
+  --ng-cta-a: var(--c-cta-a);
+  --ng-cta-b: var(--c-cta-b);
+  --ng-cta-ink: #fff;
+  --ng-cta-glow: rgba(0, 0, 0, 0.3);
+  --ng-track: var(--c-ink);
+  --ng-slot: var(--c-well);
+  --ng-veil: radial-gradient(ellipse at 50% 0%, rgba(58, 44, 134, 0.75), rgba(20, 13, 52, 0.96) 70%);
+  --ng-scene-veil: radial-gradient(ellipse at 50% 45%, rgba(20, 13, 52, 0.05), rgba(20, 13, 52, 0.55));
+  --ng-bg-blur: 10px;
+  --ng-bg-bright: 0.9;
+  --ng-bar: linear-gradient(180deg, #2a1f66, #170f40);
+  --ng-title-font: var(--font-display);
+  --ng-title-weight: 400;
+  --ng-shadow: 0 0 0 3px var(--c-ink), inset 0 2px 0 var(--c-panel-hi), 0 6px 0 3px rgba(0, 0, 0, 0.25);
 }
 
 /* Anciens jetons recâblés : le contenu généré suit la direction choisie. */
@@ -81,12 +79,11 @@
 /* ---------- Surfaces ---------- */
 :root[data-skin] .card, :root[data-skin] .frame {
   background: var(--ng-surface);
-  border: 1px solid var(--ng-border);
+  border: 0;
   border-image: none;
-  border-radius: 18px;
-  box-shadow: var(--ng-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  box-shadow: var(--ng-shadow);
   filter: none;
-  backdrop-filter: blur(16px) saturate(1.2);
   padding: 16px 18px;
 }
 :root[data-skin] .panel-title { margin: 0 0 10px; font-family: var(--ng-title-font); font-weight: 600; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ng-muted); text-shadow: none; }

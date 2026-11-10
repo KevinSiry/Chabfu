@@ -5,8 +5,6 @@
 import { Application, Assets, Container, Graphics, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import type { Pos, RoomState } from '@chabfu/engine';
 import {
-  CANVAS_H,
-  CANVAS_W,
   TILE_H,
   TILE_W,
   toScreen,
@@ -113,12 +111,18 @@ interface UnitView {
   initial: Text;
   sprite: Sprite | null;
   bars: Graphics;
+  hpText: Text;
   intent: Text;
   pm: Text;
   seed: number;
 }
 
-const LABEL_STYLE = new TextStyle({ fontFamily: 'Outfit, system-ui, sans-serif', fontSize: 13, fontWeight: '700', fill: 0xffffff });
+/** Taille relative des créatures (les sprites remplissent tous leur canevas) : petites bêtes plus petites. */
+const UNIT_SIZE: Record<string, number> = { salamandre: 0.75, sangsue_geante: 0.82, crapaud_vaseux: 0.85, nuee_moustiques: 0.85, guepe: 0.9 };
+const INK = 0x140c38;
+const FONT_FUN = "'Lilita One', 'Nunito', system-ui, sans-serif";
+const LABEL_STYLE = new TextStyle({ fontFamily: FONT_FUN, fontSize: 13, fill: 0xffffff, stroke: { color: INK, width: 4, join: 'round' } });
+const HP_STYLE = new TextStyle({ fontFamily: FONT_FUN, fontSize: 10, fill: 0xffffff, stroke: { color: INK, width: 3, join: 'round' } });
 
 export class PixiBoard {
   readonly app: Application;
@@ -146,21 +150,96 @@ export class PixiBoard {
   static async create(host: HTMLElement): Promise<PixiBoard> {
     const app = new Application();
     await app.init({
-      width: CANVAS_W,
-      height: CANVAS_H,
+      width: Math.max(1, host.clientWidth),
+      height: Math.max(1, host.clientHeight),
       backgroundAlpha: 0,
       antialias: true,
-      resolution: window.devicePixelRatio || 1,
+      resolution: Math.min(2, window.devicePixelRatio || 1),
       autoDensity: true,
       preference: 'webgl',
     });
     app.ticker.stop(); // combat.ts pilote le rendu image par image
     app.canvas.id = 'board';
-    // La taille d'affichage suit le conteneur (#board-wrap) ; la résolution interne reste 900×600.
+    // Le canvas remplit son conteneur ; la scène est cadrée dans la zone libre (voir setInsets).
     app.canvas.style.width = '100%';
-    app.canvas.style.height = 'auto';
+    app.canvas.style.height = '100%';
     host.prepend(app.canvas);
-    return new PixiBoard(app);
+    const board = new PixiBoard(app);
+    board.host = host;
+    return board;
+  }
+
+  private host: HTMLElement | null = null;
+  private w = 0;
+  private h = 0;
+  /** Marges occupées par le HUD (px CSS) : la salle est cadrée dans ce qui reste. */
+  private insets = { top: 0, right: 0, bottom: 0, left: 0 };
+  /** Zoom et décalage choisis par le joueur (pincer, molette, glisser). */
+  private zoom = 1;
+  private pan = { x: 0, y: 0 };
+  /** Centre de la zone libre (px CSS). */
+  private anchor = { x: 0, y: 0 };
+  private shakeAmp = 0;
+  private shakeStart = 0;
+  private shakeMs = 1;
+  private particles: { cx: number; cy: number; x: number; y: number; vx: number; vy: number; born: number; life: number; color: number; r: number }[] = [];
+
+  setInsets(i: { top: number; right: number; bottom: number; left: number }): void {
+    this.insets = i;
+  }
+
+  /** Zoom autour d'un point écran (px CSS). */
+  zoomAt(factor: number, cx: number, cy: number): void {
+    const next = Math.min(2.6, Math.max(1, this.zoom * factor));
+    const f = next / this.zoom;
+    // Garde le point sous le doigt fixe : pan' = pan·f + (point − centre)·(1 − f).
+    this.pan.x = this.pan.x * f + (cx - this.anchor.x) * (1 - f);
+    this.pan.y = this.pan.y * f + (cy - this.anchor.y) * (1 - f);
+    this.zoom = next;
+    if (next === 1) this.pan = { x: 0, y: 0 };
+  }
+
+  panBy(dx: number, dy: number): void {
+    if (this.zoom <= 1) return;
+    this.pan.x += dx;
+    this.pan.y += dy;
+  }
+
+  /** Secousse de l'écran (coup reçu, coup critique). */
+  shake(amp: number, ms = 260): void {
+    if (document.documentElement.dataset.motion === 'reduced') return;
+    this.shakeAmp = Math.max(this.shakeAmp * this.shakeLeft(), amp);
+    this.shakeStart = performance.now();
+    this.shakeMs = ms;
+  }
+
+  private shakeLeft(): number {
+    return Math.max(0, 1 - (performance.now() - this.shakeStart) / this.shakeMs);
+  }
+
+  /** Gerbe de particules sur une case (impact, mort). */
+  burst(cell: { x: number; y: number }, color: string, count = 14, power = 1): void {
+    const col = parseColor(color).color;
+    const now = performance.now();
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = (60 + Math.random() * 120) * power;
+      this.particles.push({ cx: cell.x, cy: cell.y, x: 0, y: -28, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 80 * power, born: now, life: 380 + Math.random() * 260, color: col, r: 2 + Math.random() * 3 });
+    }
+  }
+
+  resetView(): void {
+    this.zoom = 1;
+    this.pan = { x: 0, y: 0 };
+  }
+
+  get zoomed(): boolean {
+    return this.zoom > 1.01;
+  }
+
+  /** Échelle actuelle de la scène (pour garder les textes lisibles). */
+  get scale(): number {
+    return this.app.stage.scale.x;
   }
 
   get canvas(): HTMLCanvasElement {
@@ -171,30 +250,67 @@ export class PixiBoard {
     this.app.destroy(true, { children: true });
   }
 
-  /** Coordonnées canvas (900×600) -> coordonnées de scène (avant cadrage). */
+  /** Coordonnées écran (px CSS relatifs au canvas) -> coordonnées de scène. */
   screenToScene(x: number, y: number): { x: number; y: number } {
     const st = this.app.stage;
     return { x: (x - st.position.x) / st.scale.x, y: (y - st.position.y) / st.scale.y };
   }
 
-  /** Cadre la salle pour qu'elle occupe le plateau, avec de la marge pour les unités et étiquettes. */
+  /** Coordonnées de scène -> écran (px CSS relatifs au canvas). */
+  sceneToScreen(x: number, y: number): { x: number; y: number } {
+    const st = this.app.stage;
+    return { x: x * st.scale.x + st.position.x, y: y * st.scale.y + st.position.y };
+  }
+
+  private syncSize(): void {
+    const host = this.host;
+    if (!host) return;
+    const w = Math.max(1, host.clientWidth);
+    const h = Math.max(1, host.clientHeight);
+    if (w !== this.w || h !== this.h) {
+      this.w = w;
+      this.h = h;
+      this.app.renderer.resize(w, h);
+    }
+  }
+
+  /** Cadre la salle dans la zone libre du HUD, avec de la marge pour les unités et étiquettes. */
   private fit(room: RoomState): void {
     const top = toScreen(room, 0, 0);
     const right = toScreen(room, room.width - 1, 0);
     const bottom = toScreen(room, room.width - 1, room.height - 1);
     const left = toScreen(room, 0, room.height - 1);
-    const x0 = left.x - TILE_W / 2 - 10;
-    const x1 = right.x + TILE_W / 2 + 10;
-    const y0 = top.y - TILE_H / 2 - 105;
-    const y1 = bottom.y + TILE_H / 2 + 26;
-    const k = Math.min(CANVAS_W / (x1 - x0), CANVAS_H / (y1 - y0), 1.7);
+    const x0 = left.x - TILE_W / 2 - 6;
+    const x1 = right.x + TILE_W / 2 + 6;
+    const y0 = top.y - TILE_H / 2 - 44;
+    const y1 = bottom.y + TILE_H / 2 + 16;
+    const i = this.insets;
+    const aw = Math.max(80, this.w - i.left - i.right);
+    const ah = Math.max(80, this.h - i.top - i.bottom);
+    const base = Math.min(aw / (x1 - x0), ah / (y1 - y0), 2.2);
+    const k = base * this.zoom;
     const st = this.app.stage;
     st.scale.set(k);
-    st.position.set((CANVAS_W - (x1 - x0) * k) / 2 - x0 * k, (CANVAS_H - (y1 - y0) * k) / 2 - y0 * k);
+    this.anchor = { x: i.left + aw / 2, y: i.top + ah / 2 };
+    const cx = this.anchor.x - ((x0 + x1) / 2) * k;
+    const cy = this.anchor.y - ((y0 + y1) / 2) * k;
+    // Le décalage du joueur est borné pour ne pas perdre la salle hors de l'écran.
+    const maxX = ((x1 - x0) * k) / 2;
+    const maxY = ((y1 - y0) * k) / 2;
+    this.pan.x = Math.max(-maxX, Math.min(maxX, this.pan.x));
+    this.pan.y = Math.max(-maxY, Math.min(maxY, this.pan.y));
+    st.position.set(cx + this.pan.x, cy + this.pan.y);
   }
 
   render(scene: Scene): void {
+    this.syncSize();
     this.fit(scene.room);
+    const left = this.shakeLeft();
+    if (left > 0 && this.shakeAmp > 0) {
+      const a = this.shakeAmp * left * left;
+      this.app.stage.position.x += (Math.random() * 2 - 1) * a;
+      this.app.stage.position.y += (Math.random() * 2 - 1) * a;
+    }
     this.drawFloor(scene.room, scene.theme);
     this.drawOverlay(scene);
     this.drawArrows(scene.room, scene.arrows);
@@ -224,11 +340,10 @@ export class PixiBoard {
     const bottom = toScreen(room, room.width - 1, room.height - 1);
     const left = toScreen(room, 0, room.height - 1);
     const depth = 14;
-    g.poly([left.x - TILE_W / 2, left.y, bottom.x, bottom.y + TILE_H / 2, bottom.x, bottom.y + TILE_H / 2 + depth, left.x - TILE_W / 2, left.y + depth]).fill({ color: 0x141c2e, alpha: 0.92 });
-    g.poly([bottom.x, bottom.y + TILE_H / 2, right.x + TILE_W / 2, right.y, right.x + TILE_W / 2, right.y + depth, bottom.x, bottom.y + TILE_H / 2 + depth]).fill({ color: 0x0d1424, alpha: 0.92 });
-    // Liseré clair sur l'arête avant du socle (habillage verre nocturne).
-    g.moveTo(left.x - TILE_W / 2, left.y).lineTo(bottom.x, bottom.y + TILE_H / 2).lineTo(right.x + TILE_W / 2, right.y).stroke({ width: 1.5, color: 0xffffff, alpha: 0.22 });
-    void top;
+    g.poly([left.x - TILE_W / 2, left.y, bottom.x, bottom.y + TILE_H / 2, bottom.x, bottom.y + TILE_H / 2 + depth, left.x - TILE_W / 2, left.y + depth]).fill(0x3b2c8a).stroke({ width: 3, color: INK, join: 'round' });
+    g.poly([bottom.x, bottom.y + TILE_H / 2, right.x + TILE_W / 2, right.y, right.x + TILE_W / 2, right.y + depth, bottom.x, bottom.y + TILE_H / 2 + depth]).fill(0x271c64).stroke({ width: 3, color: INK, join: 'round' });
+    // Contour sombre épais tout autour du plateau (DA Arène).
+    g.poly([top.x, top.y - TILE_H / 2, right.x + TILE_W / 2, right.y, bottom.x, bottom.y + TILE_H / 2, left.x - TILE_W / 2, left.y]).stroke({ width: 4, color: INK, join: 'round' });
     for (let y = 0; y < room.height; y++) {
       for (let x = 0; x < room.width; x++) {
         const c = toScreen(room, x, y);
@@ -238,8 +353,8 @@ export class PixiBoard {
           const tex = solB && n > 0.55 ? solB : solA;
           const sp = new Sprite(tex);
           sp.anchor.set(0.5);
-          sp.width = TILE_W + 1;
-          sp.height = TILE_H + 1;
+          sp.width = TILE_W + 3; // chevauchement : pas de liseré d'anticrénelage entre les tuiles
+          sp.height = TILE_H + 2;
           sp.position.set(c.x, c.y);
           sp.tint = (x + y) % 2 === 0 ? 0xffffff : 0xe6e6e6;
           this.floorTiles.addChild(sp);
@@ -319,7 +434,7 @@ export class PixiBoard {
         if (h.color) {
           const col = fill(h.color);
           g.poly(diamondPts(c)).fill({ color: col.color, alpha: Math.min(0.85, col.alpha * 1.5) });
-          g.poly(diamondPts(c, 0, 1.5)).stroke({ width: 1.5, color: col.color, alpha: 0.9 });
+          g.poly(diamondPts(c, 0, 1.5)).stroke({ width: 2, color: col.color, alpha: 1 });
         }
         if (h.hatch) {
           const hc = fill(h.hatch);
@@ -334,17 +449,17 @@ export class PixiBoard {
     }
     for (const p of scene.path) {
       const c = toScreen(room, p.x, p.y);
-      g.poly(diamondPts(c)).fill({ color: 0x5ee0d0, alpha: 0.42 });
+      g.poly(diamondPts(c)).fill({ color: 0xffe866, alpha: 0.45 });
     }
     if (scene.path.length) {
       const pts = scene.path.map((p) => toScreen(room, p.x, p.y));
       const end = pts[pts.length - 1];
-      g.circle(end.x, end.y, 4).fill(0xe8fffb);
+      g.circle(end.x, end.y, 5).fill(0xffe866).stroke({ width: 2, color: INK });
     }
     if (scene.hover) {
       const c = toScreen(room, scene.hover.x, scene.hover.y);
       const pulse = 0.65 + 0.35 * Math.sin(scene.now / 180);
-      g.poly(diamondPts(c)).stroke({ width: 2, color: 0x5ee0d0, alpha: pulse });
+      g.poly(diamondPts(c, 0, 1)).stroke({ width: 3, color: 0xffe866, alpha: pulse });
     }
   }
 
@@ -387,13 +502,15 @@ export class PixiBoard {
     const bars = new Graphics();
     const intent = new Text({ text: '', style: { ...LABEL_STYLE, fontSize: 11 } });
     intent.anchor.set(0.5, 1);
-    const pm = new Text({ text: '', style: { ...LABEL_STYLE, fontSize: 10, fill: 0x6fb8f0 } });
+    const hpText = new Text({ text: '', style: HP_STYLE });
+    hpText.anchor.set(0.5);
+    const pm = new Text({ text: '', style: { ...LABEL_STYLE, fontSize: 10, fill: 0x6cc0ff } });
     pm.anchor.set(0, 0.5);
-    root.addChild(shadow, ring, body, bars, intent, pm);
+    root.addChild(shadow, ring, body, bars, hpText, intent, pm);
     this.depth.addChild(root);
     let seed = 0;
     for (const ch of u.id) seed = (seed * 31 + ch.charCodeAt(0)) % 1000;
-    return { root, shadow, ring, body, fallback, initial, sprite: null, bars, intent, pm, seed };
+    return { root, shadow, ring, body, fallback, initial, sprite: null, bars, hpText, intent, pm, seed };
   }
 
   private syncUnits(scene: Scene): void {
@@ -419,8 +536,10 @@ export class PixiBoard {
       v.shadow.clear().ellipse(0, 0, r * 1.15, r * 0.5).fill({ color: 0x000000, alpha: 0.35 });
       const fc = focus.get(u.id);
       v.ring.clear();
-      if (fc) v.ring.ellipse(0, 0, r * 1.6, r * 0.75).stroke({ width: 3, ...fill(fc) });
-      else if (u.team === 'player') v.ring.ellipse(0, 0, r * 1.3, r * 0.6).stroke({ width: 2, color: 0x9be89f, alpha: 0.7 });
+      // Socle coloré par équipe (boss doré), contour sombre.
+      const teamCol = u.team === 'player' ? 0x57e06a : u.isBoss ? 0xffc23a : 0xff5a52;
+      v.ring.ellipse(0, 0, r * 1.35, r * 0.62).fill({ color: teamCol, alpha: 0.35 }).stroke({ width: 2.5, color: teamCol });
+      if (fc) v.ring.ellipse(0, 0, r * 1.7, r * 0.8).stroke({ width: 3, ...fill(fc) });
 
       // Corps : sprite généré s'il existe, sinon silhouette dessinée.
       const tex = unitTexture(u.templateId);
@@ -429,12 +548,12 @@ export class PixiBoard {
       if (tex) {
         if (!v.sprite) {
           v.sprite = new Sprite(tex);
-          v.sprite.anchor.set(0.5, 0.92);
+          v.sprite.anchor.set(0.5, 0.96); // sprites Arène : pieds au bas du canevas
           v.body.addChild(v.sprite);
           v.fallback.visible = false;
           v.initial.visible = false;
         }
-        const h = (u.isBoss ? 96 : 66);
+        const h = (u.isBoss ? 96 : 66) * (UNIT_SIZE[u.templateId] ?? 1);
         v.sprite.scale.set(h / tex.height);
         v.sprite.position.set(0, bob);
         v.sprite.tint = flash ? 0xff8080 : 0xffffff;
@@ -446,31 +565,40 @@ export class PixiBoard {
         headY = body - r * 1.25;
       }
 
-      // Barre de PV et états
-      const w = 36 * scale;
-      const top = headY - 9;
+      // Barre de PV chiffrée et états (contour sombre épais, reflet clair).
+      const w = 40 * scale;
+      const bh = 9;
+      const top = headY - 12;
       const ratio = Math.max(0, u.hp) / u.maxHp;
+      const hpCol = u.team === 'player' ? 0x57e06a : 0xff5a52;
       v.bars.clear();
-      v.bars.roundRect(-w / 2 - 1.5, top - 1.5, w + 3, 8, 4).fill({ color: 0x0b1020, alpha: 0.78 });
+      v.bars.roundRect(-w / 2 - 2, top - 2, w + 4, bh + 4, 6).fill(INK);
       const hpp = scene.hpPreview?.get(u.id);
+      const seg = (from: number, to: number, color: number, alpha = 1) => {
+        if (to - from <= 0) return;
+        v.bars.roundRect(-w / 2 + w * from, top, Math.max(3, w * (to - from)), bh, 4).fill({ color, alpha });
+      };
       if (hpp) {
         // Aperçu du sort visé : PV restants, part de la brûlure (orange), perte immédiate (blanc pulsé).
         const after = Math.max(0, hpp.hpAfter) / u.maxHp;
         const burn = Math.min(hpp.burn, Math.max(0, hpp.hpAfter)) / u.maxHp;
         const pulse = 0.45 + 0.4 * Math.sin(scene.now / 140);
-        v.bars.roundRect(-w / 2 - 3, top - 3, w + 6, 11, 5).stroke({ width: 1.5, color: hpp.killed ? 0xff6b62 : 0xffffff, alpha: 0.85 });
-        if (ratio > 0) v.bars.roundRect(-w / 2, top, Math.max(5, w * ratio), 5, 2.5).fill({ color: 0xffffff, alpha: pulse });
-        if (after > 0) v.bars.roundRect(-w / 2, top, Math.max(3, w * after), 5, 2.5).fill(0xff9b4a);
-        if (after - burn > 0) v.bars.roundRect(-w / 2, top, Math.max(3, w * (after - burn)), 5, 2.5).fill(0xe0544f);
-      } else if (ratio > 0) v.bars.roundRect(-w / 2, top, Math.max(5, w * ratio), 5, 2.5).fill(u.team === 'player' ? 0x6cc070 : 0xe0544f);
-      if (u.burning) v.bars.circle(w / 2 + 6, top + 2, 4.5).fill(0xe8643c).stroke({ width: 1, color: 0x1b1f2a });
+        v.bars.roundRect(-w / 2 - 4, top - 4, w + 8, bh + 8, 7).stroke({ width: 2, color: hpp.killed ? 0xff3b3b : 0xffffff, alpha: 0.95 });
+        seg(0, ratio, 0xffffff, pulse);
+        seg(0, after, 0xff9b4a);
+        seg(0, after - burn, hpCol);
+      } else seg(0, ratio, hpCol);
+      if (ratio > 0) v.bars.roundRect(-w / 2 + 2, top + 1.5, Math.max(1, w * ratio - 4), 2, 1).fill({ color: 0xffffff, alpha: 0.45 });
+      v.hpText.text = String(Math.max(0, hpp ? Math.max(0, hpp.hpAfter) : u.hp));
+      v.hpText.position.set(0, top + bh / 2);
+      if (u.burning) v.bars.circle(w / 2 + 8, top + bh / 2, 5.5).fill(0xff7a45).stroke({ width: 2, color: INK });
       v.pm.text = u.pmMalus > 0 ? `-${u.pmMalus}PM` : '';
-      v.pm.position.set(w / 2 + (u.burning ? 13 : 4), top + 2);
+      v.pm.position.set(w / 2 + (u.burning ? 16 : 5), top + bh / 2);
 
       const intent = scene.intents.get(u.id);
       v.intent.text = intent?.text ?? '';
       v.intent.style.fill = intent ? parseColor(intent.color).color : 0xffffff;
-      v.intent.position.set(0, top - 3);
+      v.intent.position.set(0, top - 4);
     }
     for (const [id, v] of this.units) {
       if (alive.has(id)) continue;
@@ -529,6 +657,19 @@ export class PixiBoard {
         g.circle(b.x, b.y - 28, 6 + k * 14).stroke({ width: 3, color: col, alpha: 1 - k });
       }
     }
+    // Particules : gravité légère, contour sombre pour rester lisibles sur tous les sols.
+    const now = performance.now();
+    this.particles = this.particles.filter((p) => now - p.born < p.life);
+    for (const p of this.particles) {
+      const t = (now - p.born) / 1000;
+      const k = (now - p.born) / p.life;
+      const c = toScreen(scene.room, p.cx, p.cy);
+      const x = c.x + p.x + p.vx * t;
+      const y = c.y + p.y + p.vy * t + 260 * t * t;
+      const r = p.r * (1 - k * 0.6);
+      g.circle(x, y, r + 1.2).fill({ color: INK, alpha: 0.6 * (1 - k) });
+      g.circle(x, y, r).fill({ color: p.color, alpha: 1 - k });
+    }
   }
 
   private drawLabels(scene: Scene): void {
@@ -555,7 +696,7 @@ export class PixiBoard {
       const age = (scene.now - fl.born) / 1000;
       if (age < 0 || age > 1.2) continue;
       if (f >= this.floatPool.length) {
-        const t = new Text({ text: '', style: new TextStyle({ fontFamily: 'Outfit, system-ui, sans-serif', fontWeight: '800', fill: 0xffffff, stroke: { color: 0x000000, width: 4, alpha: 0.75 } }) });
+        const t = new Text({ text: '', style: new TextStyle({ fontFamily: FONT_FUN, fill: 0xffffff, stroke: { color: INK, width: 5, join: 'round' }, dropShadow: { color: INK, distance: 3, angle: Math.PI / 2, blur: 0, alpha: 1 } }) });
         t.anchor.set(0.5, 1);
         this.labels.addChild(t);
         this.floatPool.push(t);
@@ -585,8 +726,8 @@ function drawMarker(slot: { bg: Graphics; text: Text }, c: Pos, m: Marker): void
   const y = c.y - 82 - (m.row ?? 0) * 20;
   slot.text.position.set(c.x, y);
   const w = slot.text.width + 12;
-  const bg = m.background ? fill(m.background) : { color: 0x0f1118, alpha: 0.88 };
-  slot.bg.clear().roundRect(c.x - w / 2, y - 9, w, 18, 5).fill(bg).stroke({ width: 1.5, color: col });
+  const bg = m.background ? fill(m.background) : { color: 0x2f2275, alpha: 1 };
+  slot.bg.clear().roundRect(c.x - w / 2, y - 10, w, 20, 7).fill(bg).stroke({ width: 2.5, color: INK });
 }
 
 function dashed(g: Graphics, a: Pos, b: Pos, dash: number, gap: number): void {

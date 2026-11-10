@@ -12,6 +12,7 @@ import {
   type RunState,
   type Unit,
 } from '@chabfu/engine';
+import { icon } from './ui/icons';
 
 export const ELEMENT_LABEL: Record<Element, string> = { fire: 'Feu', water: 'Eau', earth: 'Terre', air: 'Air', neutral: 'Neutre' };
 
@@ -89,7 +90,7 @@ export function monsterCard(state: RunState, u: Unit, intent: MonsterIntent | un
         ? `<h4>Vos sorts sur lui</h4><table class="dmg-table">${deck
             .map((s) => {
               const d = spellDamageOn(state, s.id, u)!;
-              const mark = d.weakness ? '<span class="pos">▲</span>' : d.resistance ? '<span class="neg">▼</span>' : '';
+              const mark = d.weakness ? `<span class="pos">${icon('arrowUp')}</span>` : d.resistance ? `<span class="neg">${icon('arrowDown')}</span>` : '';
               const lethal = d.amount >= u.hp ? ' <span class="kill">tue</span>' : '';
               return `<tr><td>${el(s.element)} ${s.name}</td><td><b>${d.amount}</b> ${mark}${d.burn ? ` <span class="muted">+${d.burn.damage}×${d.burn.turns}</span>` : ''}${lethal}</td></tr>`;
             })

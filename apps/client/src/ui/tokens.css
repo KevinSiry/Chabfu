@@ -1,0 +1,213 @@
+/*
+ * Chabfu — jetons du système de design « Verre nocturne ».
+ * SEULE source des couleurs, typographies, espacements, rayons, ombres et durées.
+ * Toute autre feuille de style lit ces variables ; aucune valeur en dur ailleurs.
+ * Documentation : src/ui/design-system.md · galerie : ?dev=ui
+ */
+@import '@fontsource/lilita-one/400.css';
+@import '@fontsource/nunito/600.css';
+@import '@fontsource/nunito/700.css';
+@import '@fontsource/nunito/800.css';
+@import '@fontsource/nunito/900.css';
+
+/* Direction « Arène » (choisie par Kevin) : casual mobile, panneaux violet nuit à contour épais,
+   boutons bombés à lèvre, titres détourés. */
+:root {
+  color-scheme: dark;
+
+  /* ---------- Fonds et surfaces ---------- */
+  --c-bg: #140d34;
+  --c-bg-2: #22185a;
+  --c-bg-glow: #3a2c86;
+  --c-ink: #140c38;
+  --c-panel-a: #5844b5;
+  --c-panel-b: #2f2275;
+  --c-panel-hi: rgba(255, 255, 255, 0.35);
+  --c-well: #22185a;
+  --c-well-2: #2a1f6a;
+  --c-surface: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b));
+  --c-surface-strong: var(--c-surface);
+  --c-surface-solid: #33267e;
+  --c-surface-raised: #4433a0;
+  --c-fill: rgba(10, 5, 40, 0.32);
+  --c-fill-strong: rgba(10, 5, 40, 0.45);
+  --c-fill-press: rgba(10, 5, 40, 0.55);
+  --c-line: rgba(255, 255, 255, 0.14);
+  --c-line-strong: rgba(255, 255, 255, 0.3);
+  --c-scrim: rgba(8, 4, 26, 0.72);
+  --c-slot: var(--c-well);
+
+  /* ---------- Texte ---------- */
+  --c-text: #ffffff;
+  --c-text-2: #d4ccff;
+  --c-text-3: #a197dd;
+  --c-title: #ffffff;
+
+  /* ---------- Rôles ---------- */
+  --c-accent: #ffd84a;
+  --c-accent-strong: #ffc21a;
+  --c-accent-soft: rgba(255, 216, 74, 0.18);
+  --c-cta-a: #9af35e;
+  --c-cta-b: #3fb823;
+  --c-cta-ink: #ffffff;
+  --c-cta-lip: #1f6d0e;
+  --c-cta-glow: rgba(63, 184, 35, 0.35);
+  --c-blue-a: #6cc0ff;
+  --c-blue-b: #2a7be0;
+  --c-blue-lip: #154a9a;
+  --c-red-a: #ff7a6b;
+  --c-red-b: #e0362f;
+  --c-red-lip: #8e1a15;
+  --c-gold-a: #ffe866;
+  --c-gold-b: #ffb41f;
+  --c-gold-lip: #b86a00;
+  --c-danger: #ff6b5e;
+  --c-danger-strong: #e2483c;
+  --c-danger-soft: rgba(255, 107, 94, 0.16);
+  --c-success: #6fdc8c;
+  --c-success-soft: rgba(111, 220, 140, 0.16);
+  --c-warning: #ffc75a;
+
+  /* ---------- Ressources de combat ---------- */
+  --c-hp: #57e06a;
+  --c-hp-deep: #2a9a3a;
+  --c-hp-enemy: #ff5a52;
+  --c-pa: #4fa8ff;
+  --c-pm: #57e06a;
+  --c-conc: #c98bff;
+  --c-xp: var(--c-gold-a);
+
+  /* ---------- Équipes ---------- */
+  --c-ally: #6fdc8c;
+  --c-enemy: #ff5d55;
+  --c-boss: #ffc75a;
+
+  /* ---------- Éléments (toujours accompagnés de leur icône) ---------- */
+  --c-fire: #ff7a45;
+  --c-water: #45aaff;
+  --c-earth: #d19a5b;
+  --c-air: #8fe08a;
+  --c-neutral: #c9cfdb;
+
+  /* ---------- Raretés (lueur croissante) ---------- */
+  --c-r-common: #b9c2d3;
+  --c-r-uncommon: #6fdc8c;
+  --c-r-rare: #4fa8ff;
+  --c-r-mythic: #c67bff;
+  --c-r-legendary: #ffb547;
+
+  /* ---------- Typographie ---------- */
+  --font-display: 'Lilita One', 'Nunito', system-ui, sans-serif;
+  --font-ui: 'Nunito', system-ui, sans-serif;
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-md: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 24px;
+  --fs-2xl: 32px;
+  --fs-3xl: 44px;
+  --fs-4xl: 64px;
+  --fw-regular: 400;
+  --fw-medium: 700;
+  --fw-semibold: 800;
+  --fw-bold: 900;
+  --fw-black: 900;
+  --lh-tight: 1.1;
+  --lh-snug: 1.3;
+  --lh-body: 1.5;
+  --ls-caps: 0.06em;
+  --text-scale: 1;
+
+  /* ---------- Espacements (grille de 4 px) ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --gutter: 16px;
+  --tap: 44px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+
+  /* ---------- Formes ---------- */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  /* ---------- Profondeur ---------- */
+  --sh-1: 0 4px 0 rgba(0, 0, 0, 0.28);
+  --sh-2: 0 6px 0 3px rgba(0, 0, 0, 0.25);
+  --sh-3: 0 24px 64px rgba(0, 0, 0, 0.5);
+  --sh-inset: inset 0 2px 0 var(--c-panel-hi), inset 0 -4px 0 rgba(0, 0, 0, 0.18);
+  /* Contour de panneau et de bouton : trait sombre épais. */
+  --outline-3: 0 0 0 3px var(--c-ink);
+  --outline-2: 0 0 0 2px var(--c-ink);
+  /* Texte détouré (titres, chiffres, boutons). */
+  --stroke: 2px 0 0 var(--c-ink), -2px 0 0 var(--c-ink), 0 2px 0 var(--c-ink), 0 -2px 0 var(--c-ink), 1.5px 1.5px 0 var(--c-ink), -1.5px 1.5px 0 var(--c-ink), 1.5px -1.5px 0 var(--c-ink), -1.5px -1.5px 0 var(--c-ink), 0 4px 0 var(--c-ink);
+  --stroke-sm: 1.5px 0 0 var(--c-ink), -1.5px 0 0 var(--c-ink), 0 1.5px 0 var(--c-ink), 0 -1.5px 0 var(--c-ink), 1px 1px 0 var(--c-ink), -1px 1px 0 var(--c-ink), 1px -1px 0 var(--c-ink), -1px -1px 0 var(--c-ink), 0 2.5px 0 var(--c-ink);
+  --blur-1: blur(10px) saturate(1.2);
+  --blur-2: blur(18px) saturate(1.25);
+
+  /* ---------- Mouvement ---------- */
+  --d-instant: 80ms;
+  --d-fast: 150ms;
+  --d-base: 250ms;
+  --d-stage: 450ms;
+  --d-hero: 800ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---------- Couches ---------- */
+  --z-hud: 10;
+  --z-nav: 20;
+  --z-sheet: 40;
+  --z-modal: 50;
+  --z-banner: 60;
+  --z-toast: 70;
+}
+
+/* Taille du texte (paramètre) */
+:root[data-text='lg'] { --text-scale: 1.12; }
+:root[data-text='xl'] { --text-scale: 1.25; }
+
+/* Aide aux daltoniens : éléments et raretés sur des teintes séparables en deutéranopie et protanopie. */
+:root[data-cvd='on'] {
+  --c-fire: #ff9f1c;
+  --c-water: #2f7bff;
+  --c-earth: #f5e663;
+  --c-air: #e2e2e2;
+  --c-r-uncommon: #f5e663;
+  --c-r-rare: #2f7bff;
+  --c-r-mythic: #ff5fd2;
+  --c-hp: #ff8a1f;
+  --c-pm: #3fd0ff;
+}
+
+/* Mouvements réduits (paramètre ou préférence du système) */
+:root[data-motion='reduced'] {
+  --d-fast: 1ms;
+  --d-base: 1ms;
+  --d-stage: 120ms;
+  --d-hero: 160ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) {
+    --d-fast: 1ms;
+    --d-base: 1ms;
+    --d-stage: 120ms;
+    --d-hero: 160ms;
+  }
+}

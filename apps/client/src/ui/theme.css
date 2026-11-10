@@ -1,80 +1,69 @@
 /*
- * Chabfu — direction visuelle « bois sombre et or ».
- * Jetons de couleur, typographies et composants de base (cadres, boutons, jauges).
- * Le plateau (board/) reprend les mêmes variables pour ses surbrillances.
+ * Base commune et anciens noms de variables, désormais branchés sur les jetons (tokens.css).
+ * Les noms --wood-* / --gold-* disparaîtront avec la réécriture écran par écran.
  */
-@import '@fontsource/lilita-one/400.css';
-@import '@fontsource/nunito/500.css';
-@import '@fontsource/nunito/700.css';
-@import '@fontsource/nunito/800.css';
-@import '@fontsource/nunito/500-italic.css';
+@import './tokens.css';
 
 :root {
-  /* Bois et cuir */
-  --wood-950: #0e0a07;
-  --wood-900: #16100b;
-  --wood-850: #1c140e;
-  --wood-800: #241a12;
-  --wood-700: #2f2218;
-  --wood-600: #3d2d20;
-  --wood-500: #523d2b;
-  /* Or */
-  --gold-900: #4a3618;
-  --gold-700: #7a5a26;
-  --gold-500: #b68a3e;
-  --gold-400: #d6a956;
-  --gold-300: #ecc878;
-  --gold-100: #fbecc4;
-  /* Parchemin (fiches, infobulles claires) */
-  --parchment: #eadcbc;
-  --parchment-dark: #cdb98e;
-  --ink: #2b2016;
+  --wood-950: #070b16;
+  --wood-900: var(--c-bg);
+  --wood-850: #0f1527;
+  --wood-800: #121a2d;
+  --wood-700: #18213a;
+  --wood-600: #1f2a46;
+  --wood-500: #2a3757;
+  --gold-900: var(--c-line);
+  --gold-700: rgba(255, 255, 255, 0.18);
+  --gold-500: rgba(255, 255, 255, 0.28);
+  --gold-400: var(--c-accent);
+  --gold-300: var(--c-title);
+  --gold-100: var(--c-text);
+  --parchment: var(--c-surface-raised);
+  --parchment-dark: var(--c-surface-solid);
+  --ink: var(--c-cta-ink);
 
-  /* Rôles */
-  --bg: var(--wood-950);
-  --panel: var(--wood-800);
-  --panel-2: var(--wood-700);
-  --panel-3: var(--wood-600);
-  --line: var(--gold-900);
-  --line-strong: var(--gold-700);
-  --text: #f0e4cb;
-  --muted: #b09d7e;
-  --accent: var(--gold-400);
-  --accent-bright: var(--gold-300);
+  --bg: var(--c-bg);
+  --panel: var(--c-surface-solid);
+  --panel-2: var(--c-fill);
+  --panel-3: var(--c-fill-strong);
+  --line: var(--c-line);
+  --line-strong: var(--c-line-strong);
+  --text: var(--c-text);
+  --muted: var(--c-text-2);
+  --accent: var(--c-accent);
+  --accent-bright: var(--c-accent);
 
-  /* Ressources de combat */
-  --hp: #d8453c;
-  --hp-dark: #7c1d18;
-  --pa: #4f9fe0;
+  --hp: var(--c-hp);
+  --hp-dark: var(--c-hp-deep);
+  --pa: var(--c-pa);
   --pa-dark: #1d4f7c;
-  --pm: #6fbf4f;
+  --pm: var(--c-pm);
   --pm-dark: #2f6420;
-  --conc: #b77de6;
+  --conc: var(--c-conc);
   --conc-dark: #55307a;
-  --xp: var(--gold-400);
+  --xp: var(--c-xp);
 
-  /* Éléments */
-  --fire: #ec6a3c;
-  --water: #3fa1e6;
-  --earth: #b98a4f;
-  --air: #8fd47e;
-  --neutral: #cfc6b4;
+  --fire: var(--c-fire);
+  --water: var(--c-water);
+  --earth: var(--c-earth);
+  --air: var(--c-air);
+  --neutral: var(--c-neutral);
 
-  --font-title: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
-  --font-body: 'Nunito', 'Segoe UI', system-ui, sans-serif;
-  /* Contour sombre des titres et chiffres, façon jeu mobile. */
-  --outline: 0 2px 0 var(--wood-950), 1px 1px 0 var(--wood-950), -1px 1px 0 var(--wood-950), 1px -1px 0 var(--wood-950), -1px -1px 0 var(--wood-950), 0 3px 6px rgba(0, 0, 0, 0.5);
+  --font-title: var(--font-display);
+  --font-body: var(--font-ui);
+  --outline: none;
 
-  --radius: 14px;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
-  --frame: inset 0 0 0 1px var(--gold-900), inset 0 0 0 2px rgba(0, 0, 0, 0.6), inset 0 0 0 3px rgba(236, 200, 120, 0.12);
+  --radius: var(--r-md);
+  --shadow: var(--sh-2);
+  --frame: var(--sh-inset);
 
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text);
-  background: var(--bg);
-  color-scheme: dark;
+  font-family: var(--font-ui);
+  font-size: calc(15px * var(--text-scale));
+  font-weight: var(--fw-medium);
+  color: var(--c-text);
+  background: var(--c-bg);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 * { box-sizing: border-box; }
