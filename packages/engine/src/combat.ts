@@ -4,6 +4,7 @@ import { getMonster, type MonsterAttack } from './data/monsters.js';
 import { getSpell, type SpellDef } from './data/spells.js';
 import { DIRS, distance, hasLineOfSight, isFree, isWall, key, reachable, samePos, unitAt } from './grid.js';
 import { MAX_DIFFICULTY, MIN_DIFFICULTY, difficultyMultiplier } from './loot.js';
+import { combinePassives, spellConcentrationCost, spellConcentrationLoss, spellMaxRange, validatePassives } from './passives.js';
 import { effectiveLevel, getTranche, validateDeck } from './progression.js';
 import type { Action, Element, GameEvent, Pos, RunConfig, RunState, Unit } from './types.js';
 
@@ -40,6 +41,8 @@ export function createRun(config: RunConfig): RunState {
   const level = effectiveLevel(config.level ?? tranche.redefinitionLevel, tranche.id);
   const deckError = validateDeck(config.deck, tranche.id, level);
   if (deckError) throw new InvalidActionError(deckError);
+  const passiveError = validatePassives(config.passives ?? [], tranche.id, level);
+  if (passiveError) throw new InvalidActionError(passiveError);
 
   const eq = config.equipment;
   const masteries = Object.fromEntries(
@@ -61,6 +64,7 @@ export function createRun(config: RunConfig): RunState {
       spellUses: {},
       deck: [...config.deck],
       masteries,
+      passives: [...(config.passives ?? [])],
     },
     turn: 0,
     status: 'playing',
@@ -159,7 +163,8 @@ export function getCastError(state: RunState, spellId: string, target?: Pos): st
   if (player.pa < spell.pa) return 'Pas assez de PA.';
   const uses = state.player.spellUses[spellId] ?? 0;
   if (spell.maxPerTurn !== undefined && uses >= spell.maxPerTurn) return 'Limite d’utilisations atteinte ce tour.';
-  if (spell.concentrationCost && state.player.concentration < spell.concentrationCost) return 'Pas assez de Concentration.';
+  const concCost = spellConcentrationCost(spell, state.player.passives);
+  if (concCost && state.player.concentration < concCost) return 'Pas assez de Concentration.';
   if (spell.buffNextShot && state.player.nextShotDouble) return 'Le prochain tir est déjà concentré.';
   if (!target) return null;
   return getTargetError(state, spell, target);
@@ -169,7 +174,7 @@ function getTargetError(state: RunState, spell: SpellDef, target: Pos): string |
   const player = getPlayer(state);
   if (spell.target === 'self') return samePos(target, player.pos) ? null : 'Ce sort se lance sur soi.';
   const d = distance(player.pos, target);
-  if (d < spell.minRange || d > spell.maxRange) return 'Hors de portée.';
+  if (d < spell.minRange || d > spellMaxRange(spell, state.player.passives)) return 'Hors de portée.';
   if (spell.inLine && player.pos.x !== target.x && player.pos.y !== target.y) return 'Ce sort se lance en ligne droite.';
   if (isWall(state.room, target)) return 'Case invalide.';
   if (spell.los && !hasLineOfSight(state.room, state.units, player.pos, target)) return 'Pas de ligne de vue.';
@@ -185,11 +190,12 @@ export function getSpellRange(state: RunState, spellId: string): { pos: Pos; los
   const player = getPlayer(state);
   if (spell.target === 'self') return [{ pos: player.pos, los: true }];
   const cells: { pos: Pos; los: boolean }[] = [];
+  const maxRange = spellMaxRange(spell, state.player.passives);
   for (let y = 0; y < state.room.height; y++) {
     for (let x = 0; x < state.room.width; x++) {
       const p = { x, y };
       const d = distance(player.pos, p);
-      if (d < spell.minRange || d > spell.maxRange || isWall(state.room, p)) continue;
+      if (d < spell.minRange || d > maxRange || isWall(state.room, p)) continue;
       if (spell.inLine && x !== player.pos.x && y !== player.pos.y) continue;
       const los = !spell.los || hasLineOfSight(state.room, state.units, player.pos, p);
       cells.push({ pos: p, los });
@@ -233,7 +239,13 @@ function dealDamage(state: RunState, target: Unit, amount: number, element: Elem
   if (target.hp <= 0) return;
   target.hp = Math.max(0, target.hp - amount);
   events.push({ type: 'damage', unitId: target.id, amount, element, source });
-  if (target.hp === 0) events.push({ type: 'death', unitId: target.id });
+  if (target.hp === 0) {
+    events.push({ type: 'death', unitId: target.id });
+    if (target.team === 'monster') {
+      const bonus = combinePassives(state.player.passives).killConcentration;
+      if (bonus) changeConcentration(state, bonus, events);
+    }
+  }
 }
 
 function changeConcentration(state: RunState, delta: number, events: GameEvent[]): void {
@@ -275,7 +287,7 @@ function startPlayerTurn(state: RunState, events: GameEvent[]): void {
   player.pmMalus = 0;
   state.player.spellUses = {};
   events.push({ type: 'turnStart', unitId: PLAYER_ID, turn: state.turn });
-  if (!state.player.movedLastTurn) changeConcentration(state, 1, events);
+  if (!state.player.movedLastTurn) changeConcentration(state, 1 + combinePassives(state.player.passives).stillConcentrationBonus, events);
   state.player.pmSpentThisTurn = 0;
   tickBurn(state, player, events);
   checkEnd(state, events);
@@ -420,8 +432,10 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
   state.player.spellUses[spell.id] = (state.player.spellUses[spell.id] ?? 0) + 1;
   events.push({ type: 'cast', unitId: PLAYER_ID, spellId: spell.id, target: { ...target } });
 
-  if (spell.concentrationCost) changeConcentration(state, -spell.concentrationCost, events);
-  if (spell.concentrationLoss) changeConcentration(state, -spell.concentrationLoss, events);
+  const concCost = spellConcentrationCost(spell, state.player.passives);
+  const concLoss = spellConcentrationLoss(spell, state.player.passives);
+  if (concCost) changeConcentration(state, -concCost, events);
+  if (concLoss) changeConcentration(state, -concLoss, events);
 
   if (spell.jump) {
     const from = { ...player.pos };
@@ -445,8 +459,9 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
       if (victim.hp <= 0) continue;
       if (spell.burn) {
         const dmg = computeDamage(state, spell.burn.damage, spell.element, player, victim);
-        victim.burn = { damage: Math.max(dmg, victim.burn?.damage ?? 0), turns: Math.max(spell.burn.turns, victim.burn?.turns ?? 0) };
-        events.push({ type: 'status', unitId: victim.id, text: `Brûlure ${spell.burn.turns} tours` });
+        const turns = spell.burn.turns + combinePassives(state.player.passives).burnExtraTurns;
+        victim.burn = { damage: Math.max(dmg, victim.burn?.damage ?? 0), turns: Math.max(turns, victim.burn?.turns ?? 0) };
+        events.push({ type: 'status', unitId: victim.id, text: `Brûlure ${turns} tours` });
       }
       if (spell.pmRemoval) {
         victim.pmMalus += spell.pmRemoval;

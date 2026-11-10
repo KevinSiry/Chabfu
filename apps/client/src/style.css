@@ -36,8 +36,7 @@ h1, h2, h3 { margin: 0 0 8px; }
 .spell-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-top: 10px; }
 .spell-card { text-align: left; background: var(--panel-2); border: 2px solid transparent; border-radius: 8px; padding: 10px; }
 .spell-card.selected { border-color: var(--accent); }
-.dungeon-picker { margin-bottom: 16px; }
-.dungeon-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 8px; }
+.setup .dungeon-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .dungeon-card { text-align: left; background: var(--panel-2); border: 2px solid transparent; border-radius: 8px; padding: 10px; }
 .dungeon-card.selected { border-color: var(--accent); }
 .dungeon-card .head { font-weight: 600; margin-bottom: 4px; }

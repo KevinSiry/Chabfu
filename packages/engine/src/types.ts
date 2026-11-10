@@ -45,6 +45,8 @@ export interface PlayerState {
   spellUses: Record<string, number>;
   deck: string[];
   masteries: Record<Element, number>;
+  /** Passifs équipés (voir data/passives.ts). */
+  passives: string[];
 }
 
 export interface RoomTemplate {
@@ -94,6 +96,8 @@ export interface RunConfig {
   masteries?: Partial<Record<Element, number>>;
   /** Bonus de l'équipement porté (PV, PA, PM, maîtrises), calculés par `equipmentBonus`. */
   equipment?: EquipmentBonus;
+  /** Passifs équipés, limités par les emplacements de la tranche et le niveau effectif. */
+  passives?: string[];
 }
 
 export interface RunState {

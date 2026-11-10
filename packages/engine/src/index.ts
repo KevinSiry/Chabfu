@@ -9,3 +9,6 @@ export { ITEMS, BOSS_DROP_TABLES, getItem, getBossDropTable, type DropEntry } fr
 export { SPELLS, getSpell, type SpellDef, type Zone } from './data/spells.js';
 export { MONSTERS, getMonster, monsterBehavior, type MonsterTemplate, type MonsterAttack, type MonsterBehavior } from './data/monsters.js';
 export { DUNGEONS, getDungeon, dungeonsForTranche, type DungeonDef } from './data/dungeons.js';
+export * from './passives.js';
+export * from './character.js';
+export { PASSIVES, getPassive, type PassiveDef, type PassiveMods } from './data/passives.js';
