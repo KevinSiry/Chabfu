@@ -139,10 +139,10 @@ describe('bilan de run et XP', () => {
     expect(s1.xpFromKills).toBe(s1.kills.reduce((a, k) => a + k.xp, 0));
     expect(s1.xpVictoryBonus).toBe(s1.status === 'won' ? Math.round(s1.xpFromKills / 2) : 0);
     expect(s1.kills[0].xp).toBe(s1.kills[0].templateId === 'guepe' ? 14 : 20);
-    // Même run en difficulté 5 : l'XP suit l'échelle de difficulté (×1,66).
-    const r5 = play({ ...cfg, difficulty: 5 });
-    const s5 = summarizeRun({ ...cfg, difficulty: 5 }, r5.actions);
-    expect(s5.kills[0].xp).toBe(Math.round(monsterXp(s5.kills[0].templateId) * difficultyMultiplier(5)));
+    // Même run en difficulté 3 : l'XP suit l'échelle de difficulté.
+    const r5 = play({ ...cfg, difficulty: 3 });
+    const s5 = summarizeRun({ ...cfg, difficulty: 3 }, r5.actions);
+    expect(s5.kills[0].xp).toBe(Math.round(monsterXp(s5.kills[0].templateId) * difficultyMultiplier(3)));
   });
 
   it('applique l’XP au personnage et liste les déblocages', () => {
