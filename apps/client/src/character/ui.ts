@@ -92,6 +92,22 @@ export function characterBannerHtml(c: Character): string {
     </div>`;
 }
 
+/** Plaque compacte du personnage pour la barre du hub (mêmes boutons que le bandeau). */
+export function characterPlateHtml(c: Character): string {
+  const level = characterLevel(c);
+  const eff = characterEffectiveLevel(c);
+  const t = getTranche(c.trancheId);
+  return `
+    <div class="char-plate">
+      <button class="char-level" id="open-sheet" title="Fiche du personnage"><small>Niv.</small>${level}</button>
+      <div class="char-plate-info">
+        <div class="char-plate-name"><b>${escapeHtml(c.name)}</b><span class="muted">Archer${eff < level ? ` · redéfini niv. ${eff}` : ''}</span></div>
+        ${xpBar(c.xp)}
+      </div>
+      <button class="tranche-btn" id="open-tranches" title="Changer de tranche">T${t.id}<small>▾</small></button>
+    </div>`;
+}
+
 /** Branche les boutons du bandeau. `onChange` est appelé quand le personnage change (redéfinition, suppression). */
 export function bindCharacterBanner(root: HTMLElement, onChange: () => void): void {
   root.querySelector('#open-sheet')?.addEventListener('click', () => openCharacterSheet(onChange));

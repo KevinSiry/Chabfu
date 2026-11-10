@@ -3,12 +3,11 @@
  * Jetons de couleur, typographies et composants de base (cadres, boutons, jauges).
  * Le plateau (board/) reprend les mêmes variables pour ses surbrillances.
  */
-@import '@fontsource/cinzel/600.css';
-@import '@fontsource/cinzel/700.css';
-@import '@fontsource/alegreya-sans/400.css';
-@import '@fontsource/alegreya-sans/500.css';
-@import '@fontsource/alegreya-sans/700.css';
-@import '@fontsource/alegreya-sans/400-italic.css';
+@import '@fontsource/lilita-one/400.css';
+@import '@fontsource/nunito/500.css';
+@import '@fontsource/nunito/700.css';
+@import '@fontsource/nunito/800.css';
+@import '@fontsource/nunito/500-italic.css';
 
 :root {
   /* Bois et cuir */
@@ -61,15 +60,18 @@
   --air: #8fd47e;
   --neutral: #cfc6b4;
 
-  --font-title: 'Cinzel', 'Times New Roman', serif;
-  --font-body: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-title: 'Lilita One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --font-body: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  /* Contour sombre des titres et chiffres, façon jeu mobile. */
+  --outline: 0 2px 0 var(--wood-950), 1px 1px 0 var(--wood-950), -1px 1px 0 var(--wood-950), 1px -1px 0 var(--wood-950), -1px -1px 0 var(--wood-950), 0 3px 6px rgba(0, 0, 0, 0.5);
 
-  --radius: 6px;
+  --radius: 14px;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
   --frame: inset 0 0 0 1px var(--gold-900), inset 0 0 0 2px rgba(0, 0, 0, 0.6), inset 0 0 0 3px rgba(236, 200, 120, 0.12);
 
   font-family: var(--font-body);
   font-size: 15px;
+  font-weight: 500;
   color: var(--text);
   background: var(--bg);
   color-scheme: dark;
@@ -87,7 +89,7 @@ body {
   background-attachment: fixed;
 }
 button { font: inherit; color: inherit; cursor: pointer; }
-h1, h2, h3 { margin: 0 0 8px; font-family: var(--font-title); font-weight: 700; letter-spacing: 0.02em; color: var(--gold-300); }
+h1, h2, h3 { margin: 0 0 8px; font-family: var(--font-title); font-weight: 400; letter-spacing: 0.01em; color: var(--gold-300); text-shadow: var(--outline); }
 h2 { font-size: 20px; }
 h3 { font-size: 16px; }
 ::selection { background: var(--gold-700); color: var(--gold-100); }
@@ -102,24 +104,11 @@ h3 { font-size: 16px; }
   background:
     linear-gradient(180deg, rgba(255, 236, 196, 0.04), transparent 40%),
     linear-gradient(180deg, var(--wood-800), var(--wood-850));
-  border: 1px solid var(--gold-700);
+  border: 3px solid var(--gold-500);
   border-radius: var(--radius);
-  box-shadow: var(--frame), 0 6px 18px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 2px var(--wood-950), inset 0 3px 0 2px rgba(255, 236, 196, 0.08), 0 0 0 2px var(--wood-950), 0 8px 0 -2px rgba(0, 0, 0, 0.45), 0 12px 24px rgba(0, 0, 0, 0.5);
   padding: 16px;
 }
-.card::before, .card::after, .frame::before, .frame::after {
-  content: '';
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  background: linear-gradient(135deg, var(--gold-300), var(--gold-700));
-  transform: rotate(45deg);
-  box-shadow: 0 0 0 1px var(--wood-950);
-  pointer-events: none;
-}
-.card::before, .frame::before { top: -5px; left: -5px; }
-.card::after, .frame::after { bottom: -5px; right: -5px; }
-
 /* Titre de panneau gravé */
 .panel-title {
   display: flex;
@@ -127,46 +116,50 @@ h3 { font-size: 16px; }
   gap: 10px;
   margin: -4px 0 12px;
   font-family: var(--font-title);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 18px;
+  letter-spacing: 0.02em;
   color: var(--gold-300);
+  text-shadow: var(--outline);
 }
 .panel-title::before, .panel-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-700), transparent); }
 
-/* --- Boutons --- */
+/* --- Boutons : bombés, avec une lèvre inférieure --- */
 .primary, .secondary, .ghost {
-  border-radius: var(--radius);
-  padding: 9px 16px;
+  position: relative;
+  border-radius: 12px;
+  padding: 10px 18px 12px;
   font-family: var(--font-title);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.04em;
-  transition: filter 0.12s, transform 0.06s;
+  font-size: 17px;
+  letter-spacing: 0.02em;
+  transition: filter 0.12s, transform 0.06s, box-shadow 0.06s;
 }
 .primary {
-  color: var(--ink);
-  border: 1px solid var(--gold-100);
-  background: linear-gradient(180deg, var(--gold-300), var(--gold-500) 55%, var(--gold-700));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 0 0 1px var(--wood-950), 0 3px 8px rgba(0, 0, 0, 0.5);
-  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.5);
+  color: #fff;
+  text-shadow: 0 2px 0 #7a4a10, 1px 1px 0 #7a4a10, -1px 1px 0 #7a4a10, 1px -1px 0 #7a4a10, -1px -1px 0 #7a4a10;
+  border: 2px solid var(--wood-950);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0, rgba(255, 255, 255, 0.1) 45%, transparent 46%),
+    linear-gradient(180deg, #ffd977, #f0a92e 60%, #d98318);
+  box-shadow: inset 0 -4px 0 #b0600e, inset 0 2px 0 rgba(255, 255, 255, 0.6), 0 4px 0 var(--wood-950), 0 8px 14px rgba(0, 0, 0, 0.45);
 }
 .secondary {
   color: var(--gold-100);
-  border: 1px solid var(--gold-700);
-  background: linear-gradient(180deg, var(--wood-600), var(--wood-700));
-  box-shadow: inset 0 1px 0 rgba(255, 236, 196, 0.12), 0 0 0 1px var(--wood-950);
+  text-shadow: var(--outline);
+  border: 2px solid var(--wood-950);
+  background:
+    linear-gradient(180deg, rgba(255, 236, 196, 0.18) 0, transparent 46%),
+    linear-gradient(180deg, #6b4c33, #4a3423 60%, #3a281a);
+  box-shadow: inset 0 -4px 0 #2a1c11, inset 0 2px 0 rgba(255, 236, 196, 0.25), inset 0 0 0 1px rgba(214, 169, 86, 0.35), 0 4px 0 var(--wood-950), 0 8px 14px rgba(0, 0, 0, 0.4);
 }
-.ghost { background: transparent; border: 1px solid transparent; color: var(--muted); }
-.ghost:hover { color: var(--gold-100); border-color: var(--line); }
-.primary:hover:not(:disabled), .secondary:hover:not(:disabled) { filter: brightness(1.12); }
-.primary:active:not(:disabled), .secondary:active:not(:disabled) { transform: translateY(1px); }
-.primary:disabled, .secondary:disabled { filter: grayscale(0.7) brightness(0.7); cursor: not-allowed; }
-.secondary.danger { color: #f0a097; border-color: var(--hp-dark); }
+.ghost { background: transparent; border: 2px solid transparent; color: var(--muted); font-size: 14px; }
+.ghost:hover { color: var(--gold-100); }
+.primary:hover:not(:disabled), .secondary:hover:not(:disabled) { filter: brightness(1.1); }
+.primary:active:not(:disabled), .secondary:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 1px 0 var(--wood-950); }
+.primary:disabled, .secondary:disabled { filter: grayscale(0.8) brightness(0.65); cursor: not-allowed; }
+.secondary.danger { color: #ffb3a8; }
 
 /* --- Jauges --- */
-.bar { position: relative; height: 14px; background: var(--wood-950); border: 1px solid var(--gold-900); border-radius: 8px; overflow: hidden; margin: 4px 0 8px; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7); }
+.bar { position: relative; height: 16px; background: var(--wood-950); border: 2px solid var(--wood-950); outline: 1px solid var(--gold-700); border-radius: 10px; overflow: hidden; margin: 4px 0 8px; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7); }
 .bar > div { height: 100%; border-radius: 8px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 50%, rgba(0, 0, 0, 0.25)) !important; background-color: var(--hp); }
 
 /* Champs */
@@ -185,7 +178,7 @@ kbd {
   display: inline-block;
   min-width: 16px;
   text-align: center;
-  font: 700 11px var(--font-body);
+  font: 800 11px var(--font-body);
   background: linear-gradient(180deg, var(--wood-600), var(--wood-800));
   border: 1px solid var(--gold-700);
   border-bottom-width: 2px;

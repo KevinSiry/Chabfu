@@ -27,10 +27,12 @@ import { grantRunRewards } from './craft/store';
 import { renderWorkshopScreen } from './craft/workshop-screen';
 import { formatTime, leaveRun, startRun as startCombat } from './combat';
 import { ELEMENT_LABEL, rangeLabel } from './info';
-import { slotKeysRange } from './keys';
+import { slotKeyLabel, slotKeysRange } from './keys';
+import { dungeonBannerImg, spellIconImg } from './ui/assets';
+import { bindHubTabs, hubBarHtml, type HubTab } from './ui/hub';
 import { renderRunEndSections } from './character/run-end';
 import { getCharacter, saveCharacter } from './character/store';
-import { bindCharacterBanner, characterBannerHtml, renderCharacterCreation } from './character/ui';
+import { bindCharacterBanner, renderCharacterCreation } from './character/ui';
 
 const app = document.getElementById('app')!;
 const STORAGE_KEY = 'chabfu.v1';
@@ -71,7 +73,9 @@ function writeSave(save: Save): void {
 
 let save = loadSave();
 
-function dungeonListHtml(dungeons: DungeonDef[], selected: DungeonDef): string {
+let tab: 'dungeons' | 'grimoire' = 'dungeons';
+
+function dungeonListHtml(dungeons: DungeonDef[], selected: DungeonDef | undefined): string {
   return `
     <div class="dungeon-list">
       ${dungeons
@@ -79,22 +83,47 @@ function dungeonListHtml(dungeons: DungeonDef[], selected: DungeonDef): string {
           const best = save.scores.filter((s) => s.dungeonId === d.id).sort(compareScores)[0];
           const boss = d.rooms[d.rooms.length - 1].monsters.map((m) => getMonster(m.templateId)).find((m) => m.isBoss);
           return `
-        <button class="dungeon-card${d.id === selected.id ? ' selected' : ''}" data-dungeon="${d.id}">
-          <div class="head"><span class="el el-${d.dominantElement}"></span>${d.name}</div>
-          <div class="meta">${ELEMENT_LABEL[d.dominantElement]} · craint ${ELEMENT_LABEL[d.weakElement]} <span class="el el-${d.weakElement}"></span></div>
-          <div class="meta">${d.rooms.length - 1} salle${d.rooms.length > 2 ? 's' : ''} + ${boss?.name ?? 'boss'}</div>
-          <div class="meta">${best ? `Record : diff. ${best.difficulty} · ${best.turns} tours` : 'Pas encore terminé'}</div>
+        <button class="dungeon-card el-theme-${d.dominantElement}${d.id === selected?.id ? ' selected' : ''}" data-dungeon="${d.id}">
+          <div class="dungeon-art"><span class="dungeon-sigil">${ELEMENT_SIGIL[d.dominantElement]}</span>${dungeonBannerImg(d.id)}</div>
+          <div class="dungeon-body">
+            <div class="head">${d.name}</div>
+            <div class="meta"><span class="el el-${d.dominantElement}"></span>${ELEMENT_LABEL[d.dominantElement]} · craint ${ELEMENT_LABEL[d.weakElement]} <span class="el el-${d.weakElement}"></span></div>
+            <div class="meta">${d.rooms.length - 1} salle${d.rooms.length > 2 ? 's' : ''} + ${boss?.name ?? 'boss'}</div>
+            <div class="record ${best ? 'done' : ''}">${best ? `★ Diff. ${best.difficulty} · ${best.turns} tours` : 'Pas encore terminé'}</div>
+          </div>
         </button>`;
         })
         .join('')}
     </div>`;
 }
 
+const ELEMENT_SIGIL: Record<string, string> = { fire: '🜂', water: '🜄', earth: '🜃', air: '🜁', neutral: '◈' };
+
 // ---------------------------------------------------------------------------
-// Écran de préparation (personnage, tranche, donjon, deck, passifs)
+// Hub (personnage, donjons, grimoire)
 // ---------------------------------------------------------------------------
 
+function goTab(t: HubTab): void {
+  if (t === 'equipment') openEquipment();
+  else if (t === 'workshop') openWorkshop();
+  else {
+    tab = t;
+    renderSetup();
+  }
+}
+
+/** Ajoute la barre du hub au-dessus d'un écran existant (équipement, atelier). */
+function withHubBar(active: HubTab): void {
+  const c = getCharacter();
+  if (!c) return;
+  app.insertAdjacentHTML('afterbegin', hubBarHtml(active, c));
+  app.classList.add('has-hub');
+  bindHubTabs(app, goTab);
+  bindCharacterBanner(app, renderSetup);
+}
+
 function renderSetup(): void {
+  app.classList.remove('has-hub');
   const character = getCharacter();
   if (!character) {
     renderCharacterCreation(app, renderSetup);
@@ -108,35 +137,95 @@ function renderSetup(): void {
   const passives = PASSIVES.filter((p) => p.level <= tranche.redefinitionLevel);
   const loadout = currentLoadout(character);
   const best = dungeon ? save.scores.filter((s) => s.dungeonId === dungeon.id).sort(compareScores).slice(0, 8) : [];
+  const boss = dungeon?.rooms[dungeon.rooms.length - 1].monsters.map((m) => getMonster(m.templateId)).find((m) => m.isBoss);
 
-  app.innerHTML = `
-    <div class="setup">
-      <header><h1>Chabfu</h1><p>Prototype · Tranche T${tranche.id} (niveaux ${tranche.minLevel}–${tranche.maxLevel})</p></header>
-      ${characterBannerHtml(character)}
-      <div class="setup-grid">
-        <div class="card">
+  const deckStrip = `
+    <div class="deck-strip">
+      ${Array.from({ length: tranche.deckSize }, (_, i) => {
+        const s = loadout.deck[i] ? SPELLS.find((x) => x.id === loadout.deck[i]) : undefined;
+        return s
+          ? `<div class="deck-slot el-theme-${s.element}" title="${s.name}">${spellIconImg(s.id)}<kbd>${slotKeyLabel(i)}</kbd><span>${s.name}</span></div>`
+          : `<div class="deck-slot empty"><kbd>${slotKeyLabel(i)}</kbd><span>Libre</span></div>`;
+      }).join('')}
+    </div>`;
+
+  const dungeonsTab = `
+    <div class="hub-grid">
+      <div class="hub-main">
+        <section class="card">
+          <div class="panel-title">Donjons de la tranche T${tranche.id}</div>
+          ${dungeons.length ? dungeonListHtml(dungeons, dungeon) : `<p class="muted">La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p>`}
+        </section>
+        ${
+          dungeon
+            ? `<section class="card dungeon-detail el-theme-${dungeon.dominantElement}">
+                <div class="dungeon-detail-head">
+                  <span class="dungeon-sigil big">${ELEMENT_SIGIL[dungeon.dominantElement]}${dungeonBannerImg(dungeon.id)}</span>
+                  <div><h2>${dungeon.name}</h2>
+                  <p class="muted">${dungeon.description}</p></div>
+                </div>
+                <div class="room-path">
+                  ${dungeon.rooms
+                    .map((r, i) => {
+                      const isBoss = i === dungeon.rooms.length - 1;
+                      return `<div class="room-step ${isBoss ? 'boss' : ''}"><b>${isBoss ? '☠' : i + 1}</b><span>${r.name}</span><small>${r.monsters.length} monstre${r.monsters.length > 1 ? 's' : ''}</small></div>`;
+                    })
+                    .join('<span class="room-link"></span>')}
+                </div>
+                <p class="muted small">Salles et placements toujours identiques. Boss : <b>${boss?.name ?? '—'}</b>.</p>
+              </section>`
+            : ''
+        }
+      </div>
+      <aside class="side">
+        <section class="card expedition">
+          <div class="panel-title">Expédition</div>
+          <h3>${dungeon?.name ?? 'Aucun donjon'}</h3>
+          <label class="muted small" for="diff">Difficulté</label>
+          <div class="difficulty"><input type="range" min="1" max="${MAX_DIFFICULTY}" value="${save.difficulty}" id="diff" /><strong id="diff-v">${save.difficulty}</strong></div>
+          <p class="muted small">+15 % de PV, de dégâts et d’XP des monstres par palier.</p>
+          ${deckStrip}
+          <button class="ghost small-link" id="edit-deck">Modifier le grimoire ›</button>
+          <button class="primary launch" id="start">Lancer le donjon</button>
+          <p class="muted" id="deck-error"></p>
+        </section>
+        ${equipmentSummaryHtml(tranche.id)}
+        <section class="card">
+          <div class="panel-title">Meilleurs runs</div>
           ${
-            dungeon
-              ? `${dungeons.length > 1 ? dungeonListHtml(dungeons, dungeon) : ''}
-                 <h2>${dungeon.name}</h2>
-                 <p class="muted">${dungeon.description} ${dungeon.rooms.length - 1} salle${dungeon.rooms.length > 2 ? 's' : ''} + boss, toujours identiques.</p>`
-              : `<h2>Aucun donjon</h2><p class="muted">La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p>`
+            best.length
+              ? `<table class="scores"><tr><th>Diff.</th><th>Tours</th><th>Chrono</th></tr>${best
+                  .map((s) => `<tr><td>${s.difficulty}</td><td>${s.turns}</td><td>${formatTime(s.timeMs)}</td></tr>`)
+                  .join('')}</table>`
+              : '<p class="muted">Aucun run terminé pour l’instant.</p>'
           }
-          <h3 style="margin-top:16px">Deck <span class="muted" id="deck-count"></span></h3>
+        </section>
+      </aside>
+    </div>`;
+
+  const grimoireTab = `
+    <div class="hub-grid">
+      <div class="hub-main">
+        <section class="card">
+          <div class="panel-title">Sorts <span class="muted" id="deck-count"></span></div>
+          <p class="muted small">Choisissez jusqu’à ${tranche.deckSize} sorts. L’ordre du deck suit celui du grimoire et donne les raccourcis (${slotKeysRange(tranche.deckSize)}).</p>
           <div class="spell-list">
             ${spells
               .map((s) => {
                 const locked = s.level > effLevel;
                 return `
-              <button class="spell-card ${locked ? 'locked' : ''}" data-spell="${s.id}" ${locked ? 'disabled' : ''}>
-                <div class="head"><span><span class="el el-${s.element}"></span>${s.name}</span><span>${locked ? `🔒 Niv. ${s.level}` : `${s.pa} PA`}</span></div>
+              <button class="spell-card el-theme-${s.element} ${locked ? 'locked' : ''}" data-spell="${s.id}" ${locked ? 'disabled' : ''}>
+                <span class="spell-card-icon">${spellIconImg(s.id)}</span>
+                <div class="head"><span><span class="el el-${s.element}"></span>${s.name}</span><span class="cost">${locked ? `🔒 Niv. ${s.level}` : `${s.pa} PA`}</span></div>
                 <div class="meta">Niv. ${s.level} · ${ELEMENT_LABEL[s.element]} · ${rangeLabel(s.minRange, s.maxRange)}${s.maxPerTurn ? ` · ${s.maxPerTurn}/tour` : ''}</div>
                 <div class="desc">${s.description}</div>
               </button>`;
               })
               .join('')}
           </div>
-          <h3 style="margin-top:16px">Passifs <span class="muted" id="passive-count"></span></h3>
+        </section>
+        <section class="card">
+          <div class="panel-title">Passifs <span class="muted" id="passive-count"></span></div>
           <div class="passive-list">
             ${passives
               .map((p) => {
@@ -149,39 +238,28 @@ function renderSetup(): void {
               })
               .join('')}
           </div>
-        </div>
-        <div class="side">
-          <div class="card">
-            <h3>Difficulté</h3>
-            <div class="difficulty"><input type="range" min="1" max="${MAX_DIFFICULTY}" value="${save.difficulty}" id="diff" /><strong id="diff-v">${save.difficulty}</strong></div>
-            <p class="muted">+15 % de PV, de dégâts et d’XP des monstres par palier. Salles et placements identiques.</p>
-            <button class="primary" id="start" style="width:100%">Lancer le donjon</button>
-            <p class="muted" id="deck-error"></p>
-          </div>
-          ${equipmentSummaryHtml(tranche.id)}
-          <div class="card">
-            <h3>Atelier</h3>
-            <p class="muted">Ressources du donjon, craft à rareté fixe et recyclage en éclats.</p>
-            <button class="secondary" id="open-workshop" style="width:100%">Craft et recyclage</button>
-          </div>
-          <div class="card">
-            <h3>Meilleurs runs</h3>
-            ${
-              best.length
-                ? `<table class="scores"><tr><th>Diff.</th><th>Tours</th><th>Chrono</th></tr>${best
-                    .map((s) => `<tr><td>${s.difficulty}</td><td>${s.turns}</td><td>${formatTime(s.timeMs)}</td></tr>`)
-                    .join('')}</table>`
-                : '<p class="muted">Aucun run terminé pour l’instant.</p>'
-            }
-          </div>
-          <div class="card hint">
-            Clic : se déplacer · ${slotKeysRange(tranche.deckSize)} (ou pavé numérique) : choisir un sort · Espace : fin du tour · T : zones de menace · Échap / clic droit : annuler.
-            La Concentration monte de 1 si vous n’avez pas bougé au tour précédent, et baisse de 1 par PM dépensé.
-          </div>
-        </div>
+        </section>
       </div>
+      <aside class="side">
+        <section class="card">
+          <div class="panel-title">Barre de sorts</div>
+          ${deckStrip}
+          <button class="primary launch" id="start">Lancer ${dungeon ? dungeon.name : 'le donjon'}</button>
+          <p class="muted" id="deck-error"></p>
+        </section>
+        <section class="card hint">
+          <div class="panel-title">Commandes</div>
+          Clic : se déplacer · ${slotKeysRange(tranche.deckSize)} (ou pavé numérique) : choisir un sort · Espace : fin du tour · T : zones de menace · Échap / clic droit : annuler.
+          La Concentration monte de 1 si vous n’avez pas bougé au tour précédent, et baisse de 1 par PM dépensé.
+        </section>
+      </aside>
     </div>`;
 
+  app.innerHTML = `
+    ${hubBarHtml(tab, character)}
+    <div class="setup hub">${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>`;
+
+  bindHubTabs(app, goTab);
   bindCharacterBanner(app, renderSetup);
   const deck = new Set(loadout.deck);
   const chosenPassives = new Set(loadout.passives);
@@ -199,17 +277,21 @@ function renderSetup(): void {
   const refresh = () => {
     app.querySelectorAll<HTMLButtonElement>('.spell-card').forEach((b) => b.classList.toggle('selected', deck.has(b.dataset.spell!)));
     app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) => b.classList.toggle('selected', chosenPassives.has(b.dataset.passive!)));
-    app.querySelector('#deck-count')!.textContent = `${deck.size} / ${tranche.deckSize}`;
-    app.querySelector('#passive-count')!.textContent = `${chosenPassives.size} / ${tranche.passiveSlots}`;
+    const dc = app.querySelector('#deck-count');
+    if (dc) dc.textContent = `${deck.size} / ${tranche.deckSize}`;
+    const pc = app.querySelector('#passive-count');
+    if (pc) pc.textContent = `${chosenPassives.size} / ${tranche.passiveSlots}`;
     (app.querySelector('#start') as HTMLButtonElement).disabled = deck.size === 0 || !dungeon;
   };
+  // Le grimoire redessine l'écran pour mettre à jour la barre de sorts.
+  const rerender = () => renderSetup();
   app.querySelectorAll<HTMLButtonElement>('.spell-card').forEach((b) =>
     b.addEventListener('click', () => {
       const id = b.dataset.spell!;
       if (deck.has(id)) deck.delete(id);
       else if (deck.size < tranche.deckSize) deck.add(id);
       persist();
-      refresh();
+      rerender();
     }),
   );
   app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) =>
@@ -221,7 +303,7 @@ function renderSetup(): void {
         chosenPassives.add(id);
       } else if (chosenPassives.size < tranche.passiveSlots) chosenPassives.add(id);
       persist();
-      refresh();
+      rerender();
     }),
   );
   app.querySelectorAll<HTMLButtonElement>('[data-dungeon]').forEach((b) =>
@@ -231,23 +313,26 @@ function renderSetup(): void {
       renderSetup();
     }),
   );
-  const diff = app.querySelector('#diff') as HTMLInputElement;
-  diff.addEventListener('input', () => (app.querySelector('#diff-v')!.textContent = diff.value));
-  app.querySelector('#open-equipment')!.addEventListener('click', () => {
+  const diff = app.querySelector('#diff') as HTMLInputElement | null;
+  const keepDifficulty = () => {
+    if (!diff) return;
     save.difficulty = Number(diff.value);
     writeSave(save);
-    openEquipment();
+  };
+  diff?.addEventListener('input', () => {
+    app.querySelector('#diff-v')!.textContent = diff.value;
+    keepDifficulty();
   });
-  app.querySelector('#open-workshop')!.addEventListener('click', () => {
-    save.difficulty = Number(diff.value);
-    writeSave(save);
-    openWorkshop();
+  app.querySelector('#edit-deck')?.addEventListener('click', () => goTab('grimoire'));
+  app.querySelector('#open-equipment')?.addEventListener('click', () => {
+    keepDifficulty();
+    openEquipment();
   });
   app.querySelector('#start')!.addEventListener('click', () => {
     const c = getCharacter();
     if (!c || !dungeon) return;
     persist();
-    save.difficulty = Number(diff.value);
+    keepDifficulty();
     save.dungeonId = dungeon.id;
     writeSave(save);
     try {
@@ -268,6 +353,7 @@ function openEquipment(): void {
   const dungeons = DUNGEONS.filter((d) => d.tranche === trancheId);
   const dungeon = dungeons.find((d) => d.id === save.dungeonId) ?? dungeons[0] ?? DUNGEONS[0];
   renderEquipmentScreen(app, { trancheId, dungeonId: dungeon.id, difficulty: save.difficulty, onBack: renderSetup });
+  withHubBar('equipment');
 }
 
 function openWorkshop(): void {
@@ -275,6 +361,7 @@ function openWorkshop(): void {
   const dungeons = DUNGEONS.filter((d) => d.tranche === trancheId);
   const dungeon = dungeons.find((d) => d.id === save.dungeonId) ?? dungeons[0] ?? DUNGEONS[0];
   renderWorkshopScreen(app, { trancheId, dungeonId: dungeon.id, onBack: renderSetup });
+  withHubBar('workshop');
 }
 
 function startRun(baseConfig: RunConfig): void {

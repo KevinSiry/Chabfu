@@ -41,6 +41,7 @@ import {
 } from '@chabfu/engine';
 import { slotFromKey, slotKeyLabel } from './keys';
 import { getCharacter } from './character/store';
+import { spellIconImg, unitPortraitImg } from './ui/assets';
 import { ELEMENT_LABEL, castPreviewCard, el, esc, monsterCard, spellTooltip } from './info';
 import {
   CANVAS_H,
@@ -913,7 +914,7 @@ function renderHud(): void {
       const mr = spellMaxRange(s, state.player.passives ?? []);
       const range = mr === 0 ? 'soi' : s.minRange === mr ? `${s.minRange}` : `${s.minRange}–${mr}`;
       return `<button class="spell-btn el-${s.element} ${v.selectedSpell === id ? 'active' : ''} ${disabled ? 'off' : ''}" data-spell="${id}" ${disabled ? 'aria-disabled="true"' : ''} aria-label="${esc(s.name)}">
-        <span class="slot-icon">${spellGlyph(s.name)}</span>
+        <span class="slot-icon">${spellGlyph(s.name)}${spellIconImg(id)}</span>
         <kbd class="slot-key">${esc(slotKeyLabel(i))}</kbd>
         <span class="slot-pa">${s.pa}</span>
         ${cc ? `<span class="slot-conc">${cc}</span>` : ''}
@@ -981,7 +982,7 @@ function renderTurnOrder(): void {
         const intent = intents?.intents.find((x) => x.unitId === u.id);
         const now = v.acting ? v.acting === u.id : i === 0;
         return `<div class="to-chip ${now ? 'now' : ''} ${v.pinned === u.id ? 'pinned' : ''}" data-unit="${u.id}" title="${esc(u.name)}">
-          <span class="to-dot" style="background:${unitColor(u.templateId)}">${u.id === PLAYER_ID ? 'A' : esc(u.name[0])}</span>
+          <span class="to-dot" style="background:${unitColor(u.templateId)}">${u.id === PLAYER_ID ? 'A' : esc(u.name[0])}${unitPortraitImg(u.id === PLAYER_ID ? 'archer' : u.templateId)}</span>
           <span class="to-info"><span class="to-name">${esc(u.name)}</span><span class="to-hp"><i style="width:${(100 * hp) / u.maxHp}%"></i></span></span>
           ${!v.busy && intent?.damageToPlayer ? `<span class="to-intent">⚔${intent.damageToPlayer}</span>` : ''}
         </div>`;

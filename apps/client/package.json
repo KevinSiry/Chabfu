@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@chabfu/engine": "0.1.0",
-    "@fontsource/alegreya-sans": "^5.3.0",
-    "@fontsource/cinzel": "^5.3.0"
+    "@fontsource/lilita-one": "5.3.0",
+    "@fontsource/nunito": "5.3.0"
   },
   "devDependencies": {
     "vite": "7.3.8"
