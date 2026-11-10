@@ -6,6 +6,7 @@ import {
   spellConcentrationCost,
   spellConcentrationLoss,
   spellMaxRange,
+  equipmentRange,
   getCastError,
   getMonster,
   getSpell,
@@ -74,12 +75,12 @@ export function spellTooltip(state: RunState, spellId: string, index: number): s
   const target = { unit: 'Un ennemi', cell: 'Une case', emptyCell: 'Une case libre', self: 'Soi-même' }[s.target];
   const passives = state.player.passives ?? [];
   const conc = spellConcentration(s, passives);
-  const maxRange = spellMaxRange(s, passives);
+  const maxRange = spellMaxRange(s, passives, equipmentRange(state));
   return `
     <div class="tt-head"><b>${s.name}</b><span class="key">${esc(slotKeyLabel(index))}</span></div>
     <div class="tt-meta">${el(s.element)} · <span class="pa">${s.pa} PA</span>${s.maxPerTurn ? ` · ${uses}/${s.maxPerTurn} ce tour` : ''}</div>
     <div class="tt-grid">
-      <span>Portée</span><b>${rangeLabel(s.minRange, maxRange)}${maxRange > s.maxRange ? ` <span class="pos">(+${maxRange - s.maxRange} passif)</span>` : ''}</b>
+      <span>Portée</span><b>${rangeLabel(s.minRange, maxRange)}${maxRange > s.maxRange ? ` <span class="pos">(+${maxRange - s.maxRange} passifs et stuff)</span>` : ''}</b>
       <span>Cible</span><b>${target}</b>
       <span>Ligne de vue</span><b>${s.target === 'self' ? '—' : s.los ? 'requise' : 'non requise'}</b>
       ${s.inLine ? '<span>Lancer</span><b>en ligne droite</b>' : ''}
@@ -92,6 +93,7 @@ export function spellTooltip(state: RunState, spellId: string, index: number): s
 
 export function factorTags(d: NonNullable<ReturnType<typeof spellDamageOn>>): string {
   const tags: string[] = [];
+  if (d.flat) tags.push(`dommages +${d.flat}`);
   if (d.mastery) tags.push(`maîtrise +${d.mastery} %`);
   if (d.weakness) tags.push(`<span class="pos">faiblesse ${pct(DAMAGE_FACTORS.weakness)}</span>`);
   if (d.resistance) tags.push(`<span class="neg">résistance ${pct(DAMAGE_FACTORS.resistance)}</span>`);
@@ -147,7 +149,7 @@ export function monsterCard(state: RunState, u: Unit, intent: MonsterIntent | un
     <ul class="atk-list">${attacks
       .map(
         (a) =>
-          `<li><span>${el(a.element)} <b>${a.name}</b></span><span class="neg"><b>${a.damage}</b> dégâts</span><span class="muted">${a.pa} PA · ${rangeLabel(a.minRange, a.maxRange)}${a.los ? '' : ' · en cloche (sans ligne de vue)'}${a.maxPerTurn > 1 ? ` · ${a.maxPerTurn}/tour` : ''}${a.burn ? ` · <span class="neg">brûlure ${a.burn.damage} × ${a.burn.turns}</span>` : ''}${a.pmRemoval ? ` · <span class="neg">−${a.pmRemoval} PM</span>` : ''}${a.push ? ` · <span class="neg">pousse de ${a.push}</span>` : ''}</span></li>`,
+          `<li><span>${el(a.element)} <b>${a.name}</b></span><span class="neg"><b>${a.damage}</b> dégâts${a.resisted ? ` <span class="muted">(−${a.resisted} % résistance)</span>` : ''}</span><span class="muted">${a.pa} PA · ${rangeLabel(a.minRange, a.maxRange)}${a.los ? '' : ' · en cloche (sans ligne de vue)'}${a.maxPerTurn > 1 ? ` · ${a.maxPerTurn}/tour` : ''}${a.burn ? ` · <span class="neg">brûlure ${a.burn.damage} × ${a.burn.turns}</span>` : ''}${a.pmRemoval ? ` · <span class="neg">−${a.pmRemoval} PM</span>` : ''}${a.push ? ` · <span class="neg">pousse de ${a.push}</span>` : ''}</span></li>`,
       )
       .join('')}</ul>
     ${t.description ? `<p class="desc-line">${esc(t.description)}</p>` : ''}
