@@ -5,11 +5,11 @@ export const MAX_DIFFICULTY = 10;
 
 /**
  * PV et dégâts des monstres : +15 % par palier au-dessus de 1, plus une courbe qui ne pèse qu'en haut
- * (D3 ×1,32, D5 ×1,66, D10 ×2,67) pour que les hautes difficultés exigent un stuff presque parfait.
+ * (D3 ×1,31, D5 ×1,64, D10 ×2,55) pour que les hautes difficultés exigent un stuff presque parfait.
  */
 export function difficultyMultiplier(difficulty: number): number {
   const d = difficulty - 1;
-  return 1 + 0.15 * d + 0.004 * d * d;
+  return 1 + 0.15 * d + 0.0025 * d * d;
 }
 
 /**
