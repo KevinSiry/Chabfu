@@ -218,3 +218,50 @@
   #app .gr-deck-panel { position: static; }
   #app .gr-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ---------- Équipement : personnage entouré de ses emplacements, sac en tuiles ---------- */
+#app .eq { display: grid; grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr); gap: 16px; align-items: start; }
+#app .eq-hero, #app .eq-bag { padding: 14px; }
+#app .eq-hero-head { display: flex; align-items: center; gap: 8px; font: 22px/1.1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+#app .eq-hero-head b { color: var(--c-gold-a); }
+#app .eq-loot-btn { margin-left: auto; }
+#app .eq-doll { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; margin-top: 12px; }
+#app .eq-col { display: flex; flex-direction: column; gap: 10px; }
+#app .eq-slot { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+#app .eq-slot > span:last-child { font: 11px/1 var(--font-display); color: var(--c-text-2); text-shadow: var(--stroke-sm); }
+#app .eq-archer { position: relative; align-self: stretch; display: grid; place-items: end center; border-radius: 50%; background: radial-gradient(circle at 50% 70%, rgba(255, 232, 102, 0.28), transparent 60%); }
+#app .eq-archer img { width: 100%; max-width: 220px; filter: drop-shadow(0 8px 0 rgba(0, 0, 0, 0.35)); }
+#app .eq-tile { --r: var(--c-r-common); position: relative; width: 56px; height: 56px; padding: 4px; display: grid; place-items: center; border: 0; border-radius: 14px; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--r) 55%, #fff 0%), color-mix(in srgb, var(--r) 30%, var(--c-well))); box-shadow: 0 0 0 3px var(--c-ink), inset 0 0 0 3px var(--r), 0 4px 0 2px rgba(0, 0, 0, 0.35); cursor: pointer; transition: transform var(--d-fast) var(--ease-spring); }
+#app .eq-tile img { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; filter: drop-shadow(0 2px 0 var(--c-ink)); }
+#app .eq-tile:active { transform: scale(0.94); }
+#app .eq-tile.empty { background: rgba(20, 12, 56, 0.45); box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.14); cursor: default; }
+#app .eq-tile.empty img { opacity: 0.25; filter: grayscale(1); }
+#app .eq-tile.rarity-legendary { box-shadow: 0 0 0 3px var(--c-ink), inset 0 0 0 3px var(--r), 0 0 18px var(--r), 0 4px 0 2px rgba(0, 0, 0, 0.35); }
+#app .eq-tile.worn::after { content: ''; position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--c-cta-b) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 12px no-repeat; box-shadow: var(--outline-2); }
+#app .eq-col .eq-tile.worn::after { content: none; }
+#app .eq-tile.up::before { content: '▲'; position: absolute; bottom: -6px; right: -6px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; font-size: 11px; color: #fff; background: linear-gradient(180deg, var(--c-cta-a), var(--c-cta-b)); box-shadow: var(--outline-2); }
+#app .eq-stats { margin-top: 14px; }
+#app .eq-bag .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+#app .eq-grid { display: grid; grid-template-columns: repeat(auto-fill, 64px); gap: 14px; }
+#app .eq-grid .eq-tile { width: 64px; height: 64px; }
+#app .eq-empty { padding: 24px 8px; }
+#app .eq-empty .ico { width: 40px; height: 40px; color: var(--c-gold-a); }
+
+@media (max-height: 520px) and (orientation: landscape) {
+  #app .eq { grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr); gap: 12px; }
+  #app .eq-tile { width: 48px; height: 48px; }
+  #app .eq-col { gap: 6px; }
+  #app .eq-archer img { max-width: 150px; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  #app .eq { grid-template-columns: 1fr; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  #app .eq-col { display: grid; grid-template-columns: repeat(2, auto); gap: 6px; }
+  #app .eq-doll { gap: 4px; }
+}
+#app .eq-tile.rarity-common { --r: var(--c-r-common); }
+#app .eq-tile.rarity-uncommon { --r: var(--c-r-uncommon); }
+#app .eq-tile.rarity-rare { --r: var(--c-r-rare); }
+#app .eq-tile.rarity-mythic { --r: var(--c-r-mythic); }
+#app .eq-tile.rarity-legendary { --r: var(--c-r-legendary); }
