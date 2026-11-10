@@ -9,3 +9,6 @@ export { ITEMS, BOSS_DROP_TABLES, getItem, getBossDropTable, type DropEntry } fr
 export { SPELLS, getSpell, type SpellDef, type Zone } from './data/spells.js';
 export { MONSTERS, getMonster, type MonsterTemplate, type MonsterAttack } from './data/monsters.js';
 export { DUNGEONS, getDungeon, type DungeonDef } from './data/dungeons.js';
+export * from './crafting.js';
+export { RESOURCES, RESOURCE_TIERS, getResource, dungeonResources, type ResourceDef, type ResourceTier } from './data/resources.js';
+export { RECIPES, CRAFTABLE_ITEMS, CRAFT_RARITIES, getRecipe, recipesForTranche, type Recipe, type CraftRarity, type CraftableItem } from './data/recipes.js';
