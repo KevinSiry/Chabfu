@@ -27,7 +27,7 @@ export function pagerHtml(key: string): string {
  * Pagine les enfants de `grid`. `pager` est la barre de pagination (créée par `pagerHtml`),
  * placée hors de la grille : elle garde toujours sa place, même avec une seule page, pour que la grille ne change pas de taille.
  */
-export function pagedGrid(grid: HTMLElement, key: string, pager: HTMLElement | null = grid.parentElement?.querySelector<HTMLElement>(`[data-pager="${key}"]`) ?? null): PagedGrid {
+export function pagedGrid(grid: HTMLElement, key: string, pager: HTMLElement | null = (grid.closest('[data-pager-scope]') ?? grid.parentElement)?.querySelector<HTMLElement>(`[data-pager="${key}"]`) ?? null): PagedGrid {
   let perPage = 0;
   let pages = 1;
   let page = pageByKey.get(key) ?? 0;
@@ -58,9 +58,8 @@ export function pagedGrid(grid: HTMLElement, key: string, pager: HTMLElement | n
     pager.classList.toggle('is-single', pages <= 1);
     const dots = pager.querySelector<HTMLElement>('.ui-pager__dots')!;
     dots.innerHTML =
-      pages <= 8
-        ? Array.from({ length: pages }, (_, i) => `<button type="button" class="${i === page ? 'on' : ''}" data-page="${i}" aria-label="Page ${i + 1}"></button>`).join('')
-        : `<b>${page + 1} / ${pages}</b>`;
+      (pages <= 8 ? Array.from({ length: pages }, (_, i) => `<button type="button" class="${i === page ? 'on' : ''}" data-page="${i}" aria-label="Page ${i + 1}"></button>`).join('') : '') +
+      `<b class="ui-pager__count${pages <= 8 ? ' has-dots' : ''}">${page + 1}/${pages}</b>`;
     dots.setAttribute('aria-label', `Page ${page + 1} sur ${pages}`);
     pager.querySelector<HTMLButtonElement>('[data-dir="-1"]')!.disabled = page === 0;
     pager.querySelector<HTMLButtonElement>('[data-dir="1"]')!.disabled = page >= pages - 1;

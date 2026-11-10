@@ -11,7 +11,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   height: calc((100dvh - var(--safe-t) - var(--safe-b)) / var(--hub-zoom) - var(--top-h) - var(--tabs-h));
   min-height: 0; overflow: hidden; justify-content: flex-start;
 }
-#app.has-hub .hub-screen > :where(.setup) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+:where(#app.has-hub .hub-screen) > .setup { flex: 1; min-height: 0; display: flex; flex-direction: column; width: 100%; max-width: none; margin: 0; padding: 0; }
 #app.has-hub .hub-screen > :where(.setup) > * { min-height: 0; }
 
 /* ---------- Pagination ---------- */
@@ -118,4 +118,90 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   #app .ws-field select { height: 30px; }
   #app .ws-hint { display: none; }
   #app .ws-bag { grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 8px; }
+}
+
+/* Barre d'outils au-dessus d'une grille paginée : filtres à gauche, pagination à droite. */
+.ws-toolbar, #app .gr-bar { flex: none; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ws-toolbar > :first-child { flex: 1; min-width: 0; }
+.ws-toolbar .ui-pager, #app .gr-bar .ui-pager { margin-left: auto; }
+#app .gr-bar { flex-wrap: nowrap; }
+@media (max-height: 520px) and (orientation: landscape) {
+  #app .ws-recipe .stat-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; padding: 3px 6px; margin: 0; }
+  #app .ws-recipe .stat-rows li { font-size: 11px; gap: 4px; }
+  #app .ws-recipe .stat-rows .stat-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #app .ws-recipe .stat-rows .stat-medal { width: 15px; height: 15px; font-size: 8px; border-radius: 5px; }
+  #app .ws-recipe-head .tag-up { margin-left: 4px; padding: 1px 5px; font-size: 10px; }
+  #app .ws-recipe-head .rarity-label { display: inline; margin-right: 2px; }
+  #app .ws-recipe-head > div { line-height: 1.15; }
+}
+
+/* Atelier : tous les réglages (filtres, pagination) dans le panneau de gauche, la grille prend toute la droite. */
+#app .ws-side { align-self: stretch; }
+#app .ws-side .ui-pager { margin-top: auto; }
+#app .ws .ws-side .ws-rarities { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 0; }
+#app.has-hub .ws .ws-side .chips .chip { padding: 0 4px; font-size: 13px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-height: 520px) and (orientation: landscape) {
+  #app .ws--craft .ws-side .ws-res { display: none; }
+  #app.has-hub .ws .ws-side .chips .chip { height: 26px; line-height: 26px; font-size: 12px; }
+  #app .ws-side .ui-pager { height: 28px; }
+}
+#app .ws-side-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; }
+#app .ws-side-foot .ui-btn { margin: 0; }
+#app .ws-side-foot .ui-pager { margin: 0 0 0 auto; }
+@media (max-height: 520px) and (orientation: landscape) {
+  #app .ws-field-label { display: none; }
+  #app .ws-side-foot .ui-btn span { display: none; }
+  #app .ws-side-foot .ui-btn { width: 36px; padding: 0; min-height: 32px; }
+  #app .ws-recipe { position: relative; }
+  #app .ws-recipe-head { padding-right: 40px; }
+  #app .ws-recipe > .ui-btn[data-craft] { position: absolute; top: 8px; right: 8px; width: 36px; min-height: 36px; padding: 0; margin: 0; font-size: 0; gap: 0; }
+  #app .ws-recipe > .ui-btn[data-craft] .ico { width: 20px; height: 20px; }
+}
+
+/* ---------- Équipement : personnage et emplacements à gauche, sac paginé ou stats à droite ---------- */
+#app.has-hub .eq { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); grid-template-rows: minmax(0, 1fr); gap: 14px; align-items: stretch; }
+#app .eq-hero { min-height: 0; display: flex; flex-direction: column; }
+#app .eq-doll { flex: 1; min-height: 0; margin-top: 8px; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) auto; align-items: center; row-gap: 10px; }
+#app .eq-doll .eq-col { display: flex; flex-direction: column; gap: 10px; }
+#app .eq-row { grid-column: 1 / -1; display: flex; justify-content: center; gap: 18px; }
+#app .eq-archer { min-height: 0; height: 100%; place-items: center; }
+#app .eq-archer img { width: auto; height: 100%; max-height: 260px; max-width: 100%; object-fit: contain; }
+#app .eq-bag { min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+#app .eq-bar { flex: none; display: flex; align-items: center; gap: 8px; }
+#app .eq-bar .ui-seg button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; }
+#app .eq-bar .ui-seg .ico { width: 18px; height: 18px; }
+#app .eq-bar .ui-seg b { color: var(--c-gold-a); }
+#app .eq-bar .eq-loot-btn { margin: 0; }
+#app .eq-bar .ui-pager { margin-left: auto; }
+#app .eq-bag .eq-kinds { flex: none; display: flex; flex-wrap: nowrap; gap: 5px; margin: 0; }
+#app.has-hub .eq-bag .chips .chip { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; }
+#app .eq-kinds .chip img { width: 22px; height: 22px; object-fit: contain; }
+#app .eq-kinds .chip span { display: none; }
+#app .eq-bag .eq-grid { flex: 1; padding: 6px; grid-template-columns: repeat(auto-fill, 64px); justify-content: space-between; gap: 14px 10px; }
+#app .eq-stats { flex: 1; min-height: 0; margin: 0; overflow: hidden; }
+@media (max-height: 520px) and (orientation: landscape) {
+  #app.has-hub .eq { gap: 10px; }
+  #app .eq-hero, #app .eq-bag { padding: 8px 10px; }
+  #app .eq-hero-head { font-size: 17px; }
+  #app .eq-doll { margin-top: 4px; row-gap: 6px; }
+  #app .eq-doll .eq-col { display: flex; gap: 6px; }
+  #app .eq-slot > span:last-child { display: none; }
+  #app .eq-row { gap: 10px; }
+  #app .eq-tile { width: 46px; height: 46px; }
+  #app .eq-bar .eq-loot-btn span { display: none; }
+  #app .eq-bar .eq-loot-btn { width: 36px; padding: 0; }
+  #app.has-hub .eq-bag .chips .chip { height: 30px; padding: 0 5px; }
+  #app .eq-kinds .chip img { width: 20px; height: 20px; }
+  #app .eq-bag .eq-grid { grid-template-columns: repeat(auto-fill, 52px); gap: 8px; }
+  #app .eq-bag .eq-grid .eq-tile { width: 52px; height: 52px; }
+}
+.ui-pager__count.has-dots { display: none; }
+@media (max-height: 520px) and (orientation: landscape) {
+  .ui-pager { gap: 6px; }
+  .ui-pager__dots button { display: none; }
+  .ui-pager__count.has-dots { display: inline; }
+  .ui-pager__dots b { font-size: 14px; min-width: 30px; text-align: center; }
+  #app .eq-bag .eq-kinds { gap: 3px; }
+  #app.has-hub .eq-bag .chips .chip { padding: 0 4px; }
+  #app .eq-bar .ui-seg button { padding: 0 8px; }
 }

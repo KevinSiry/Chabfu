@@ -86,13 +86,14 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
             return `<span class="ws-pill tier-${r.tier}${n ? '' : ' none'}" title="${RESOURCE_TIERS[r.tier].label} · dès difficulté ${r.refDifficulty}"><b>${n}</b><span>${r.name}</span></span>`;
           })
           .join('')}
-      </div>`;
-  const craftMain = `
+      </div>
       <div class="chips ws-rarities">
         ${(['all', ...CRAFT_RARITIES] as const)
           .map((r) => `<button class="chip${rarityFilter === r ? ' on' : ''}" data-rfilter="${r}">${r === 'all' ? 'Toutes' : RARITIES[r].label}</button>`)
           .join('')}
       </div>
+      ${pagerHtml(`ws-recipes-${dungeonId}-${rarityFilter}`)}`;
+  const craftMain = `
       <div class="ws-recipes" data-paged="ws-recipes-${dungeonId}-${rarityFilter}">
         ${recipes
           .map((r) => {
@@ -116,24 +117,26 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
             </div>`;
           })
           .join('')}
-      </div>
-      ${pagerHtml(`ws-recipes-${dungeonId}-${rarityFilter}`)}`;
+      </div>`;
   const recycleSide = `
       ${shardsHtml}
-      <label class="ws-field">Recyclage auto après chaque run
+      <label class="ws-field"><span class="ws-field-label">Recyclage auto après chaque run</span>
         <select id="auto-recycle">
-          <option value="">Désactivé</option>
+          <option value="">Auto : désactivé</option>
           ${RARITY_ORDER.slice(1)
-            .map((r) => `<option value="${r}" ${st.autoRecycleBelow === r ? 'selected' : ''}>Sous ${RARITIES[r].label}</option>`)
+            .map((r) => `<option value="${r}" ${st.autoRecycleBelow === r ? 'selected' : ''}>Auto : sous ${RARITIES[r].label}</option>`)
             .join('')}
         </select></label>
-      <div class="ws-field ws-bulk"><span>Tout recycler sous</span>
+      <div class="ws-field ws-bulk"><span class="ws-field-label">Tout recycler sous</span>
         <div class="ws-bulk-row"><select id="bulk-rarity">${RARITY_ORDER.slice(1)
-          .map((r) => `<option value="${r}">${RARITIES[r].label}</option>`)
+          .map((r) => `<option value="${r}">Sous ${RARITIES[r].label}</option>`)
           .join('')}</select>
         <button class="ui-btn ui-btn--gold ui-btn--sm" id="bulk-recycle">${icon('recycle')} Recycler</button></div>
       </div>
-      <button class="ui-btn ui-btn--blue ui-btn--sm ui-btn--block" id="ws-mastery">${icon('trophy')} Maîtrise d’objet</button>`;
+      <div class="ws-side-foot">
+        <button class="ui-btn ui-btn--blue ui-btn--sm" id="ws-mastery" aria-label="Maîtrise d’objet">${icon('trophy')}<span>Maîtrise</span></button>
+        ${bag.length ? pagerHtml(`ws-bag-${o.trancheId}`) : ''}
+      </div>`;
   const recycleMain = bag.length
     ? `<p class="ws-hint">Touchez un objet pour le recycler. Les objets équipés ne sont jamais recyclés.</p>
        <div class="eq-grid ws-bag" data-paged="ws-bag-${o.trancheId}">${bag
@@ -141,7 +144,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
            const eq = isEquipped(inv, it.uid);
            return `<button class="eq-tile rarity-${it.rarity} ${eq ? 'worn' : ''}" data-ritem="${it.uid}" aria-label="${getItem(it.itemId).name}">${itemIconImg(getItem(it.itemId).kind)}</button>`;
          })
-         .join('')}</div>${pagerHtml(`ws-bag-${o.trancheId}`)}`
+         .join('')}</div>`
     : `<div class="ui-empty eq-empty">${icon('bag')}<b>Sac vide</b><p>Le butin des boss arrive ici.</p></div>`;
   const masteryHtml = masteries.length
     ? `<div class="ws-mastery" data-paged="ws-mastery">${masteries
@@ -154,7 +157,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     : '<p class="muted">Recyclez plusieurs exemplaires d’un objet pour progresser dans sa maîtrise.</p>';
 
   app.innerHTML = `
-    <div class="setup stuff ws ws--${mode}">
+    <div class="setup stuff ws ws--${mode}" data-pager-scope>
       <aside class="ui-panel ws-side">
         ${segmented('ws-mode', [{ value: 'craft', label: `${icon('hammer')} Fabriquer` }, { value: 'recycle', label: `${icon('recycle')} Recycler` }], mode)}
         ${mode === 'craft' ? craftSide : recycleSide}

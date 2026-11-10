@@ -290,6 +290,7 @@ function renderSetup(): void {
         <div class="gr-bar">
           ${segmented('gr-tab', [{ value: 'spells', label: `${icon('grimoire')} Sorts` }, { value: 'passives', label: `${icon('sparkle')} Passifs <b id="passive-count"></b>` }], grTab)}
           <small class="gr-hint">${grTab === 'spells' ? 'Touchez une carte pour sa fiche et l’ajouter au deck.' : `Touchez un passif pour l’équiper (${tranche.passiveSlots} emplacement${tranche.passiveSlots > 1 ? 's' : ''}).`}</small>
+          ${pagerHtml(`gr-${grTab}-${tranche.id}`)}
         </div>
         ${
           grTab === 'spells'
@@ -304,7 +305,7 @@ function renderSetup(): void {
             </button>`;
             })
             .join('')}
-        </div>${pagerHtml(`gr-spells-${tranche.id}`)}`
+        </div>`
             : `<div class="gr-passives" data-paged="gr-passives-${tranche.id}">
           ${passives
             .map((pa) => {
@@ -316,7 +317,7 @@ function renderSetup(): void {
             </button>`;
             })
             .join('')}
-        </div>${pagerHtml(`gr-passives-${tranche.id}`)}`
+        </div>`
         }
       </section>
     </div>`;
