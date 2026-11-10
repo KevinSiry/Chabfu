@@ -7,9 +7,9 @@
   "scripts": {
     "dev": "npm run dev -w @chabfu/client",
     "build": "npm run build -w @chabfu/client",
-    "test": "npm test -w @chabfu/engine -w @chabfu/solver",
+    "test": "npm test -w @chabfu/engine -w @chabfu/solver -w @chabfu/server",
     "solve": "npm run solve -w @chabfu/solver --",
-    "typecheck": "tsc -p packages/engine && tsc -p packages/solver && tsc -p apps/client",
+    "typecheck": "tsc -p packages/engine && tsc -p packages/solver && tsc -p apps/client && tsc -p apps/server",
     "economy": "npm run economy -w @chabfu/solver --"
   },
   "devDependencies": {
