@@ -126,13 +126,13 @@ let view: RunView | null = null;
 let frame = 0;
 
 const COLORS = {
-  move: 'rgba(108, 192, 112, 0.32)',
+  move: 'rgba(111, 191, 79, 0.32)',
   range: 'rgba(74, 163, 223, 0.35)',
   rangeNoLos: 'rgba(110, 110, 130, 0.35)',
   zone: 'rgba(232, 100, 60, 0.6)',
   enemyMove: 'rgba(242, 160, 60, 0.28)',
-  threat: '#e0544f',
-  pinned: '#f2c14e',
+  threat: '#d8453c',
+  pinned: '#d6a956',
   focus: '#ffffff',
 };
 

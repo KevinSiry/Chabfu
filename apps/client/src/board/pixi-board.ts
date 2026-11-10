@@ -288,7 +288,7 @@ export class PixiBoard {
     }
     for (const p of scene.path) {
       const c = toScreen(room, p.x, p.y);
-      g.poly(diamondPts(c)).fill({ color: 0x6cc070, alpha: 0.5 });
+      g.poly(diamondPts(c)).fill({ color: 0x6fbf4f, alpha: 0.5 });
     }
     if (scene.path.length) {
       const pts = scene.path.map((p) => toScreen(room, p.x, p.y));
@@ -298,7 +298,7 @@ export class PixiBoard {
     if (scene.hover) {
       const c = toScreen(room, scene.hover.x, scene.hover.y);
       const pulse = 0.65 + 0.35 * Math.sin(scene.now / 180);
-      g.poly(diamondPts(c)).stroke({ width: 2, color: 0xf2c14e, alpha: pulse });
+      g.poly(diamondPts(c)).stroke({ width: 2, color: 0xecc878, alpha: pulse });
     }
   }
 
