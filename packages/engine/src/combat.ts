@@ -1,5 +1,6 @@
 import { canUseAttack, planMonsterMove } from './ai.js';
 import { getDungeon } from './data/dungeons.js';
+import { MECHANICS } from './data/mechanics.js';
 import { getMonster, type MonsterAttack } from './data/monsters.js';
 import { getSpell, type SpellDef } from './data/spells.js';
 import { DIRS, distance, hasLineOfSight, isFree, isWall, key, reachable, samePos, unitAt } from './grid.js';
@@ -7,7 +8,7 @@ import { MAX_DIFFICULTY, MIN_DIFFICULTY, difficultyMultiplier } from './loot.js'
 import { MAX_RESISTANCE } from './equipment.js';
 import { combinePassives, spellConcentrationCost, spellConcentrationLoss, spellMaxRange, validatePassives } from './passives.js';
 import { effectiveLevel, getTranche, validateDeck } from './progression.js';
-import type { Action, Element, GameEvent, Pos, RunConfig, RunState, Unit } from './types.js';
+import type { Action, Element, GameEvent, Pos, RunConfig, RunState, Telegraph, Unit } from './types.js';
 
 export const PLAYER_ID = 'archer';
 export const MAX_CONCENTRATION = 10;
@@ -45,7 +46,7 @@ function deepCopy(value: unknown): unknown {
 
 export class InvalidActionError extends Error {}
 
-type DamageSource = 'spell' | 'burn' | 'collision' | 'attack';
+type DamageSource = 'spell' | 'burn' | 'collision' | 'attack' | 'mechanic';
 
 const ELEMENTS: Element[] = ['fire', 'water', 'earth', 'air', 'neutral'];
 
@@ -114,7 +115,6 @@ export function createRun(config: RunConfig): RunState {
 function enterRoom(state: RunState, index: number, events: GameEvent[]): void {
   const dungeon = getDungeon(state.config.dungeonId);
   const tpl = dungeon.rooms[index];
-  const mult = difficultyMultiplier(state.config.difficulty);
   state.roomIndex = index;
   state.room = { name: tpl.name, width: tpl.tiles[0].length, height: tpl.tiles.length, tiles: [...tpl.tiles] };
   const player = getPlayer(state);
@@ -122,32 +122,39 @@ function enterRoom(state: RunState, index: number, events: GameEvent[]): void {
   player.burn = undefined;
   player.pmMalus = 0;
   state.units = [player];
-  tpl.monsters.forEach((m, i) => {
-    const t = getMonster(m.templateId);
-    const hp = Math.round(t.hp * mult);
-    state.units.push({
-      id: `r${index}-m${i}`,
-      team: 'monster',
-      templateId: t.id,
-      name: t.name,
-      pos: { ...m.pos },
-      hp,
-      maxHp: hp,
-      pa: t.pa,
-      pm: t.pm,
-      basePa: t.pa,
-      basePm: t.pm,
-      weakness: t.weakness,
-      resistance: t.resistance,
-      pmMalus: 0,
-      isBoss: t.isBoss,
-      attackUses: {},
-    });
-  });
+  tpl.monsters.forEach((m, i) => state.units.push(createMonsterUnit(state, m.templateId, `r${index}-m${i}`, m.pos)));
   events.push({ type: 'roomEnter', roomIndex: index, name: tpl.name });
   const roomConcentration = state.config.equipment?.concentration ?? 0;
   if (roomConcentration) changeConcentration(state, roomConcentration, events);
   startPlayerTurn(state, events);
+}
+
+/** Nouvelle unité de monstre, PV mis à l'échelle de la difficulté. */
+export function createMonsterUnit(state: RunState, templateId: string, id: string, pos: Pos): Unit {
+  const t = getMonster(templateId);
+  const hp = Math.round(t.hp * difficultyMultiplier(state.config.difficulty));
+  const unit: Unit = {
+    id,
+    team: 'monster',
+    templateId: t.id,
+    name: t.name,
+    pos: { ...pos },
+    hp,
+    maxHp: hp,
+    pa: t.pa,
+    pm: t.pm,
+    basePa: t.pa,
+    basePm: t.pm,
+    weakness: t.weakness,
+    resistance: t.resistance,
+    pmMalus: 0,
+    isBoss: t.isBoss,
+    attackUses: {},
+    turnsPlayed: 0,
+  };
+  if (t.mechanic === 'overheat') unit.heat = 0;
+  if (t.hatchInto) unit.hatchIn = MECHANICS.brood.hatchTurns;
+  return unit;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,10 +275,25 @@ export function computeDamage(
   if (attacker?.team === 'player') dmg *= 1 + (state.player.masteries[element] ?? 0) / 100;
   if (attacker?.team === 'monster') dmg *= difficultyMultiplier(state.config.difficulty);
   if (target.team === 'player') dmg *= 1 - playerResistance(state, element) / 100;
+  if (attacker?.team === 'monster' && target.team === 'player' && isFinishing(attacker, target)) dmg *= MECHANICS.finisher.bonus;
+  if (target.team === 'monster' && isThornGuarded(state, target)) dmg *= MECHANICS.thornGuard.damageTaken;
+  if (target.cooled) dmg *= MECHANICS.overheat.cooledDamageTaken;
   if (element !== 'neutral' && target.weakness === element) dmg *= WEAKNESS_BONUS;
   if (element !== 'neutral' && target.resistance === element) dmg *= RESISTANCE_MALUS;
   if (doubled) dmg *= 2;
   return Math.max(0, Math.floor(dmg + 1e-9));
+}
+
+/** Charognard : le monstre frappe plus fort un Archer sous la moitié de ses PV. */
+export function isFinishing(attacker: Unit, target: Unit): boolean {
+  return getMonster(attacker.templateId).trait === 'finisher' && target.hp < target.maxHp * MECHANICS.finisher.threshold;
+}
+
+/** Haie d'épines : le monstre est-il collé (case voisine) à un Ronceau vivant ? */
+export function isThornGuarded(state: RunState, target: Unit): boolean {
+  return state.units.some(
+    (u) => u.id !== target.id && u.team === 'monster' && u.hp > 0 && distance(u.pos, target.pos) === 1 && getMonster(u.templateId).trait === 'thornGuard',
+  );
 }
 
 function dealDamage(state: RunState, target: Unit, amount: number, element: Element, source: DamageSource, events: GameEvent[]): void {
@@ -280,9 +302,35 @@ function dealDamage(state: RunState, target: Unit, amount: number, element: Elem
   events.push({ type: 'damage', unitId: target.id, amount, element, source });
   if (target.hp === 0) {
     events.push({ type: 'death', unitId: target.id });
+    target.telegraph = undefined;
     if (target.team === 'monster') {
       const bonus = combinePassives(state.player.passives).killConcentration;
       if (bonus) changeConcentration(state, bonus, events);
+      if (getMonster(target.templateId).trait === 'deathBlast') deathBlast(state, target, events);
+    }
+  }
+}
+
+/** Les 8 cases autour d'une case (hors rochers). */
+export function cellsAround(state: RunState, p: Pos): Pos[] {
+  const cells: Pos[] = [];
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) cells.push({ x: p.x + dx, y: p.y + dy });
+  return cells.filter((c) => !isWall(state.room, c));
+}
+
+/** Salamandre : explosion à la mort, sur les 8 cases autour, monstres compris. */
+function deathBlast(state: RunState, source: Unit, events: GameEvent[]): void {
+  const cells = cellsAround(state, source.pos);
+  events.push({ type: 'mechanic', unitId: source.id, kind: 'deathBlast', cells });
+  const cfg = MECHANICS.deathBlast;
+  for (const c of cells) {
+    const victim = unitAt(state.units, c);
+    if (!victim) continue;
+    dealDamage(state, victim, computeDamage(state, cfg.damage, 'fire', source, victim), 'fire', 'mechanic', events);
+    if (victim.team === 'player' && victim.hp > 0) {
+      const dmg = computeDamage(state, cfg.burn.damage, 'fire', source, victim);
+      victim.burn = { damage: Math.max(dmg, victim.burn?.damage ?? 0), turns: Math.max(cfg.burn.turns, victim.burn?.turns ?? 0) };
+      events.push({ type: 'status', unitId: victim.id, text: `Brûlure ${cfg.burn.turns} tours` });
     }
   }
 }
@@ -297,6 +345,11 @@ function changeConcentration(state: RunState, delta: number, events: GameEvent[]
 function pushUnit(state: RunState, target: Unit, from: Pos, cells: number, events: GameEvent[]): void {
   const dir = { x: Math.sign(target.pos.x - from.x), y: Math.sign(target.pos.y - from.y) };
   if (dir.x !== 0 && dir.y !== 0) return; // poussée uniquement en ligne
+  pushUnitDir(state, target, dir, cells, events);
+}
+
+function pushUnitDir(state: RunState, target: Unit, dir: Pos, cells: number, events: GameEvent[]): void {
+  if (target.hp <= 0 || (dir.x === 0 && dir.y === 0)) return;
   const start = { ...target.pos };
   for (let i = 0; i < cells; i++) {
     const next = { x: target.pos.x + dir.x, y: target.pos.y + dir.y };
@@ -352,6 +405,19 @@ function runMonsterTurns(state: RunState, events: GameEvent[]): void {
       checkEnd(state, events);
       continue;
     }
+    monster.turnsPlayed = (monster.turnsPlayed ?? 0) + 1;
+    if (monster.hatchIn !== undefined) {
+      tickEgg(state, monster, events);
+      continue;
+    }
+    delete monster.cooled;
+    if (monster.telegraph) {
+      const kind = monster.telegraph.kind;
+      resolveTelegraph(state, monster, events);
+      checkEnd(state, events);
+      // Après son explosion, le Golem refroidit : il ne joue pas ce tour.
+      if (kind === 'blast' || state.status !== 'playing' || monster.hp <= 0) continue;
+    }
     const player = getPlayer(state);
     const plan = planMonsterMove(state.room, state.units, monster, player);
     if (plan.path.length) {
@@ -372,12 +438,156 @@ function runMonsterTurns(state: RunState, events: GameEvent[]): void {
         monster.pa -= atk.pa;
         monster.attackUses[atk.id] = (monster.attackUses[atk.id] ?? 0) + 1;
         events.push({ type: 'attack', unitId: monster.id, attackId: atk.id, targetId: player.id });
+        const hpBefore = player.hp;
         dealDamage(state, player, computeDamage(state, atk.damage, atk.element, monster, player), atk.element, 'attack', events);
+        if (template.trait === 'lifesteal') healUnit(monster, Math.floor((hpBefore - player.hp) * MECHANICS.lifesteal.ratio), events);
         applyAttackEffects(state, monster, player, atk, events);
         checkEnd(state, events);
       }
     }
+    if (state.status === 'playing' && monster.hp > 0) prepareMechanic(state, monster, events);
   }
+}
+
+function healUnit(unit: Unit, amount: number, events: GameEvent[]): void {
+  const healed = Math.min(amount, unit.maxHp - unit.hp);
+  if (healed <= 0 || unit.hp <= 0) return;
+  unit.hp += healed;
+  events.push({ type: 'heal', unitId: unit.id, amount: healed });
+}
+
+// ---------------------------------------------------------------------------
+// Mécaniques des boss (data/mechanics.ts) : annoncées en fin de tour, déclenchées au tour suivant
+// ---------------------------------------------------------------------------
+
+function setTelegraph(monster: Unit, telegraph: Telegraph, events: GameEvent[]): void {
+  monster.telegraph = telegraph;
+  events.push({ type: 'telegraph', unitId: monster.id, telegraph: clone(telegraph) });
+}
+
+/** Fin du tour d'un monstre : prépare la mécanique de son prochain tour. */
+function prepareMechanic(state: RunState, monster: Unit, events: GameEvent[]): void {
+  const mechanic = getMonster(monster.templateId).mechanic;
+  if (!mechanic || monster.telegraph) return;
+  const turn = monster.turnsPlayed ?? 0;
+  const player = getPlayer(state);
+  switch (mechanic) {
+    case 'roots': {
+      if (turn % MECHANICS.roots.every !== 1 % MECHANICS.roots.every) return;
+      const cells = [player.pos, ...DIRS.map((d) => ({ x: player.pos.x + d.x, y: player.pos.y + d.y }))].filter((c) => !isWall(state.room, c));
+      setTelegraph(monster, { kind: 'roots', cells: cells.map((c) => ({ ...c })) }, events);
+      return;
+    }
+    case 'gale': {
+      if (turn % MECHANICS.gale.every !== 1 % MECHANICS.gale.every) return;
+      setTelegraph(monster, { kind: 'gale', cells: [], dir: galeDirection(state, monster) }, events);
+      return;
+    }
+    case 'overheat': {
+      const cfg = MECHANICS.overheat;
+      monster.heat = Math.min(cfg.max, (monster.heat ?? 0) + cfg.gainPerTurn);
+      events.push({ type: 'status', unitId: monster.id, text: `Chaleur ${monster.heat}/${cfg.max}` });
+      if (monster.heat < cfg.max) return;
+      const cells: Pos[] = [];
+      for (let y = 0; y < state.room.height; y++) {
+        for (let x = 0; x < state.room.width; x++) {
+          const c = { x, y };
+          const d = distance(c, monster.pos);
+          if (d >= 1 && d <= cfg.radius && !isWall(state.room, c)) cells.push(c);
+        }
+      }
+      setTelegraph(monster, { kind: 'blast', cells }, events);
+      return;
+    }
+    case 'brood': {
+      const cfg = MECHANICS.brood;
+      if (turn < cfg.first || (turn - cfg.first) % cfg.every !== 0) return;
+      const cell = [...DIRS, { x: 1, y: 1 }, { x: -1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: -1 }]
+        .map((d) => ({ x: monster.pos.x + d.x, y: monster.pos.y + d.y }))
+        .find((c) => isFree(state.room, state.units, c));
+      if (!cell) return;
+      const egg = createMonsterUnit(state, cfg.egg, `${monster.id}-oeuf${turn}`, cell);
+      state.units.push(egg);
+      events.push({ type: 'spawn', unitId: egg.id });
+      return;
+    }
+  }
+}
+
+/**
+ * Sens du grand vent : celui qui envoie l'Archer le plus fort dans un obstacle ; à égalité, celui qui
+ * le rapproche de la Matriarche, puis l'ordre de DIRS. Déterministe et annoncé un tour à l'avance.
+ */
+function galeDirection(state: RunState, boss: Unit): Pos {
+  const player = getPlayer(state);
+  let best = DIRS[0];
+  let bestScore = -Infinity;
+  for (const d of DIRS) {
+    let free = 0;
+    while (free < MECHANICS.gale.push) {
+      const next = { x: player.pos.x + d.x * (free + 1), y: player.pos.y + d.y * (free + 1) };
+      if (!isFree(state.room, state.units, next)) break;
+      free += 1;
+    }
+    const collision = MECHANICS.gale.push - free;
+    const landing = { x: player.pos.x + d.x * free, y: player.pos.y + d.y * free };
+    const score = collision * 100 - distance(landing, boss.pos);
+    if (score > bestScore) {
+      bestScore = score;
+      best = d;
+    }
+  }
+  return { ...best };
+}
+
+/** Début du tour du boss : la mécanique annoncée se déclenche. */
+function resolveTelegraph(state: RunState, monster: Unit, events: GameEvent[]): void {
+  const t = monster.telegraph;
+  monster.telegraph = undefined;
+  if (!t) return;
+  const player = getPlayer(state);
+  events.push({ type: 'mechanic', unitId: monster.id, kind: t.kind, cells: t.cells.map((c) => ({ ...c })) });
+  if (t.kind === 'roots') {
+    if (!t.cells.some((c) => samePos(c, player.pos))) return;
+    const cfg = MECHANICS.roots;
+    dealDamage(state, player, computeDamage(state, cfg.damage, 'earth', monster, player), 'earth', 'mechanic', events);
+    if (player.hp > 0 && cfg.pmRemoval) {
+      player.pmMalus += cfg.pmRemoval;
+      events.push({ type: 'status', unitId: player.id, text: `Racines : −${cfg.pmRemoval} PM` });
+    }
+    return;
+  }
+  if (t.kind === 'blast') {
+    const cfg = MECHANICS.overheat;
+    if (t.cells.some((c) => samePos(c, player.pos))) dealDamage(state, player, computeDamage(state, cfg.damage, 'fire', monster, player), 'fire', 'mechanic', events);
+    monster.heat = 0;
+    monster.cooled = true;
+    events.push({ type: 'status', unitId: monster.id, text: 'Refroidi : +50 % de dégâts subis' });
+    return;
+  }
+  if (t.kind === 'gale' && t.dir) {
+    const dir = t.dir;
+    // Les unités les plus avancées dans le sens du vent bougent d'abord.
+    const pushed = state.units
+      .filter((u) => u.id !== monster.id && u.hp > 0)
+      .sort((a, b) => b.pos.x * dir.x + b.pos.y * dir.y - (a.pos.x * dir.x + a.pos.y * dir.y));
+    for (const u of pushed) pushUnitDir(state, u, dir, MECHANICS.gale.push, events);
+  }
+}
+
+/** Œuf : compte à rebours, puis éclosion (le nouveau monstre joue au tour suivant). */
+function tickEgg(state: RunState, egg: Unit, events: GameEvent[]): void {
+  egg.hatchIn = (egg.hatchIn ?? 1) - 1;
+  if (egg.hatchIn > 0) {
+    events.push({ type: 'status', unitId: egg.id, text: `Éclosion dans ${egg.hatchIn} tour${egg.hatchIn > 1 ? 's' : ''}` });
+    return;
+  }
+  const into = getMonster(egg.templateId).hatchInto;
+  if (!into) return;
+  const born = createMonsterUnit(state, into, egg.id, egg.pos);
+  Object.assign(egg, born, { hatchIn: undefined });
+  delete egg.hatchIn;
+  events.push({ type: 'hatch', unitId: egg.id });
 }
 
 /** Effets secondaires d'une attaque de monstre sur le joueur : brûlure, retrait de PM, poussée. */
@@ -496,6 +706,7 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
     for (const victim of victims) {
       dealDamage(state, victim, computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, victim, doubled), spell.element, 'spell', events);
       if (victim.hp <= 0) continue;
+      if (spell.element === 'water') coolDown(state, victim, events);
       if (spell.burn) {
         const dmg = computeDamage(state, spell.burn.damage, spell.element, player, victim);
         const turns = spell.burn.turns + combinePassives(state.player.passives).burnExtraTurns;
@@ -519,6 +730,14 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
     const ok = spell.concentrationGainMinDistance === undefined || distance(player.pos, target) >= spell.concentrationGainMinDistance;
     if (ok) changeConcentration(state, spell.concentrationGain, events);
   }
+}
+
+/** Surchauffe : un coup d'Eau fait baisser la chaleur de 1, une fois par tour, sauf explosion déjà annoncée. */
+function coolDown(state: RunState, victim: Unit, events: GameEvent[]): void {
+  if (getMonster(victim.templateId).mechanic !== 'overheat' || victim.telegraph || !victim.heat || victim.waterTurn === state.turn) return;
+  victim.heat = Math.max(0, victim.heat - MECHANICS.overheat.waterCooling);
+  victim.waterTurn = state.turn;
+  events.push({ type: 'status', unitId: victim.id, text: `Chaleur ${victim.heat}/${MECHANICS.overheat.max}` });
 }
 
 /** Utilitaire pour l'affichage : la case est-elle libre ? */

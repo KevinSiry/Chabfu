@@ -8,11 +8,12 @@
  *   --set spell.tir_concentre.concentrationCost=3
  *   --set item.*.stats.masteries.fire=x2   objets (data/items.ts)
  *   --set rarity.mythic.power=1.6          puissance des raretés (loot.ts)
+ *   --set mechanic.roots.damage=10         mécaniques de boss et traits (data/mechanics.ts)
  *
  * Les tables du moteur (MONSTERS, SPELLS) sont modifiées en mémoire dans le processus du solveur
  * uniquement ; rien n'est écrit sur disque.
  */
-import { ITEMS, MONSTERS, RARITIES, SPELLS } from '@chabfu/engine';
+import { ITEMS, MECHANICS, MONSTERS, RARITIES, SPELLS } from '@chabfu/engine';
 
 export function applyOverrides(specs: string[]): void {
   for (const spec of specs) applyOverride(spec);
@@ -29,10 +30,11 @@ function applyOverride(spec: string): void {
     spell: () => SPELLS,
     item: () => ITEMS,
     // Les raretés sont un dictionnaire : on présente chaque entrée avec son identifiant (même objet, modifié en place).
+    mechanic: () => Object.entries(MECHANICS).map(([mid, def]) => new Proxy(def, { get: (t, k) => (k === 'id' ? mid : t[k as keyof typeof t]) }) as unknown as { id: string }),
     rarity: () => Object.entries(RARITIES).map(([rid, def]) => new Proxy(def, { get: (t, k) => (k === 'id' ? rid : t[k as keyof typeof t]) }) as unknown as { id: string }),
   };
   const table = tables[kind]?.();
-  if (!table) throw new Error(`Réglage invalide (monster.*, spell.*, item.* ou rarity.*) : ${spec}`);
+  if (!table) throw new Error(`Réglage invalide (monster.*, spell.*, item.*, mechanic.* ou rarity.*) : ${spec}`);
   const targets = id === '*' ? table : table.filter((t) => t.id === id);
   if (!targets.length) throw new Error(`Identifiant inconnu dans ${spec}`);
   let touched = 0;
