@@ -43,7 +43,7 @@ import { slotFromKey, slotKeyLabel } from './keys';
 import { getCharacter } from './character/store';
 import { assetUrl, spellIconImg, unitPortraitImg } from './ui/assets';
 import { ELEMENT_LABEL, el, esc, monsterCard } from './info';
-import { castTargetCard, spellSheet } from './spell-info';
+import { castTargetCard, spellBrief, spellSheet } from './spell-info';
 import {
   CANVAS_H,
   CANVAS_W,
@@ -117,6 +117,8 @@ interface RunView {
   log: LogEntry[];
   selectedSpell: string | null;
   hoverSpell: string | null;
+  /** Fiche complète du sort affichée à droite (bouton « Détails » ou touche I) ; sinon, le bandeau compact suffit. */
+  sheetOpen: boolean;
   hover: Pos | null;
   mouse: { x: number; y: number } | null;
   pinned: string | null;
@@ -281,7 +283,7 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
         <div class="cb-player" id="hud"></div>
         <div class="cb-spells">
           <div class="spellbar" id="spellbar"></div>
-          <div class="spell-tip" id="spell-tip" hidden></div>
+          <div class="spell-brief" id="spell-brief" hidden></div>
         </div>
         <div class="cb-end">
           <div class="end-preview" id="end-preview"></div>
@@ -310,6 +312,7 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
     ],
     selectedSpell: null,
     hoverSpell: null,
+    sheetOpen: false,
     hover: null,
     mouse: null,
     pinned: null,
@@ -378,24 +381,32 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
   });
   app.querySelector('#open-menu')!.addEventListener('click', openPauseMenu);
   app.querySelector('#open-log')!.addEventListener('click', openLog);
-  app.querySelector('#info-close')!.addEventListener('click', clearSelection);
+  app.querySelector('#info-close')!.addEventListener('click', () => {
+    // Fiche du sort ouverte : on la replie sans annuler la visée.
+    if (view?.sheetOpen && (view.selectedSpell || view.hoverSpell)) toggleSpellSheet(false);
+    else clearSelection();
+  });
   app.querySelector('#confirm-cancel')!.addEventListener('click', clearSelection);
   app.querySelector('#confirm-go')!.addEventListener('click', () => {
     if (view?.pending) commitCell(view.pending);
   });
 
-  // Infobulles de la barre de sorts (délégation : la barre est reconstruite à chaque changement).
+  // Bandeau compact de la barre de sorts (délégation : la barre est reconstruite à chaque changement).
   const bar = app.querySelector('#spellbar') as HTMLElement;
   bar.addEventListener('mouseover', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('.spell-btn');
-    if (!view || !b) return;
+    if (!view || !b || view.hoverSpell === b.dataset.spell) return;
     view.hoverSpell = b.dataset.spell!;
-    showSpellTip(b);
+    renderSpellBrief();
   });
-  bar.addEventListener('mouseleave', () => {
+  // La zone de survol couvre la barre et le bandeau, pour pouvoir cliquer sur « Détails ».
+  app.querySelector('.cb-spells')!.addEventListener('mouseleave', () => {
     if (!view) return;
     view.hoverSpell = null;
-    (document.getElementById('spell-tip') as HTMLElement).hidden = true;
+    renderSpellBrief();
+  });
+  app.querySelector('#spell-brief')!.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('.sb-more')) toggleSpellSheet();
   });
   bar.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.spell-btn');
@@ -562,6 +573,8 @@ window.addEventListener('keydown', (e) => {
     clearSelection();
   } else if (e.key === 't' || e.key === 'T') {
     toggleThreat();
+  } else if ((e.key === 'i' || e.key === 'I') && (view.selectedSpell || view.hoverSpell)) {
+    toggleSpellSheet();
   } else if (slotFromKey(e) >= 0) {
     const id = view.state.player.deck[slotFromKey(e)];
     if (id) {
@@ -570,6 +583,14 @@ window.addEventListener('keydown', (e) => {
     }
   }
 });
+
+/** Ouvre ou replie la fiche complète du sort à droite. Le choix est gardé pour tout le combat. */
+function toggleSpellSheet(open?: boolean): void {
+  if (!view) return;
+  view.sheetOpen = open ?? !view.sheetOpen;
+  sfx(view.sheetOpen ? 'select' : 'cancel');
+  renderSpellBrief();
+}
 
 function toggleThreat(): void {
   if (!view) return;
@@ -1081,7 +1102,7 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
 
 function overlayKey(v: RunView): string {
   const h = v.hover ? key(v.hover) : '-';
-  return [v.stateId, h, v.selectedSpell, v.hoverSpell, v.pinned, v.focusUnit, v.showThreat, v.hoverEndTurn, v.busy, v.acting, v.pending ? key(v.pending) : '-', v.showPlayer].join('|');
+  return [v.stateId, h, v.selectedSpell, v.hoverSpell, v.sheetOpen, v.pinned, v.focusUnit, v.showThreat, v.hoverEndTurn, v.busy, v.acting, v.pending ? key(v.pending) : '-', v.showPlayer].join('|');
 }
 
 function refreshOverlay(): void {
@@ -1216,9 +1237,13 @@ function computeOverlay(v: RunView): Overlay {
     } else if (preview.error === 'Pas de ligne de vue.') {
       o.arrows.push({ points: [player.pos, v.hover], color: 'rgba(224, 84, 79, 0.9)', dashed: true, head: false, width: 2 });
     }
-    o.inspector = hoveredMonster ? monsterCard(s, hoveredMonster, intentOf(hoveredMonster.id), false) : spellSheet(s, v.selectedSpell, { slot: s.player.deck.indexOf(v.selectedSpell) });
+  }
+  // Fiche complète à droite seulement sur demande : sinon le bandeau au-dessus des sorts et la carte de visée suffisent.
+  const sheetSpell = v.selectedSpell ?? v.hoverSpell;
+  if (sheetSpell && v.sheetOpen) {
+    o.inspector = spellSheet(s, sheetSpell, { slot: s.player.deck.indexOf(sheetSpell) });
   } else if (v.selectedSpell) {
-    o.inspector = spellSheet(s, v.selectedSpell, { slot: s.player.deck.indexOf(v.selectedSpell) });
+    o.inspector = '';
   } else if (v.hover) {
     const path = v.analysis.reach.get(key(v.hover));
     if (path) {
@@ -1301,17 +1326,36 @@ function positionCursorTip(): void {
   tip.style.transform = `translate(${Math.max(8, x)}px, ${y}px)`;
 }
 
-function showSpellTip(btn: HTMLElement): void {
+/** Bandeau compact au-dessus de la barre : sort survolé, sinon sort sélectionné. */
+function renderSpellBrief(): void {
   if (!view) return;
-  const tip = document.getElementById('spell-tip') as HTMLElement;
-  const id = btn.dataset.spell!;
-  tip.innerHTML = spellSheet(view.state, id, { slot: view.state.player.deck.indexOf(id) });
-  tip.hidden = false;
-  const parent = tip.parentElement!.getBoundingClientRect();
-  const r = btn.getBoundingClientRect();
-  const left = Math.min(Math.max(0, r.left - parent.left), parent.width - tip.offsetWidth);
-  tip.style.left = `${left}px`;
-  tip.style.top = `${r.top - parent.top - tip.offsetHeight - 8}px`;
+  const v = view;
+  const box = document.getElementById('spell-brief') as HTMLElement | null;
+  if (!box) return;
+  const id = v.busy ? null : (v.hoverSpell ?? v.selectedSpell);
+  const cb = document.querySelector('.cb') as HTMLElement | null;
+  if (!id) {
+    box.hidden = true;
+    box.dataset.html = '';
+    cb?.style.setProperty('--brief-h', '0px');
+    return;
+  }
+  const html = spellBrief(v.state, id, { slot: v.state.player.deck.indexOf(id), detailsOpen: v.sheetOpen });
+  if (box.dataset.html !== html) {
+    box.innerHTML = html;
+    box.dataset.html = html;
+  }
+  box.hidden = false;
+  // Centré sur le bouton du sort, sans sortir de la zone des sorts.
+  const btn = document.querySelector<HTMLElement>(`#spellbar [data-spell="${id}"]`);
+  const parent = box.parentElement!.getBoundingClientRect();
+  const scale = parent.width / (box.parentElement!.offsetWidth || parent.width);
+  const w = box.offsetWidth;
+  const center = btn ? (btn.getBoundingClientRect().left + btn.getBoundingClientRect().width / 2 - parent.left) / scale : box.parentElement!.offsetWidth / 2;
+  const room = box.parentElement!.offsetWidth;
+  box.style.left = `${Math.round(Math.max(Math.min(0, room - w), Math.min(center - w / 2, room - w)))}px`;
+  // Le bouton Annuler / Confirmer de la visée passe au-dessus du bandeau.
+  cb?.style.setProperty('--brief-h', `${box.offsetHeight + 14}px`);
 }
 
 function updateClock(): void {
@@ -1373,10 +1417,7 @@ function renderHud(): void {
     .join('') +
     // Emplacements vides jusqu'à la taille du deck de la tranche, comme une barre de raccourcis.
     Array.from({ length: Math.max(0, deckSlots() - state.player.deck.length) }, (_, j) => `<div class="spell-empty" aria-hidden="true"><kbd class="slot-key">${esc(slotKeyLabel(state.player.deck.length + j))}</kbd></div>`).join('');
-  if (v.hoverSpell) {
-    const b = bar.querySelector<HTMLElement>(`[data-spell="${v.hoverSpell}"]`);
-    if (b) showSpellTip(b);
-  }
+  renderSpellBrief();
 
   (document.getElementById('end-turn') as HTMLButtonElement).disabled = v.busy || state.status !== 'playing';
   renderEndPreview();

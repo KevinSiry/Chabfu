@@ -68,7 +68,7 @@
 @keyframes cb-info-in { from { opacity: 0; transform: translateX(16px); } }
 
 /* Barre de confirmation (toucher) */
-#app .cb-confirm { position: absolute; z-index: calc(var(--z-hud) + 1); left: 50%; bottom: calc(var(--edge-b) + var(--dock-h) + 10px); transform: translateX(-50%); display: flex; align-items: center; gap: 12px; animation: cb-pop var(--d-base) var(--ease-spring); }
+#app .cb-confirm { position: absolute; z-index: calc(var(--z-hud) + 1); left: 50%; bottom: calc(var(--edge-b) + var(--dock-h) + var(--brief-h, 0px) + 10px); transform: translateX(-50%); display: flex; align-items: center; gap: 12px; animation: cb-pop var(--d-base) var(--ease-spring); }
 #app .cb-confirm[hidden] { display: none; }
 #app .cb-confirm #confirm-go { white-space: nowrap; min-width: 180px; }
 #app .cb-confirm #confirm-go[hidden] { display: none; }
@@ -222,3 +222,40 @@
   100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
 }
 :root[data-motion='reduced'] #app .cb-yourturn { animation-duration: 0.8s; }
+
+/* ---------- Bandeau compact du sort (au-dessus de la barre) ---------- */
+#app .cb .spell-brief {
+  position: absolute; bottom: calc(100% + 14px); left: 0; z-index: 20; width: max-content; max-width: min(400px, 92vw);
+  border-radius: 16px; background: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b) 120px);
+  box-shadow: var(--outline-3), inset 0 2px 0 var(--c-panel-hi), 0 6px 0 3px rgba(0, 0, 0, 0.3); color: #fff;
+  animation: sb-in var(--d-fast) var(--ease-out);
+}
+#app .cb .spell-brief[hidden] { display: none; }
+/* Pont invisible entre le bandeau et la barre : la souris peut monter jusqu'à « Détails ». */
+#app .cb .spell-brief::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 16px; }
+@keyframes sb-in { from { opacity: 0; transform: translateY(6px); } }
+.sb { --c: var(--ng-accent); display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 10px; font-size: calc(13px * var(--text-scale, 1)); line-height: 1.3; }
+.sb-icon { flex: none; width: 40px; height: 40px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 70%, transparent); background: #10172a; }
+.sb-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sb-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sb-title { display: flex; align-items: center; gap: 6px; }
+.sb-title b { font-family: var(--font-display, var(--ng-title-font)); font-size: 16px; font-weight: 400; letter-spacing: 0.2px; text-shadow: var(--stroke-sm, none); }
+.sb-tag { font: 12px/1 var(--font-display, inherit); padding: 2px 6px; border-radius: 6px; background: rgba(0, 0, 0, 0.3); }
+.sb-main { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.sb-main > span { display: inline-flex; align-items: center; gap: 4px; }
+.sb-dmg { font-family: var(--font-display, var(--ng-title-font)); font-size: 20px; line-height: 1; color: var(--c); text-shadow: var(--stroke-sm, none); margin-right: -4px; }
+.sb-range { color: var(--ng-muted, #c9c3e8); }
+.sb-range svg { width: 14px; height: 14px; }
+.sb-fx { display: flex; flex-wrap: wrap; gap: 4px; }
+.sb-fx span { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--c) 22%, rgba(0, 0, 0, 0.25)); }
+.sb-err { font-size: 12px; font-weight: 700; }
+.sb-more {
+  flex: none; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 56px; margin-left: 4px; padding: 4px 8px; border: 0; border-radius: 12px; cursor: pointer; color: #fff;
+  font: 12px/1 var(--font-display, inherit); background: rgba(0, 0, 0, 0.28); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+.sb-more svg { width: 18px; height: 18px; }
+.sb-more kbd { font: 10px/1 var(--font-body, inherit); opacity: 0.7; }
+.sb-more:hover { background: rgba(255, 255, 255, 0.12); }
+.sb-more[aria-pressed='true'] { background: var(--c-gold-a, #f6c544); color: var(--c-ink, #1b1033); box-shadow: var(--outline-2, none); }
+:root:not([data-input='pointer']) .sb-more kbd { display: none; }

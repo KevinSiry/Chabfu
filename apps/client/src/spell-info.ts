@@ -193,6 +193,56 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
 }
 
 // ---------------------------------------------------------------------------
+// Bandeau compact : l'essentiel d'un sort en combat, la fiche complète sur demande
+// ---------------------------------------------------------------------------
+
+/** Effets du sort en quelques mots (le détail exact reste dans `spellSheet`). */
+function briefEffects(state: RunState, s: SpellDef): string[] {
+  const power = spellPower(state, s.id);
+  const out: string[] = [];
+  if (s.zone) out.push(zoneLabel(s.zone));
+  if (s.burn && power.burn) out.push(`Brûlure ${power.burn.perTurn.normal} × ${power.burn.turns} tours`);
+  if (s.push) out.push(`Pousse de ${plural(s.push, 'case')}`);
+  if (s.pmRemoval) out.push(`−${s.pmRemoval} PM à la cible`);
+  if (s.jump) out.push('Saut sur la case');
+  if (s.gainPm) out.push(`+${s.gainPm} PM`);
+  if (s.buffNextShot) out.push('Prochain tir ×2');
+  return out;
+}
+
+/**
+ * Bandeau compact au-dessus de la barre de sorts : dégâts, portée, effets en bref.
+ * Le bouton « Détails » (touche I) ouvre la fiche complète à droite.
+ */
+export function spellBrief(state: RunState, spellId: string, opts: { slot?: number; detailsOpen?: boolean } = {}): string {
+  const s = getSpell(spellId);
+  const passives = state.player.passives ?? [];
+  const power = spellPower(state, spellId);
+  const color = EL_COLOR[s.element];
+  const concCost = spellConcentrationCost(s, passives);
+  let err = getCastError(state, spellId);
+  if (err === 'Pas assez de Concentration.') err = `Pas assez de Concentration : ${state.player.concentration} sur ${concCost}.`;
+  const range = s.target === 'self' ? 'Sur soi' : s.minRange === power.maxRange ? plural(s.minRange, 'case') : `${s.minRange} à ${power.maxRange} cases`;
+  const main: string[] = [];
+  if (s.damage !== undefined) main.push(`<b class="sb-dmg">${power.damage.normal}</b> <span>${el(s.element)}</span>`);
+  main.push(`<span class="sb-range">${icon('range')}${range}</span>`);
+  const fx = briefEffects(state, s);
+  return `
+    <div class="sb" style="--c:${color}">
+      <span class="sb-icon">${spellIconImg(spellId)}</span>
+      <div class="sb-body">
+        <div class="sb-title"><b>${s.name}</b>${power.doubled ? '<span class="sb-tag pos">×2</span>' : ''}</div>
+        <div class="sb-main">${main.join('')}</div>
+        ${fx.length ? `<div class="sb-fx">${fx.map((f) => `<span>${esc(f)}</span>`).join('')}</div>` : ''}
+        ${err ? `<div class="sb-err neg">${esc(err)}</div>` : ''}
+      </div>
+      <button type="button" class="sb-more" data-sheet="${spellId}" aria-pressed="${opts.detailsOpen ? 'true' : 'false'}" aria-label="${opts.detailsOpen ? 'Masquer' : 'Afficher'} la fiche complète du sort">
+        ${icon('info')}<span>Détails</span><kbd>I</kbd>
+      </button>
+    </div>`;
+}
+
+// ---------------------------------------------------------------------------
 // Carte de visée : survol d'une case avec un sort sélectionné
 // ---------------------------------------------------------------------------
 
