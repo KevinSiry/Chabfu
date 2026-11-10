@@ -1,3 +1,5 @@
+import type { EquipmentBonus } from './equipment.js';
+
 export type Element = 'fire' | 'water' | 'earth' | 'air' | 'neutral';
 
 export interface Pos {
@@ -90,6 +92,8 @@ export interface RunConfig {
   /** Niveau réel du personnage (défaut : niveau de redéfinition de la tranche du donjon). */
   level?: number;
   masteries?: Partial<Record<Element, number>>;
+  /** Bonus de l'équipement porté (PV, PA, PM, maîtrises), calculés par `equipmentBonus`. */
+  equipment?: EquipmentBonus;
 }
 
 export interface RunState {

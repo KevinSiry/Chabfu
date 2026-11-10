@@ -41,7 +41,13 @@ export function createRun(config: RunConfig): RunState {
   const deckError = validateDeck(config.deck, tranche.id, level);
   if (deckError) throw new InvalidActionError(deckError);
 
-  const masteries = Object.fromEntries(ELEMENTS.map((e) => [e, config.masteries?.[e] ?? 0])) as Record<Element, number>;
+  const eq = config.equipment;
+  const masteries = Object.fromEntries(
+    ELEMENTS.map((e) => [e, (config.masteries?.[e] ?? 0) + (eq?.masteries[e] ?? 0)]),
+  ) as Record<Element, number>;
+  const maxHp = PLAYER_HP + (eq?.hp ?? 0);
+  const basePa = BASE_PA + (eq?.pa ?? 0);
+  const basePm = BASE_PM + (eq?.pm ?? 0);
   const state: RunState = {
     config: clone(config),
     roomIndex: -1,
@@ -66,12 +72,12 @@ export function createRun(config: RunConfig): RunState {
     templateId: 'archer',
     name: 'Archer',
     pos: { x: 0, y: 0 },
-    hp: PLAYER_HP,
-    maxHp: PLAYER_HP,
-    pa: BASE_PA,
-    pm: BASE_PM,
-    basePa: BASE_PA,
-    basePm: BASE_PM,
+    hp: maxHp,
+    maxHp,
+    pa: basePa,
+    pm: basePm,
+    basePa,
+    basePm,
     pmMalus: 0,
     attackUses: {},
   };

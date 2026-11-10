@@ -27,6 +27,9 @@ import {
   type RunScore,
   type RunState,
 } from '@chabfu/engine';
+import { equipmentSummaryHtml, renderEquipmentScreen } from './stuff/equipment-screen';
+import { bindLootPanel, lootPanelHtml } from './stuff/loot-panel';
+import { grantBossLoot, withEquipment } from './stuff/store';
 import { CANVAS_H, CANVAS_W, ELEMENT_COLORS, draw, toCell, type DisplayUnit, type FloatingText, type Highlight } from './render';
 
 const app = document.getElementById('app')!;
@@ -104,6 +107,7 @@ function renderSetup(): void {
             <button class="primary" id="start" style="width:100%">Lancer le donjon</button>
             <p class="muted" id="deck-error"></p>
           </div>
+          ${equipmentSummaryHtml(tranche.id)}
           <div class="card">
             <h3>Meilleurs runs</h3>
             ${
@@ -138,6 +142,11 @@ function renderSetup(): void {
   );
   const diff = app.querySelector('#diff') as HTMLInputElement;
   diff.addEventListener('input', () => (app.querySelector('#diff-v')!.textContent = diff.value));
+  app.querySelector('#open-equipment')!.addEventListener('click', () => {
+    save.difficulty = Number(diff.value);
+    writeSave(save);
+    openEquipment();
+  });
   app.querySelector('#start')!.addEventListener('click', () => {
     // Ordre du deck = ordre du catalogue, pour des raccourcis stables.
     save.deck = spells.map((s) => s.id).filter((id) => deck.has(id));
@@ -202,7 +211,13 @@ function buildDisplay(state: RunState): Map<string, DisplayUnit> {
   return map;
 }
 
-function startRun(config: RunConfig): void {
+function openEquipment(): void {
+  renderEquipmentScreen(app, { trancheId: tranche.id, dungeonId: dungeon.id, difficulty: save.difficulty, onBack: renderSetup });
+}
+
+function startRun(baseConfig: RunConfig): void {
+  // L'équipement porté au lancement fait partie de la config : le replay le rejoue à l'identique.
+  const config = withEquipment(baseConfig);
   const state = createRun(config);
   app.innerHTML = `
     <div class="run">
@@ -542,15 +557,19 @@ function finishRun(v: RunView): void {
     save.scores = save.scores.sort(compareScores).slice(0, 50);
     writeSave(save);
   }
+  // Butin : uniquement pour une victoire au replay validé.
+  const loot = won && check?.valid ? grantBossLoot(v.config) : [];
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.innerHTML = `
-    <div class="card">
+    <div class="card${loot.length ? ' with-loot' : ''}">
       <h2 class="${won ? 'ok' : 'ko'}">${won ? 'Donjon terminé !' : 'Défaite'}</h2>
       <p>Difficulté ${v.config.difficulty} · ${v.state.turn} tours · ${formatTime(timeMs)}</p>
       ${check ? `<p class="${check.valid ? 'ok' : 'ko'}">${check.valid ? '✓ Replay validé (même moteur que le serveur)' : `✗ Replay invalide : ${check.reason}`}</p>` : `<p class="muted">Salle ${v.state.roomIndex + 1} atteinte.</p>`}
+      ${loot.length ? lootPanelHtml(loot, v.config) : ''}
       <div class="row">
         <button class="primary" id="again">Rejouer</button>
+        <button class="secondary" id="equipment">Équipement</button>
         <button class="secondary" id="back">Changer de deck</button>
         <button class="secondary" id="copy">Copier le replay</button>
       </div>
@@ -559,6 +578,12 @@ function finishRun(v: RunView): void {
   overlay.querySelector('#again')!.addEventListener('click', () => {
     overlay.remove();
     startRun(v.config);
+  });
+  bindLootPanel(overlay, loot, v.config);
+  overlay.querySelector('#equipment')!.addEventListener('click', () => {
+    overlay.remove();
+    view = null;
+    openEquipment();
   });
   overlay.querySelector('#back')!.addEventListener('click', () => {
     overlay.remove();
