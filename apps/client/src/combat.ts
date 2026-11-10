@@ -185,6 +185,7 @@ function zoneOf(v: RunView, id: string): ThreatZone {
 
 interface BoardRenderer {
   canvas: HTMLCanvasElement;
+  screenToScene(x: number, y: number): { x: number; y: number };
   render(scene: Scene): void;
   destroy(): void;
 }
@@ -206,7 +207,7 @@ async function createBoard(wrap: HTMLElement): Promise<BoardRenderer> {
     placeholder.height = CANVAS_H * dpr;
     const ctx = placeholder.getContext('2d')!;
     ctx.scale(dpr, dpr);
-    return { canvas: placeholder, render: (scene) => draw(ctx, scene), destroy: () => undefined };
+    return { canvas: placeholder, render: (scene) => draw(ctx, scene), destroy: () => undefined, screenToScene: (x, y) => ({ x, y }) };
   }
 }
 
@@ -372,7 +373,8 @@ function bindBoardEvents(canvas: HTMLCanvasElement, wrap: HTMLElement): void {
   canvas.addEventListener('mousemove', (e) => {
     if (!view) return;
     const r = canvas.getBoundingClientRect();
-    view.hover = toCell(view.displayRoom, ((e.clientX - r.left) / r.width) * CANVAS_W, ((e.clientY - r.top) / r.height) * CANVAS_H);
+    const sp = view.board?.screenToScene(((e.clientX - r.left) / r.width) * CANVAS_W, ((e.clientY - r.top) / r.height) * CANVAS_H);
+    view.hover = sp ? toCell(view.displayRoom, sp.x, sp.y) : null;
     const wr = wrap.getBoundingClientRect();
     view.mouse = { x: e.clientX - wr.left, y: e.clientY - wr.top };
   });

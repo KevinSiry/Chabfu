@@ -161,7 +161,30 @@ export class PixiBoard {
     this.app.destroy(true, { children: true });
   }
 
+  /** Coordonnées canvas (900×600) -> coordonnées de scène (avant cadrage). */
+  screenToScene(x: number, y: number): { x: number; y: number } {
+    const st = this.app.stage;
+    return { x: (x - st.position.x) / st.scale.x, y: (y - st.position.y) / st.scale.y };
+  }
+
+  /** Cadre la salle pour qu'elle occupe le plateau, avec de la marge pour les unités et étiquettes. */
+  private fit(room: RoomState): void {
+    const top = toScreen(room, 0, 0);
+    const right = toScreen(room, room.width - 1, 0);
+    const bottom = toScreen(room, room.width - 1, room.height - 1);
+    const left = toScreen(room, 0, room.height - 1);
+    const x0 = left.x - TILE_W / 2 - 10;
+    const x1 = right.x + TILE_W / 2 + 10;
+    const y0 = top.y - TILE_H / 2 - 105;
+    const y1 = bottom.y + TILE_H / 2 + 26;
+    const k = Math.min(CANVAS_W / (x1 - x0), CANVAS_H / (y1 - y0), 1.7);
+    const st = this.app.stage;
+    st.scale.set(k);
+    st.position.set((CANVAS_W - (x1 - x0) * k) / 2 - x0 * k, (CANVAS_H - (y1 - y0) * k) / 2 - y0 * k);
+  }
+
   render(scene: Scene): void {
+    this.fit(scene.room);
     this.drawFloor(scene.room);
     this.drawOverlay(scene);
     this.drawArrows(scene.room, scene.arrows);
