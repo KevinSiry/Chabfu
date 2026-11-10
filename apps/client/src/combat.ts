@@ -64,6 +64,8 @@ import {
 import { icon } from './ui/icons';
 import { confirmModal, openSheet, toast, type SheetHandle } from './ui/components';
 import { getSettings } from './ui/settings';
+import { sfx } from './ui/sfx';
+import { banner } from './ui/components';
 import './combat.css';
 
 export interface RunHooks {
@@ -205,6 +207,8 @@ interface BoardRenderer {
   panBy?(dx: number, dy: number): void;
   resetView?(): void;
   readonly zoomed?: boolean;
+  shake?(amp: number, ms?: number): void;
+  burst?(cell: Pos, color: string, count?: number, power?: number): void;
 }
 
 let currentBoard: BoardRenderer | null = null;
@@ -332,6 +336,7 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
     currentBoard = board;
     v0.board = board;
     bindBoardEvents(board.canvas, wrap);
+    if (v0.state.roomIndex === 0) void roomBanner(v0.state);
   });
 
     if (!view) return;
@@ -634,6 +639,7 @@ function selectSpell(id: string | null): void {
     return;
   }
   view.selectedSpell = id && !getCastError(view.state, id) ? id : null;
+  sfx(view.selectedSpell ? 'select' : 'cancel');
   if (!view.selectedSpell) view.pending = null;
   renderHud();
   renderSelection();
@@ -737,6 +743,26 @@ function clearSelection(): void {
   else renderSelection();
 }
 
+/** Bannière d'entrée de salle (le boss a la sienne). */
+function roomBanner(state: RunState): Promise<void> {
+  const rooms = getDungeon(state.config.dungeonId).rooms.length;
+  const boss = state.roomIndex === rooms - 1;
+  sfx(boss ? 'boss' : 'room');
+  return banner(boss ? 'Boss !' : state.room.name, boss ? state.room.name : `Salle ${state.roomIndex + 1} / ${rooms}`, boss ? 1400 : 1000);
+}
+
+/** Signal bref « À vous ! » au début de chaque tour du joueur. */
+function yourTurn(): void {
+  const host = document.querySelector('.cb');
+  if (!host) return;
+  host.querySelector('.cb-yourturn')?.remove();
+  const el = document.createElement('div');
+  el.className = 'cb-yourturn';
+  el.textContent = 'À vous !';
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 1100);
+}
+
 function vibrate(ms: number): void {
   if (getSettings().vibrate) navigator.vibrate?.(ms);
 }
@@ -814,10 +840,16 @@ function act(action: Action): void {
 // Animation des événements et journal
 // ---------------------------------------------------------------------------
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Vitesse des animations : réglage du joueur, et tours ennemis accélérés pour ne pas faire attendre. */
+function animScale(): number {
+  const enemy = !!view && view.acting !== null && view.acting !== PLAYER_ID;
+  return getSettings().speed * (enemy ? 1.4 : 1);
+}
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms / animScale()));
 const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
 
 async function slide(u: DisplayUnit, to: Pos, ms: number): Promise<void> {
+  ms /= animScale();
   const from = { x: u.x, y: u.y };
   const start = performance.now();
   while (true) {
@@ -849,7 +881,7 @@ async function lunge(u: DisplayUnit, target: DisplayUnit | undefined): Promise<v
 }
 
 async function shoot(v: RunView, from: Pos, to: Pos, color: string): Promise<void> {
-  const duration = 120 + Math.hypot(to.x - from.x, to.y - from.y) * 40;
+  const duration = (120 + Math.hypot(to.x - from.x, to.y - from.y) * 40) / animScale();
   v.projectiles.push({ from: { ...from }, to: { ...to }, color, born: performance.now(), duration });
   await wait(duration);
 }
@@ -876,6 +908,8 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
         renderTurnOrder();
         if (ev.unitId === PLAYER_ID) {
           log('turn', `Tour ${ev.turn}`);
+          sfx('turn');
+          yourTurn();
           lastCause = 'immobile au tour précédent';
         } else {
           if (u) u.pmMalus = 0;
@@ -888,7 +922,11 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
           log('', `Archer se déplace de ${ev.path.length} case${ev.path.length > 1 ? 's' : ''}`);
           lastCause = 'déplacement';
         }
-        if (u) for (const step of ev.path) await slide(u, step, 110);
+        if (u)
+          for (const step of ev.path) {
+            if (ev.unitId === PLAYER_ID) sfx('step');
+            await slide(u, step, 110);
+          }
         break;
       case 'jump':
         log('', `Archer bondit`);
@@ -905,6 +943,7 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
         lastCause = s.name;
         lastTarget = ev.target;
         log('cast', `Archer lance ${el(s.element)} <b>${s.name}</b>`);
+        sfx('cast');
         const p = v.display.get(PLAYER_ID);
         if (p && s.target !== 'self' && !s.jump) await shoot(v, p, ev.target, ELEMENT_COLORS[s.element]);
         else await wait(120);
@@ -928,7 +967,19 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
           u.hp -= ev.amount;
           u.hitAt = performance.now();
           if (ev.source === 'burn') u.burning = true;
-          v.floats.push({ x: u.x, y: u.y, text: `-${ev.amount}`, color: ev.source === 'collision' ? '#ffffff' : ELEMENT_COLORS[ev.element], born: performance.now() });
+          const col = ev.source === 'collision' ? '#ffffff' : ELEMENT_COLORS[ev.element];
+          const big = ev.amount >= 20;
+          v.floats.push({ x: u.x, y: u.y, text: `-${ev.amount}`, color: col, born: performance.now(), size: big ? 26 : undefined });
+          v.board?.burst?.(u, col, big ? 22 : 12, big ? 1.3 : 1);
+          if (ev.unitId === PLAYER_ID) {
+            sfx('hurt');
+            v.board?.shake?.(big ? 10 : 6);
+            vibrate(big ? 60 : 35);
+          } else {
+            sfx('hit');
+            if (big) v.board?.shake?.(4, 180);
+            vibrate(10);
+          }
         }
         const src = { spell: ELEMENT_LABEL[ev.element], attack: ELEMENT_LABEL[ev.element], burn: 'brûlure', collision: 'collision' }[ev.source];
         const who = ev.unitId === PLAYER_ID ? 'player' : 'enemy';
@@ -957,6 +1008,12 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
       case 'death':
         lastKill = true;
         log('death', `${esc(unitName(v, before, ev.unitId))} est vaincu`);
+        if (u && ev.unitId !== PLAYER_ID) {
+          sfx('kill');
+          v.board?.burst?.(u, '#ffe866', 26, 1.5);
+          vibrate(20);
+          await wait(90); // arrêt sur image : le coup de grâce se sent
+        }
         if (u) {
           for (let a = 1; a >= 0; a -= 0.1) {
             u.alpha = a;
@@ -973,13 +1030,17 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
         log('room', `Entrée : ${esc(ev.name)}`);
         v.displayRoom = v.state.room;
         v.display = buildDisplay(v.state);
-        await wait(200);
+        await roomBanner(v.state);
         break;
       case 'won':
         log('room', 'Victoire !');
+        sfx('victory');
+        vibrate(80);
         break;
       case 'lost':
         log('death', 'Défaite');
+        sfx('defeat');
+        vibrate(120);
         break;
       default:
         break;

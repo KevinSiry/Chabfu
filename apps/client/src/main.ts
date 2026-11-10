@@ -41,6 +41,7 @@ import './ui/legacy.css';
 import './ui/skin-ng.css';
 import './ui/components.css';
 import { openSheet, trackInputMode } from './ui/components';
+import { sfx, unlockAudio } from './ui/sfx';
 import { applySettings } from './ui/settings';
 import { elementIcon, icon } from './ui/icons';
 
@@ -543,6 +544,12 @@ document.addEventListener('keydown', (e) => {
 
 applySettings();
 trackInputMode();
+unlockAudio();
+// Petit « clic » sur tous les boutons du jeu.
+document.addEventListener('pointerdown', (e) => {
+  const b = (e.target as HTMLElement).closest('.ui-btn:not(:disabled), .ui-icon-btn, .hub-tab, .chip, .gr-card, .eq-tile:not(.empty), .lb-steps button, .lb-dots button');
+  if (b) sfx('tap');
+});
 if (new URLSearchParams(location.search).get('dev') === 'da') {
   void import('./ui/da-mock').then((m) => m.renderDaMock(app));
 } else if (new URLSearchParams(location.search).get('dev') === 'ui') {

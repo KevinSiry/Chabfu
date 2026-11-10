@@ -179,6 +179,10 @@ export class PixiBoard {
   private pan = { x: 0, y: 0 };
   /** Centre de la zone libre (px CSS). */
   private anchor = { x: 0, y: 0 };
+  private shakeAmp = 0;
+  private shakeStart = 0;
+  private shakeMs = 1;
+  private particles: { cx: number; cy: number; x: number; y: number; vx: number; vy: number; born: number; life: number; color: number; r: number }[] = [];
 
   setInsets(i: { top: number; right: number; bottom: number; left: number }): void {
     this.insets = i;
@@ -199,6 +203,29 @@ export class PixiBoard {
     if (this.zoom <= 1) return;
     this.pan.x += dx;
     this.pan.y += dy;
+  }
+
+  /** Secousse de l'écran (coup reçu, coup critique). */
+  shake(amp: number, ms = 260): void {
+    if (document.documentElement.dataset.motion === 'reduced') return;
+    this.shakeAmp = Math.max(this.shakeAmp * this.shakeLeft(), amp);
+    this.shakeStart = performance.now();
+    this.shakeMs = ms;
+  }
+
+  private shakeLeft(): number {
+    return Math.max(0, 1 - (performance.now() - this.shakeStart) / this.shakeMs);
+  }
+
+  /** Gerbe de particules sur une case (impact, mort). */
+  burst(cell: { x: number; y: number }, color: string, count = 14, power = 1): void {
+    const col = parseColor(color).color;
+    const now = performance.now();
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = (60 + Math.random() * 120) * power;
+      this.particles.push({ cx: cell.x, cy: cell.y, x: 0, y: -28, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 80 * power, born: now, life: 380 + Math.random() * 260, color: col, r: 2 + Math.random() * 3 });
+    }
   }
 
   resetView(): void {
@@ -278,6 +305,12 @@ export class PixiBoard {
   render(scene: Scene): void {
     this.syncSize();
     this.fit(scene.room);
+    const left = this.shakeLeft();
+    if (left > 0 && this.shakeAmp > 0) {
+      const a = this.shakeAmp * left * left;
+      this.app.stage.position.x += (Math.random() * 2 - 1) * a;
+      this.app.stage.position.y += (Math.random() * 2 - 1) * a;
+    }
     this.drawFloor(scene.room, scene.theme);
     this.drawOverlay(scene);
     this.drawArrows(scene.room, scene.arrows);
@@ -623,6 +656,19 @@ export class PixiBoard {
         const k = (t - 0.9) / 0.1;
         g.circle(b.x, b.y - 28, 6 + k * 14).stroke({ width: 3, color: col, alpha: 1 - k });
       }
+    }
+    // Particules : gravité légère, contour sombre pour rester lisibles sur tous les sols.
+    const now = performance.now();
+    this.particles = this.particles.filter((p) => now - p.born < p.life);
+    for (const p of this.particles) {
+      const t = (now - p.born) / 1000;
+      const k = (now - p.born) / p.life;
+      const c = toScreen(scene.room, p.cx, p.cy);
+      const x = c.x + p.x + p.vx * t;
+      const y = c.y + p.y + p.vy * t + 260 * t * t;
+      const r = p.r * (1 - k * 0.6);
+      g.circle(x, y, r + 1.2).fill({ color: INK, alpha: 0.6 * (1 - k) });
+      g.circle(x, y, r).fill({ color: p.color, alpha: 1 - k });
     }
   }
 

@@ -211,3 +211,14 @@
 @media (min-height: 1300px) and (min-width: 2300px) { #app .cb { --hud-zoom: 2; } }
 /* La fiche montre déjà le sort sélectionné : pas d'infobulle en doublon au survol de la barre. */
 #app .cb .spell-tip { display: none !important; }
+
+/* « À vous ! » au début du tour du joueur */
+#app .cb-yourturn { position: absolute; z-index: calc(var(--z-hud) + 2); left: 50%; top: 32%; transform: translate(-50%, -50%); pointer-events: none; font: calc(44px * var(--text-scale)) / 1 var(--font-display); color: var(--c-gold-a); text-shadow: var(--stroke); animation: cb-yourturn 1.1s var(--ease-out) forwards; }
+@keyframes cb-yourturn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+  30% { transform: translate(-50%, -50%) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+}
+:root[data-motion='reduced'] #app .cb-yourturn { animation-duration: 0.8s; }
