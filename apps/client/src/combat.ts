@@ -15,7 +15,9 @@ import {
   equipmentRange,
   getCastError,
   getDungeon,
+  MECHANICS,
   getMonster,
+  isWall,
   getPlayer,
   getReachableCells,
   getSpell,
@@ -1204,20 +1206,29 @@ function mechanicOverlay(s: RunState, o: Overlay): void {
     if (m.team !== 'monster' || m.hp <= 0) continue;
     const t = m.telegraph;
     if (t && (t.kind === 'roots' || t.kind === 'blast')) {
-      const color = t.kind === 'roots' ? 'rgba(176, 132, 74, 0.55)' : 'rgba(232, 100, 60, 0.5)';
-      for (const c of t.cells) o.highlights.push({ pos: c, color, outline: 'rgba(255, 90, 60, 1)' });
+      const color = t.kind === 'roots' ? 'rgba(214, 120, 40, 0.6)' : 'rgba(240, 90, 50, 0.55)';
+      for (const c of t.cells) o.highlights.push({ pos: c, color, outline: 'rgba(255, 60, 40, 1)', hatch: 'rgba(90, 30, 10, 0.55)' });
       o.markers.push({ x: m.pos.x, y: m.pos.y, text: t.kind === 'roots' ? 'Racines au prochain tour' : 'Explosion au prochain tour', color: '#fff', background: '#c0392b', row: 1 });
     }
     if (t?.kind === 'gale' && t.dir) {
       const dir = t.dir;
       for (const u of s.units) {
         if (u.id === m.id || u.hp <= 0) continue;
-        o.arrows.push({ points: [u.pos, { x: u.pos.x + dir.x * 2, y: u.pos.y + dir.y * 2 }], color: 'rgba(127, 208, 138, 0.95)', width: 4 });
+        // Jusqu'au premier rocher ou bord ; une collision est signalée par une pointe rouge.
+        let end = u.pos;
+        for (let i = 0; i < MECHANICS.gale.push; i++) {
+          const next = { x: end.x + dir.x, y: end.y + dir.y };
+          if (isWall(s.room, next)) break;
+          end = next;
+        }
+        const blocked = !samePos(end, { x: u.pos.x + dir.x * MECHANICS.gale.push, y: u.pos.y + dir.y * MECHANICS.gale.push });
+        if (samePos(end, u.pos)) o.markers.push({ x: u.pos.x, y: u.pos.y, text: 'Collision', color: '#fff', background: '#c0392b', row: 2 });
+        else o.arrows.push({ points: [u.pos, end], color: blocked ? 'rgba(255, 110, 80, 1)' : 'rgba(150, 240, 160, 1)', width: 5 });
       }
       o.markers.push({ x: m.pos.x, y: m.pos.y, text: `Grand vent ${dirArrow(dir)} au prochain tour`, color: '#fff', background: '#2f7d4a', row: 1 });
     }
     if (m.cooled) o.markers.push({ x: m.pos.x, y: m.pos.y, text: 'Refroidi +50 %', color: '#fff', background: '#2b6cb0', row: 1 });
-    else if (m.heat !== undefined && !t) o.markers.push({ x: m.pos.x, y: m.pos.y, text: `Chaleur ${m.heat}/4`, color: '#fff', background: '#b5481f', row: 1 });
+    else if (m.heat !== undefined && !t) o.markers.push({ x: m.pos.x, y: m.pos.y, text: `Chaleur ${m.heat}/${MECHANICS.overheat.max}`, color: '#fff', background: '#b5481f', row: 1 });
     if (m.hatchIn !== undefined) o.markers.push({ x: m.pos.x, y: m.pos.y, text: `Éclot dans ${m.hatchIn}`, color: '#fff', background: '#3d7a52', row: 1 });
   }
 }
@@ -1247,8 +1258,6 @@ function computeOverlay(v: RunView): Overlay {
   const hovered = v.hover ? unitAt(s.units, v.hover) : undefined;
   const hoveredMonster = hovered && hovered.team === 'monster' ? hovered : undefined;
   const intentOf = (id: string) => v.analysis.enemy?.intents.find((i) => i.unitId === id);
-
-  mechanicOverlay(s, o);
 
   if (v.showThreat) {
     v.analysis.combined ??= combinedThreat(s);
@@ -1331,6 +1340,7 @@ function computeOverlay(v: RunView): Overlay {
   if (!o.tooltip && hoveredMonster && !v.selectedSpell) {
     o.tooltip = `<b>${esc(hoveredMonster.name)}</b> · ${hoveredMonster.hp}/${hoveredMonster.maxHp} PV`;
   }
+  mechanicOverlay(s, o);
   return o;
 }
 
