@@ -1,7 +1,7 @@
 /* Stuff : inventaire, équipement, butin de fin de run. */
 :root {
   --r-common: #c4c4c4;
-  --r-uncommon: #6cc070;
+  --r-uncommon: var(--pm);
   --r-rare: #4aa3df;
   --r-mythic: #b67ee8;
   --r-legendary: #f2a03d;
@@ -21,7 +21,7 @@
 .slots { display: flex; flex-direction: column; gap: 6px; }
 .slot { display: grid; grid-template-columns: 74px 1fr auto; gap: 8px; align-items: center; background: var(--panel-2); border-left: 4px solid var(--r, transparent); border-radius: 6px; padding: 7px 10px; font-size: 14px; }
 .slot[data-slot] { cursor: pointer; }
-.slot[data-slot]:hover { background: #3a4156; }
+.slot[data-slot]:hover { background: var(--wood-600); }
 .slot.empty { opacity: 0.6; }
 .slot-label { color: var(--muted); font-size: 12px; }
 .slot .rarity-label { font-size: 12px; }
@@ -45,10 +45,10 @@
 .delta .down { color: var(--hp); }
 .delta.same { color: var(--muted); }
 .tag { font-size: 11px; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
-.tag-eq { background: var(--accent); color: #1b1f2a; }
+.tag-eq { background: var(--accent); color: var(--ink); }
 .tag-up { background: rgba(108, 192, 112, 0.2); color: var(--pm); }
 .item-btn { margin-top: auto; padding: 5px 8px; font-size: 13px; background: var(--panel); border: 1px solid var(--r); }
-.item-btn:hover { background: var(--r); color: #1b1f2a; }
+.item-btn:hover { background: var(--r); color: var(--ink); }
 .drop-card td:last-child { text-align: right; }
 
 /* Fin de run : le butin s'affiche dans l'overlay existant, élargi. */

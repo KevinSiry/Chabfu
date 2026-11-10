@@ -17,7 +17,7 @@
 .recipe-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .recipe { background: var(--panel-2); border-top: 3px solid var(--r); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .recipe .ing { display: flex; justify-content: space-between; }
-.recipe .ing.miss { color: #e07070; }
+.recipe .ing.miss { color: #ef8a7f; }
 .recipe button { margin-top: auto; }
 
 .bag-list { display: flex; flex-direction: column; gap: 6px; max-height: 520px; overflow-y: auto; }
@@ -25,9 +25,9 @@
 .bag-row button { padding: 4px 8px; font-size: 12px; }
 .bag-row .eq-note { font-size: 11px; color: var(--muted); }
 .bulk { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 8px 0; font-size: 13px; }
-select { background: var(--panel-2); color: inherit; border: 1px solid #444b60; border-radius: 6px; padding: 4px 6px; }
+select { background: var(--panel-2); color: inherit; border: 1px solid var(--gold-900); border-radius: 6px; padding: 4px 6px; }
 .mastery-row { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }
-.craft-flash { color: #6cc070; font-weight: 600; min-height: 1.2em; }
+.craft-flash { color: var(--pm); font-weight: 600; min-height: 1.2em; }
 
 .rewards { margin-top: 12px; text-align: left; }
 .res-chips { display: flex; flex-wrap: wrap; gap: 6px; }

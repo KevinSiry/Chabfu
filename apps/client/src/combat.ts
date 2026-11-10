@@ -20,6 +20,7 @@ import {
   getSpell,
   getSpellRange,
   getSpellZone,
+  getTranche,
   key,
   monsterThreatZone,
   previewCast,
@@ -39,6 +40,7 @@ import {
   type Unit,
 } from '@chabfu/engine';
 import { slotFromKey, slotKeyLabel } from './keys';
+import { getCharacter } from './character/store';
 import { ELEMENT_LABEL, castPreviewCard, el, esc, monsterCard, spellTooltip } from './info';
 import {
   CANVAS_H,
@@ -188,8 +190,10 @@ export function leaveRun(): void {
 export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): void {
   app.innerHTML = `
     <div class="run">
-      <div class="main-col">
+      <header class="hud-top">
         <div class="turn-order" id="turn-order"></div>
+      </header>
+      <div class="main-col">
         <div class="board" id="board-wrap">
           <canvas id="board" width="${CANVAS_W}" height="${CANVAS_H}"></canvas>
           <div class="topbar"><span id="room"></span><span id="turn"></span><span id="clock"></span></div>
@@ -198,19 +202,29 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
           </div>
           <div class="cursor-tip" id="cursor-tip" hidden></div>
         </div>
-        <div class="spellbar" id="spellbar"></div>
-        <div class="spell-tip" id="spell-tip" hidden></div>
       </div>
-      <div class="side">
-        <div class="card" id="hud"></div>
-        <div>
-          <button class="primary end-turn" id="end-turn">Fin du tour <kbd>Espace</kbd></button>
+      <aside class="side">
+        <section class="frame inspector-frame">
+          <div class="panel-title">Fiche</div>
+          <div class="inspector" id="inspector"></div>
+        </section>
+        <section class="frame log-frame">
+          <div class="panel-title">Journal</div>
+          <div class="log" id="log"></div>
+        </section>
+        <button class="ghost abandon" id="abandon">Abandonner le run</button>
+      </aside>
+      <footer class="hud-dock">
+        <div class="dock-player frame" id="hud"></div>
+        <div class="dock-spells frame">
+          <div class="spellbar" id="spellbar"></div>
+          <div class="spell-tip" id="spell-tip" hidden></div>
+        </div>
+        <div class="dock-end frame">
+          <button class="end-turn" id="end-turn"><span>Fin du tour</span><kbd>Espace</kbd></button>
           <div class="end-preview" id="end-preview"></div>
         </div>
-        <div class="card inspector" id="inspector"></div>
-        <div class="card"><h3>Journal</h3><div class="log" id="log"></div></div>
-        <button class="secondary" id="abandon">Abandonner</button>
-      </div>
+      </footer>
     </div>`;
 
   const canvas = app.querySelector('#board') as HTMLCanvasElement;
@@ -868,17 +882,25 @@ function renderHud(): void {
   document.getElementById('room')!.textContent = `Salle ${state.roomIndex + 1}/${getDungeon(state.config.dungeonId).rooms.length} · ${state.room.name}`;
   document.getElementById('turn')!.textContent = `Tour ${state.turn} · Difficulté ${state.config.difficulty}`;
 
+  const hpPct = (100 * player.hp) / player.maxHp;
   document.getElementById('hud')!.innerHTML = `
-    <div class="hp-line"><b>Archer</b><span>${player.hp} / ${player.maxHp} PV</span></div>
-    <div class="bar"><div style="width:${(100 * player.hp) / player.maxHp}%;background:var(--hp)"></div></div>
-    <div class="stats">
-      <div class="stat" style="color:var(--pa)"><b>${player.pa}</b>PA</div>
-      <div class="stat" style="color:var(--pm)"><b>${player.pm}</b>PM</div>
-      <div class="stat" style="color:var(--conc)"><b id="conc-value">${state.player.concentration}</b>Conc.</div>
+    <div class="hp-orb ${hpPct <= 30 ? 'low' : ''}" title="Points de vie" style="--fill:${hpPct}%">
+      <div class="hp-orb-fill"></div>
+      <div class="hp-orb-text"><b>${player.hp}</b><small>/ ${player.maxHp}</small></div>
     </div>
-    <div id="conc"></div>
-    ${player.burn ? `<span class="chip fire">Brûlure ${player.burn.damage} × ${player.burn.turns}</span>` : ''}
-    ${state.player.nextShotDouble ? '<span class="chip conc">Prochain tir ×2</span>' : ''}`;
+    <div class="dock-stats">
+      <div class="dock-name">${esc(getCharacter()?.name ?? 'Archer')}</div>
+      <div class="gems">
+        <div class="gem gem-pa" title="Points d'action"><b>${player.pa}</b><small>PA</small></div>
+        <div class="gem gem-pm" title="Points de mouvement"><b>${player.pm}</b><small>PM</small></div>
+        <div class="gem gem-conc" title="Concentration"><b id="conc-value">${state.player.concentration}</b><small>Conc.</small></div>
+      </div>
+      <div class="conc-wrap" id="conc"></div>
+      <div class="dock-states">
+        ${player.burn ? `<span class="chip fire">Brûlure ${player.burn.damage} × ${player.burn.turns}</span>` : ''}
+        ${state.player.nextShotDouble ? '<span class="chip conc">Prochain tir ×2</span>' : ''}
+      </div>
+    </div>`;
 
   const bar = document.getElementById('spellbar')!;
   bar.innerHTML = state.player.deck
@@ -889,14 +911,21 @@ function renderHud(): void {
       const disabled = !!err || v.busy;
       const cc = spellConcentrationCost(s, state.player.passives ?? []);
       const mr = spellMaxRange(s, state.player.passives ?? []);
-      return `<button class="spell-btn ${v.selectedSpell === id ? 'active' : ''} ${disabled ? 'off' : ''}" data-spell="${id}" ${disabled ? 'aria-disabled="true"' : ''}>
-        <div class="k"><kbd>${esc(slotKeyLabel(i))}</kbd> <span class="el el-${s.element}"></span>${ELEMENT_LABEL[s.element]}</div>
-        <div class="n">${s.name}</div>
-        <div class="c"><span class="pa">${s.pa} PA</span>${cc ? ` · <span class="conc-t">${cc} Conc.</span>` : ''} · ${mr === 0 ? 'soi' : s.minRange === mr ? `${s.minRange}` : `${s.minRange}–${mr}`}${s.maxPerTurn ? ` · ${uses}/${s.maxPerTurn}` : ''}</div>
-        ${err && !v.busy ? `<div class="why">${esc(err)}</div>` : ''}
+      const range = mr === 0 ? 'soi' : s.minRange === mr ? `${s.minRange}` : `${s.minRange}–${mr}`;
+      return `<button class="spell-btn el-${s.element} ${v.selectedSpell === id ? 'active' : ''} ${disabled ? 'off' : ''}" data-spell="${id}" ${disabled ? 'aria-disabled="true"' : ''} aria-label="${esc(s.name)}">
+        <span class="slot-icon">${spellGlyph(s.name)}</span>
+        <kbd class="slot-key">${esc(slotKeyLabel(i))}</kbd>
+        <span class="slot-pa">${s.pa}</span>
+        ${cc ? `<span class="slot-conc">${cc}</span>` : ''}
+        ${s.maxPerTurn ? `<span class="slot-uses">${uses}/${s.maxPerTurn}</span>` : ''}
+        <span class="slot-name">${s.name}</span>
+        <span class="slot-range">${range}</span>
+        ${err && !v.busy ? `<span class="why">${esc(err)}</span>` : ''}
       </button>`;
     })
-    .join('');
+    .join('') +
+    // Emplacements vides jusqu'à la taille du deck de la tranche, comme une barre de raccourcis.
+    Array.from({ length: Math.max(0, deckSlots() - state.player.deck.length) }, (_, j) => `<div class="spell-empty" aria-hidden="true"><kbd class="slot-key">${esc(slotKeyLabel(state.player.deck.length + j))}</kbd></div>`).join('');
   if (v.hoverSpell) {
     const b = bar.querySelector<HTMLElement>(`[data-spell="${v.hoverSpell}"]`);
     if (b) showSpellTip(b);
@@ -907,6 +936,17 @@ function renderHud(): void {
   renderTurnOrder();
   renderLog();
   renderConcentration();
+}
+
+function deckSlots(): number {
+  const c = getCharacter();
+  return c ? getTranche(c.trancheId).deckSize : 0;
+}
+
+/** Monogramme du sort (remplacé par une icône quand les visuels seront prêts). */
+function spellGlyph(name: string): string {
+  const words = name.split(/[\s’'-]+/).filter((w) => w.length > 2);
+  return esc((words.length > 1 ? words[0][0] + words[words.length - 1][0] : name.slice(0, 2)).toUpperCase());
 }
 
 function renderEndPreview(): void {
