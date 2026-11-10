@@ -124,6 +124,7 @@ export class PixiBoard {
   readonly app: Application;
   private floor = new Graphics();
   private floorTiles = new Container();
+  private grid = new Graphics();
   private overlay = new Graphics();
   private arrows = new Graphics();
   private depth = new Container();
@@ -139,7 +140,7 @@ export class PixiBoard {
   private constructor(app: Application) {
     this.app = app;
     this.depth.sortableChildren = true;
-    app.stage.addChild(this.floor, this.floorTiles, this.overlay, this.arrows, this.depth, this.fx, this.labels);
+    app.stage.addChild(this.floor, this.floorTiles, this.grid, this.overlay, this.arrows, this.depth, this.fx, this.labels);
   }
 
   static async create(host: HTMLElement): Promise<PixiBoard> {
@@ -216,6 +217,7 @@ export class PixiBoard {
     const g = this.floor;
     g.clear();
     this.floorTiles.removeChildren().forEach((c) => c.destroy());
+    this.grid.clear();
     // Socle sous la grille, pour donner de l'épaisseur au plateau.
     const top = toScreen(room, 0, 0);
     const right = toScreen(room, room.width - 1, 0);
@@ -237,8 +239,10 @@ export class PixiBoard {
           sp.width = TILE_W + 1;
           sp.height = TILE_H + 1;
           sp.position.set(c.x, c.y);
-          sp.tint = (x + y) % 2 === 0 ? 0xffffff : 0xeeeeee;
+          sp.tint = (x + y) % 2 === 0 ? 0xffffff : 0xe6e6e6;
           this.floorTiles.addChild(sp);
+          // Quadrillage discret pour garder les cases lisibles sur les tuiles peintes.
+          this.grid.poly(diamondPts(c)).stroke({ width: 1, color: 0x000000, alpha: 0.28 });
           continue;
         }
         const base = (x + y) % 2 === 0 ? 0x3f5d3b : 0x446541;
@@ -310,7 +314,11 @@ export class PixiBoard {
     for (const list of byCell.values()) {
       const c = toScreen(room, list[0].pos.x, list[0].pos.y);
       for (const h of list) {
-        if (h.color) g.poly(diamondPts(c)).fill(fill(h.color));
+        if (h.color) {
+          const col = fill(h.color);
+          g.poly(diamondPts(c)).fill({ color: col.color, alpha: Math.min(0.85, col.alpha * 1.5) });
+          g.poly(diamondPts(c, 0, 1.5)).stroke({ width: 1.5, color: col.color, alpha: 0.9 });
+        }
         if (h.hatch) {
           const hc = fill(h.hatch);
           for (let i = -1; i <= 1; i++) {
