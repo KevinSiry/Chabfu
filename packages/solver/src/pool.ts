@@ -3,6 +3,7 @@ import { Worker, isMainThread, parentPort, workerData } from 'node:worker_thread
 import { availableParallelism } from 'node:os';
 import type { RunConfig } from '@chabfu/engine';
 import type { JobResult } from './report.js';
+import { applyOverrides } from './overrides.js';
 import { solveBest, type SolverOptions } from './solver.js';
 
 export interface Job {
@@ -11,13 +12,23 @@ export interface Job {
   stuffName: string;
   noWalk: boolean;
   options: Partial<SolverOptions>;
+  /** Réglages `--set` à appliquer avant le calcul (voir overrides.ts). */
+  overrides: string[];
 }
 
 export function availableCpus(): number {
   return availableParallelism();
 }
 
+let appliedOverrides: string | null = null;
+
 export function runJob(job: Job): JobResult {
+  // Chaque worker applique les réglages une seule fois (tous les calculs d'un lancement partagent les mêmes).
+  const key = JSON.stringify(job.overrides);
+  if (appliedOverrides === null) {
+    applyOverrides(job.overrides);
+    appliedOverrides = key;
+  } else if (appliedOverrides !== key) throw new Error('Réglages différents dans un même processus.');
   return { ...solveBest(job.config, job.options), deckName: job.deckName, stuffName: job.stuffName, noWalk: job.noWalk };
 }
 

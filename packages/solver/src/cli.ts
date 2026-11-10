@@ -11,6 +11,8 @@
  *   --all-decks           Tous les decks possibles de la tranche (long).
  *   --stuff <liste>       Panoplie complète de la tranche par rareté : aucun, commun, inhabituel, rare,
  *                         mythique, legendaire. Ex. "aucun,rare,mythique" (défaut : aucun).
+ *   --set <réglage>       Essaie une valeur sans modifier le code (répétable), ex. monster.*.hp=x0.7,
+ *                         spell.tir_concentre.concentrationCost=3. Voir overrides.ts.
  *   --beam <n>            Largeur du faisceau (défaut 48). --quick équivaut à --beam 16.
  *   --no-walk             Ajoute une passe « Archer immobile » (sans marcher) pour mesurer la tension de la Concentration.
  *   --jobs <n>            Calculs en parallèle (défaut : nombre de cœurs - 1).
@@ -39,6 +41,7 @@ function parseArgs(argv: string[]) {
     decks: [] as string[],
     allDecks: false,
     stuffs: ['aucun'] as string[],
+    overrides: [] as string[],
     beam: DEFAULT_OPTIONS.beamWidth,
     noWalk: false,
     jobs: Math.max(1, availableCpus() - 1),
@@ -54,6 +57,7 @@ function parseArgs(argv: string[]) {
     if (a === '--dungeon') args.dungeons.push(...next().split(','));
     else if (a === '--difficulty') args.difficulties = parseRange(next());
     else if (a === '--deck') args.decks.push(next());
+    else if (a === '--set') args.overrides.push(next());
     else if (a === '--stuff') args.stuffs = next().split(',');
     else if (a === '--all-decks') args.allDecks = true;
     else if (a === '--beam') args.beam = Number(next());
@@ -110,13 +114,13 @@ async function main() {
       const equipment = fullSetBonus(dungeon.tranche, stuffName);
       for (const [deckName, deck] of Object.entries(decks)) {
         for (const difficulty of args.difficulties) {
-          jobs.push({ config: { dungeonId, difficulty, deck, equipment }, deckName, stuffName, noWalk: false, options: { beamWidth: args.beam } });
+          jobs.push({ config: { dungeonId, difficulty, deck, equipment }, deckName, stuffName, noWalk: false, options: { beamWidth: args.beam }, overrides: args.overrides });
         }
       }
       if (args.noWalk) {
         const [deckName, deck] = Object.entries(decks)[0];
         for (const difficulty of args.difficulties) {
-          jobs.push({ config: { dungeonId, difficulty, deck, equipment }, deckName, stuffName, noWalk: true, options: { beamWidth: args.beam, noWalk: true } });
+          jobs.push({ config: { dungeonId, difficulty, deck, equipment }, deckName, stuffName, noWalk: true, options: { beamWidth: args.beam, noWalk: true }, overrides: args.overrides });
         }
       }
     }
@@ -135,7 +139,7 @@ async function main() {
   console.log(`Terminé en ${((Date.now() - t0) / 1000).toFixed(0)} s.`);
 
   mkdirSync(join(args.out, 'routes'), { recursive: true });
-  const options = `faisceau ${args.beam}, difficultés ${args.difficulties.join(',')}, stuff ${args.stuffs.join(',')}${args.noWalk ? ', passe immobile' : ''}`;
+  const options = `faisceau ${args.beam}, difficultés ${args.difficulties.join(',')}, stuff ${args.stuffs.join(',')}${args.noWalk ? ', passe immobile' : ''}${args.overrides.length ? `, réglages : ${args.overrides.join(' ')}` : ''}`;
   writeFileSync(join(args.out, 'equilibrage.md'), buildReport(results, { options, decks: allDecks }));
   writeFileSync(join(args.out, 'resultats.json'), JSON.stringify(results.map(({ actions, ...rest }) => rest), null, 2));
   // Une route rejouable (verifyRun) par donjon et difficulté : la meilleure trouvée.
