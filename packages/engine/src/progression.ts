@@ -13,11 +13,11 @@ export interface Tranche {
 export const MAX_LEVEL = 100;
 
 export const TRANCHES: Tranche[] = [
-  { id: 1, minLevel: 1, maxLevel: 20, redefinitionLevel: 20, deckSize: 5, passiveSlots: 1 },
-  { id: 2, minLevel: 21, maxLevel: 40, redefinitionLevel: 40, deckSize: 6, passiveSlots: 2 },
-  { id: 3, minLevel: 41, maxLevel: 60, redefinitionLevel: 60, deckSize: 7, passiveSlots: 3 },
-  { id: 4, minLevel: 61, maxLevel: 80, redefinitionLevel: 80, deckSize: 8, passiveSlots: 4 },
-  { id: 5, minLevel: 81, maxLevel: 100, redefinitionLevel: 100, deckSize: 8, passiveSlots: 5 },
+  { id: 1, minLevel: 1, maxLevel: 20, redefinitionLevel: 20, deckSize: 6, passiveSlots: 2 },
+  { id: 2, minLevel: 21, maxLevel: 40, redefinitionLevel: 40, deckSize: 7, passiveSlots: 2 },
+  { id: 3, minLevel: 41, maxLevel: 60, redefinitionLevel: 60, deckSize: 8, passiveSlots: 3 },
+  { id: 4, minLevel: 61, maxLevel: 80, redefinitionLevel: 80, deckSize: 9, passiveSlots: 4 },
+  { id: 5, minLevel: 81, maxLevel: 100, redefinitionLevel: 100, deckSize: 9, passiveSlots: 5 },
 ];
 
 export function getTranche(id: number): Tranche {

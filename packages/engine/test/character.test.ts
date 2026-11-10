@@ -55,10 +55,11 @@ describe('passifs', () => {
   it('respecte les emplacements et les niveaux', () => {
     expect(validatePassives([], 1, 1)).toBeNull();
     expect(validatePassives(['instinct_du_chasseur'], 1, 20)).toBeNull();
-    expect(validatePassives(['instinct_du_chasseur', 'patience'], 1, 20)).toMatch(/1 emplacement/);
+    expect(validatePassives(['instinct_du_chasseur', 'patience'], 1, 20)).toBeNull();
+    expect(validatePassives(['instinct_du_chasseur', 'patience', 'braises'], 1, 20)).toMatch(/2 emplacements/);
     expect(validatePassives(['instinct_du_chasseur', 'patience'], 2, 40)).toBeNull();
     expect(validatePassives(['sang_froid'], 1, 19)).toMatch(/indisponible/);
-    expect(() => createRun({ ...base, passives: ['patience', 'sang_froid'] })).toThrow();
+    expect(() => createRun({ ...base, passives: ['patience', 'sang_froid', 'braises'] })).toThrow();
   });
 
   it('Réception agile annule la perte de Concentration de Bond arrière', () => {
@@ -173,16 +174,16 @@ describe('personnage', () => {
     expect(() => redefine(c, 4)).toThrow();
     c = redefine(c, 2);
     expect(c.trancheId).toBe(2);
-    expect(currentLoadout(c).deck.length).toBe(6);
+    expect(currentLoadout(c).deck.length).toBe(7);
     c = setLoadout(c, { deck: ['fleche_ardente'], passives: ['patience', 'sang_froid'] });
     c = redefine(c, 1);
     expect(currentLoadout(c).deck).toEqual(['fleche_ardente', 'bond_arriere']);
     c = redefine(c, 2);
     expect(currentLoadout(c)).toEqual({ deck: ['fleche_ardente'], passives: ['patience', 'sang_froid'] });
     c = redefine(c, 1);
-    c = setLoadout(c, { deck: DECK, passives: ['patience', 'sang_froid'] });
-    // Une seule case de passif en T1 : le surplus est ignoré.
-    expect(currentLoadout(c).passives).toEqual(['patience']);
+    c = setLoadout(c, { deck: DECK, passives: ['patience', 'sang_froid', 'braises'] });
+    // Deux cases de passif en T1 : le surplus est ignoré.
+    expect(currentLoadout(c).passives).toEqual(['patience', 'sang_froid']);
   });
 
   it('relit une sauvegarde et rejette les données corrompues', () => {

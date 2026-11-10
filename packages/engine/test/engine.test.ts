@@ -21,7 +21,7 @@ import {
   type RunState,
 } from '../src/index.js';
 
-const DECK = ['fleche_ardente', 'bond_arriere', 'fleche_fracassante', 'tir_concentre', 'coup_de_pied'];
+const DECK = ['fleche_ardente', 'bond_arriere', 'fleche_fracassante', 'tir_concentre', 'coup_de_pied', 'roulade'];
 const config: RunConfig = { dungeonId: 'bosquet_des_ronces', difficulty: 1, deck: DECK };
 
 function withUnits(state: RunState, mutate: (s: RunState) => void): RunState {
@@ -40,7 +40,7 @@ describe('progression', () => {
 
   it('valide la taille du deck et les niveaux de déblocage', () => {
     expect(validateDeck(DECK, 1, 20)).toBeNull();
-    expect(validateDeck([...DECK, 'fleche_givree'], 1, 20)).toMatch(/limité à 5/);
+    expect(validateDeck([...DECK, 'fleche_givree'], 1, 20)).toMatch(/limité à 6/);
     expect(validateDeck(['coup_de_pied'], 1, 10)).toMatch(/indisponible/);
   });
 });

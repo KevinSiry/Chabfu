@@ -4,7 +4,7 @@
  * mêmes fonctions que le moteur. Les aperçus sont donc exacts (le combat est déterministe).
  */
 import { canUseAttack } from './ai.js';
-import { PLAYER_ID, applyAction, computeDamage, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
+import { PLAYER_ID, applyAction, computeDamage, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, spellHitMultiplier, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
 import { getMonster, monsterBehavior } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
 import { distance, isWall, key, reachable, samePos } from './grid.js';
@@ -140,6 +140,8 @@ export interface DamageBreakdown {
   weakness: boolean;
   resistance: boolean;
   doubled: boolean;
+  /** Multiplicateur propre au sort et aux passifs (cible ralentie, obstacle derrière, brûlure…), 1 sinon. */
+  bonus: number;
   /** Dégâts de brûlure par tour, s'il y en a. */
   burn?: Burn;
 }
@@ -150,8 +152,10 @@ export function spellDamageOn(state: RunState, spellId: string, target: Unit): D
   if (spell.damage === undefined) return null;
   const player = getPlayer(state);
   const doubled = state.player.nextShotDouble;
+  const bonus = spellHitMultiplier(state, spell, target, player.pos);
   return {
-    amount: computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, target, doubled),
+    amount: computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, target, doubled, bonus),
+    bonus,
     base: spell.damage,
     flat: equipmentFlatDamage(state),
     element: spell.element,

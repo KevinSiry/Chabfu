@@ -219,6 +219,7 @@ function getTargetError(state: RunState, spell: SpellDef, target: Pos): string |
   const occupant = unitAt(state.units, target);
   if (spell.target === 'unit' && (!occupant || occupant.team !== 'monster')) return 'Il faut cibler un ennemi.';
   if (spell.target === 'emptyCell' && occupant) return 'La case doit être libre.';
+  if (spell.zone === 'pierce' && !getSpellZone(state, spell.id, target, player.pos).some((c) => samePos(c, target))) return 'Un rocher bloque le tir.';
   return null;
 }
 
@@ -242,8 +243,35 @@ export function getSpellRange(state: RunState, spellId: string): { pos: Pos; los
   return cells;
 }
 
-export function getSpellZone(state: RunState, spellId: string, target: Pos): Pos[] {
+/** Direction (unitaire, en ligne) du lanceur vers la cible, ou null si elle n'est pas en ligne. */
+export function lineDirection(from: Pos, to: Pos): Pos | null {
+  if (from.x !== to.x && from.y !== to.y) return null;
+  if (samePos(from, to)) return null;
+  return { x: Math.sign(to.x - from.x), y: Math.sign(to.y - from.y) };
+}
+
+export function getSpellZone(state: RunState, spellId: string, target: Pos, caster: Pos = getPlayer(state).pos): Pos[] {
   const spell = getSpell(spellId);
+  if (spell.zone === 'line' || spell.zone === 'pierce') {
+    const dir = lineDirection(caster, target);
+    if (!dir) return [target];
+    const cells: Pos[] = [];
+    if (spell.zone === 'line') {
+      for (let i = 0; i < (spell.zoneLength ?? 1); i++) {
+        const c = { x: target.x + dir.x * i, y: target.y + dir.y * i };
+        if (isWall(state.room, c)) break;
+        cells.push(c);
+      }
+    } else {
+      const max = spellMaxRange(spell, state.player.passives, equipmentRange(state));
+      for (let i = 1; i <= max; i++) {
+        const c = { x: caster.x + dir.x * i, y: caster.y + dir.y * i };
+        if (isWall(state.room, c)) break;
+        cells.push(c);
+      }
+    }
+    return cells;
+  }
   const cells: Pos[] = [target];
   if (spell.zone === 'cross') DIRS.forEach((d) => cells.push({ x: target.x + d.x, y: target.y + d.y }));
   if (spell.zone === 'square') {
@@ -263,8 +291,9 @@ export function computeDamage(
   attacker: Unit | null,
   target: Unit,
   doubled = false,
+  mult = 1,
 ): number {
-  let dmg = base;
+  let dmg = base * mult;
   if (attacker?.team === 'player') dmg *= 1 + (state.player.masteries[element] ?? 0) / 100;
   if (attacker?.team === 'monster') dmg *= difficultyMultiplier(state.config.difficulty);
   if (target.team === 'player') dmg *= 1 - playerResistance(state, element) / 100;
@@ -272,6 +301,33 @@ export function computeDamage(
   if (element !== 'neutral' && target.resistance === element) dmg *= RESISTANCE_MALUS;
   if (doubled) dmg *= 2;
   return Math.max(0, Math.floor(dmg + 1e-9));
+}
+
+/**
+ * Multiplicateur propre au sort et aux passifs pour un coup sur `victim` : bonus contre une cible ralentie,
+ * contre un obstacle derrière la cible, contre une cible qui brûle (Braises) ou gelée (Eaux dormantes).
+ */
+export function spellHitMultiplier(state: RunState, spell: SpellDef, victim: Unit, caster: Pos): number {
+  const mods = combinePassives(state.player.passives);
+  let mult = 1;
+  if (spell.bonusVsSlowed && victim.pmMalus > 0) mult *= spell.bonusVsSlowed;
+  if (spell.bonusVsObstacle && hasObstacleBehind(state, victim, caster)) mult *= spell.bonusVsObstacle;
+  if (mods.fireVsBurningPct && spell.element === 'fire' && victim.burn) mult *= 1 + mods.fireVsBurningPct / 100;
+  if (mods.frozenBonusPct && isFrozen(victim)) mult *= 1 + mods.frozenBonusPct / 100;
+  return mult;
+}
+
+/** Une cible est gelée quand ses PM retirés couvrent tous ses PM : elle ne bougera pas à son prochain tour. */
+export function isFrozen(unit: Unit): boolean {
+  return unit.basePm > 0 && unit.pmMalus >= unit.basePm;
+}
+
+/** Un rocher, le bord de la salle ou une unité se trouve-t-il juste derrière la cible, dans l'axe du tir ? */
+export function hasObstacleBehind(state: RunState, victim: Unit, caster: Pos): boolean {
+  const dir = lineDirection(caster, victim.pos);
+  if (!dir) return false;
+  const behind = { x: victim.pos.x + dir.x, y: victim.pos.y + dir.y };
+  return isWall(state.room, behind) || !!unitAt(state.units, behind);
 }
 
 function dealDamage(state: RunState, target: Unit, amount: number, element: Element, source: DamageSource, events: GameEvent[]): void {
@@ -303,7 +359,8 @@ function pushUnit(state: RunState, target: Unit, from: Pos, cells: number, event
     const blocker = unitAt(state.units, next);
     if (isWall(state.room, next) || blocker) {
       const remaining = cells - i;
-      const dmg = COLLISION_DAMAGE_PER_CELL * remaining;
+      const bonus = target.team === 'monster' ? combinePassives(state.player.passives).collisionBonusPct : 0;
+      const dmg = Math.floor(COLLISION_DAMAGE_PER_CELL * remaining * (1 + bonus / 100));
       if (!samePos(start, target.pos)) events.push({ type: 'push', unitId: target.id, from: start, to: { ...target.pos } });
       dealDamage(state, target, dmg, 'neutral', 'collision', events);
       if (blocker) dealDamage(state, blocker, Math.floor(dmg / 2), 'neutral', 'collision', events);
@@ -490,12 +547,22 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
   if (spell.damage !== undefined) {
     const doubled = state.player.nextShotDouble;
     state.player.nextShotDouble = false;
-    const victims = getSpellZone(state, spell.id, target)
+    const caster = { ...player.pos };
+    const victims = getSpellZone(state, spell.id, target, caster)
       .map((c) => unitAt(state.units, c))
       .filter((u): u is Unit => !!u && u.team === 'monster');
+    const mods = combinePassives(state.player.passives);
     for (const victim of victims) {
-      dealDamage(state, victim, computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, victim, doubled), spell.element, 'spell', events);
+      const mult = spellHitMultiplier(state, spell, victim, caster);
+      dealDamage(state, victim, computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, victim, doubled, mult), spell.element, 'spell', events);
       if (victim.hp <= 0) continue;
+      if (spell.detonateBurn && victim.burn) {
+        const burst = Math.floor(victim.burn.damage * victim.burn.turns * spell.detonateBurn + 1e-9);
+        victim.burn = undefined;
+        events.push({ type: 'status', unitId: victim.id, text: 'Embrasé' });
+        dealDamage(state, victim, burst, 'fire', 'burn', events);
+        if (victim.hp <= 0) continue;
+      }
       if (spell.burn) {
         const dmg = computeDamage(state, spell.burn.damage, spell.element, player, victim);
         const turns = spell.burn.turns + combinePassives(state.player.passives).burnExtraTurns;
@@ -507,6 +574,22 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
         events.push({ type: 'status', unitId: victim.id, text: `-${spell.pmRemoval} PM` });
       }
       if (spell.push) pushUnit(state, victim, player.pos, spell.push, events);
+    }
+    if (mods.airLongShotConcentration && spell.element === 'air' && victims.length && distance(caster, target) >= 5) {
+      changeConcentration(state, mods.airLongShotConcentration, events);
+    }
+  }
+
+  if (spell.recoil) {
+    const dir = lineDirection(target, player.pos);
+    if (dir) {
+      const from = { ...player.pos };
+      for (let i = 0; i < spell.recoil; i++) {
+        const next = { x: player.pos.x + dir.x, y: player.pos.y + dir.y };
+        if (!isFree(state.room, state.units, next)) break;
+        player.pos = next;
+      }
+      if (!samePos(from, player.pos)) events.push({ type: 'jump', unitId: PLAYER_ID, from, to: { ...player.pos } });
     }
   }
 
