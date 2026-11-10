@@ -251,7 +251,7 @@ export function leaveRun(): void {
 
 export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): void {
   app.innerHTML = `
-    <div class="cb" style="--scene-art: url('${assetUrl(`dungeons/${config.dungeonId}.webp`)}')">
+    <div class="cb" style="--scene-art: url('${assetUrl(`backgrounds/${config.dungeonId}.webp`)}')">
       <div class="cb-stage" id="board-wrap">
         <canvas id="board" width="${CANVAS_W}" height="${CANVAS_H}"></canvas>
         <div class="cursor-tip" id="cursor-tip" hidden></div>

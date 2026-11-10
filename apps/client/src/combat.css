@@ -12,7 +12,7 @@
   --edge-r: calc(10px + var(--safe-r));
   --dock-h: 96px;
 }
-#app .cb::before { content: ''; position: absolute; inset: -40px; z-index: -2; background: var(--scene-art) center / cover; filter: blur(12px) saturate(1.25) brightness(0.85); }
+#app .cb::before { content: ''; position: absolute; inset: -40px; z-index: -2; background: var(--scene-art) center / cover; filter: blur(5px) saturate(1.1) brightness(0.9); }
 #app .cb::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, rgba(20, 13, 52, 0) 30%, rgba(20, 13, 52, 0.65) 100%); }
 #app .cb-stage { position: absolute; inset: 0; }
 #app .cb-stage canvas { display: block; width: 100%; height: 100%; }
