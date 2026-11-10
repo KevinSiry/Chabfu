@@ -429,11 +429,17 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
   });
 
   renderHud();
+  // Au repos (rien ne bouge), le plateau est redessiné à 30 images/s au lieu de 60 : batterie épargnée sur téléphone.
+  let odd = false;
   const loop = () => {
     if (!view) return;
-    refreshOverlay();
-    drawBoard();
-    updateClock();
+    odd = !odd;
+    const idle = !view.busy && view.floats.length === 0 && view.projectiles.length === 0;
+    if (!idle || odd) {
+      refreshOverlay();
+      drawBoard();
+      updateClock();
+    }
     frame = requestAnimationFrame(loop);
   };
   frame = requestAnimationFrame(loop);

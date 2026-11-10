@@ -23,7 +23,8 @@
 .st-ico .ico { width: 20px; height: 20px; }
 .st-label { display: grid; font: 800 15px/1.2 var(--font-ui, 'Nunito', sans-serif); color: #fff; }
 .st-label small { font-weight: 700; font-size: 12px; color: var(--c-text-2); }
-.st-slider { grid-template-columns: 34px minmax(90px, auto) minmax(0, 1fr) 36px; }
+.st-slider { grid-template-columns: 34px minmax(0, 1fr) 40px; row-gap: 4px; padding-bottom: 10px; }
+.st-slider input[type="range"] { grid-column: 1 / -1; grid-row: 2; width: calc(100% - 12px); margin: 0 6px; }
 .st-val { font: 16px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); text-align: right; }
 .st-choice { grid-template-columns: 34px minmax(0, 1fr); grid-template-rows: auto auto; row-gap: 6px; padding-bottom: 8px; }
 .st-choice .ui-seg { grid-column: 1 / -1; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
@@ -47,7 +48,7 @@
 .coach.is-open { opacity: 1; }
 .coach-spot { position: fixed; border-radius: 18px; box-shadow: 0 0 0 4px var(--c-gold-a), 0 0 0 9999px rgba(8, 4, 26, 0.72); transition: all 0.28s var(--ease-out); pointer-events: none; animation: coach-pulse 1.4s ease-in-out infinite; }
 @keyframes coach-pulse { 50% { box-shadow: 0 0 0 7px var(--c-gold-a), 0 0 0 9999px rgba(8, 4, 26, 0.72); } }
-.coach-bubble { position: fixed; width: min(330px, calc(100vw - 24px)); padding: 14px 16px 12px; border-radius: 20px; background: linear-gradient(180deg, #fffaf0, #f1e6ff); color: #2a1d63; box-shadow: 0 0 0 3px var(--c-ink), 0 6px 0 3px var(--c-ink), 0 18px 40px rgba(0, 0, 0, 0.45); zoom: var(--ob-zoom); transition: left 0.28s var(--ease-out), top 0.28s var(--ease-out); }
+.coach-bubble { position: fixed; width: min(330px, calc(100vw / var(--read-zoom) - 24px)); padding: 14px 16px 12px; border-radius: 20px; background: linear-gradient(180deg, #fffaf0, #f1e6ff); color: #2a1d63; box-shadow: 0 0 0 3px var(--c-ink), 0 6px 0 3px var(--c-ink), 0 18px 40px rgba(0, 0, 0, 0.45); transition: left 0.28s var(--ease-out), top 0.28s var(--ease-out); }
 .coach-bubble.pop { animation: coach-pop 0.32s var(--ease-spring); }
 @keyframes coach-pop { from { transform: scale(0.85); opacity: 0; } }
 .coach-bubble::before { content: ''; position: absolute; width: 18px; height: 18px; background: inherit; box-shadow: -3px -3px 0 0 var(--c-ink); transform: rotate(45deg); }
@@ -108,8 +109,22 @@
 .boot.is-done { opacity: 0; pointer-events: none; transition: opacity 0.35s; }
 
 /* Fiches, fenêtres et bulles : même taille relative que sur mobile, agrandies sur grand écran. */
+/* Le réglage « Taille du texte » agrandit aussi tout ce qui se lit : fiches, fenêtres, bulles, fiche d'unité en combat. */
+:root { --read-zoom: calc(var(--ob-zoom) * var(--text-scale, 1)); }
+.ui-sheet { zoom: var(--text-scale, 1); max-height: min(calc(86dvh / var(--text-scale, 1)), 720px); width: min(560px, calc(100vw / var(--text-scale, 1))); }
 @media (orientation: landscape) {
-  .ui-sheet { zoom: var(--ob-zoom); width: min(400px, calc(46vw / var(--ob-zoom))); }
+  .ui-sheet { zoom: var(--read-zoom); width: min(400px, calc(46vw / var(--read-zoom))); }
 }
-.ui-modal, .ui-toast { zoom: var(--ob-zoom); }
-.ui-modal { max-height: calc(100dvh / var(--ob-zoom) - 32px); }
+.ui-modal, .ui-toast, .coach-bubble { zoom: var(--read-zoom); }
+.ui-modal { max-height: calc(100dvh / var(--read-zoom) - 32px); }
+#app .cb-info { zoom: var(--text-scale, 1); }
+
+/* Contour de focus clavier visible sur tous les éléments interactifs du jeu. */
+#app .hub-tab:focus-visible, #app .chip:focus-visible, #app .gr-card:focus-visible, #app .eq-tile:focus-visible,
+#app .lb-steps button:focus-visible, #app .lb-dots button:focus-visible, #app .tranche-btn:focus-visible, #app .char-level:focus-visible,
+.coach-next:focus-visible, .coach-skip:focus-visible { outline: 3px solid var(--c-gold-a); outline-offset: 3px; }
+
+/* Zones tactiles d'au moins ~44 px sans changer la mise en page (petits boutons du hub). */
+#app .lb-dots button, #app .lb-steps button, #app .chips .chip, #app .hb-top .tranche-btn, #app .gr-slot { position: relative; }
+#app .lb-dots button::after, #app .lb-steps button::after, #app .chips .chip::after, #app .hb-top .tranche-btn::after, #app .gr-slot::after { content: ''; position: absolute; inset: -6px -2px; }
+#app .lb-dots button::after { inset: -16px -6px; }
