@@ -41,7 +41,7 @@ import {
 } from '@chabfu/engine';
 import { slotFromKey, slotKeyLabel } from './keys';
 import { getCharacter } from './character/store';
-import { spellIconImg, unitPortraitImg } from './ui/assets';
+import { assetUrl, spellIconImg, unitPortraitImg } from './ui/assets';
 import { ELEMENT_LABEL, castPreviewCard, el, esc, monsterCard, spellTooltip } from './info';
 import {
   CANVAS_H,
@@ -221,7 +221,7 @@ export function leaveRun(): void {
 
 export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): void {
   app.innerHTML = `
-    <div class="run">
+    <div class="run" style="--scene-art: url('${assetUrl(`dungeons/${config.dungeonId}.webp`)}')">
       <header class="hud-top">
         <div class="turn-order" id="turn-order"></div>
       </header>

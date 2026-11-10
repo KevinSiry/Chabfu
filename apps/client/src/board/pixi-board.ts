@@ -118,7 +118,7 @@ interface UnitView {
   seed: number;
 }
 
-const LABEL_STYLE = new TextStyle({ fontFamily: 'system-ui, sans-serif', fontSize: 13, fontWeight: '700', fill: 0xffffff });
+const LABEL_STYLE = new TextStyle({ fontFamily: 'Outfit, system-ui, sans-serif', fontSize: 13, fontWeight: '700', fill: 0xffffff });
 
 export class PixiBoard {
   readonly app: Application;
@@ -223,9 +223,11 @@ export class PixiBoard {
     const right = toScreen(room, room.width - 1, 0);
     const bottom = toScreen(room, room.width - 1, room.height - 1);
     const left = toScreen(room, 0, room.height - 1);
-    const depth = 18;
-    g.poly([left.x - TILE_W / 2, left.y, bottom.x, bottom.y + TILE_H / 2, bottom.x, bottom.y + TILE_H / 2 + depth, left.x - TILE_W / 2, left.y + depth]).fill(0x2a3a26);
-    g.poly([bottom.x, bottom.y + TILE_H / 2, right.x + TILE_W / 2, right.y, right.x + TILE_W / 2, right.y + depth, bottom.x, bottom.y + TILE_H / 2 + depth]).fill(0x223020);
+    const depth = 14;
+    g.poly([left.x - TILE_W / 2, left.y, bottom.x, bottom.y + TILE_H / 2, bottom.x, bottom.y + TILE_H / 2 + depth, left.x - TILE_W / 2, left.y + depth]).fill({ color: 0x141c2e, alpha: 0.92 });
+    g.poly([bottom.x, bottom.y + TILE_H / 2, right.x + TILE_W / 2, right.y, right.x + TILE_W / 2, right.y + depth, bottom.x, bottom.y + TILE_H / 2 + depth]).fill({ color: 0x0d1424, alpha: 0.92 });
+    // Liseré clair sur l'arête avant du socle (habillage verre nocturne).
+    g.moveTo(left.x - TILE_W / 2, left.y).lineTo(bottom.x, bottom.y + TILE_H / 2).lineTo(right.x + TILE_W / 2, right.y).stroke({ width: 1.5, color: 0xffffff, alpha: 0.22 });
     void top;
     for (let y = 0; y < room.height; y++) {
       for (let x = 0; x < room.width; x++) {
@@ -242,7 +244,7 @@ export class PixiBoard {
           sp.tint = (x + y) % 2 === 0 ? 0xffffff : 0xe6e6e6;
           this.floorTiles.addChild(sp);
           // Quadrillage discret pour garder les cases lisibles sur les tuiles peintes.
-          this.grid.poly(diamondPts(c)).stroke({ width: 1, color: 0x000000, alpha: 0.28 });
+          this.grid.poly(diamondPts(c)).stroke({ width: 1, color: 0xffffff, alpha: 0.11 });
           continue;
         }
         const base = (x + y) % 2 === 0 ? 0x3f5d3b : 0x446541;
@@ -332,17 +334,17 @@ export class PixiBoard {
     }
     for (const p of scene.path) {
       const c = toScreen(room, p.x, p.y);
-      g.poly(diamondPts(c)).fill({ color: 0x6fbf4f, alpha: 0.5 });
+      g.poly(diamondPts(c)).fill({ color: 0x5ee0d0, alpha: 0.42 });
     }
     if (scene.path.length) {
       const pts = scene.path.map((p) => toScreen(room, p.x, p.y));
       const end = pts[pts.length - 1];
-      g.circle(end.x, end.y, 4).fill(0xd8ffd8);
+      g.circle(end.x, end.y, 4).fill(0xe8fffb);
     }
     if (scene.hover) {
       const c = toScreen(room, scene.hover.x, scene.hover.y);
       const pulse = 0.65 + 0.35 * Math.sin(scene.now / 180);
-      g.poly(diamondPts(c)).stroke({ width: 2, color: 0xecc878, alpha: pulse });
+      g.poly(diamondPts(c)).stroke({ width: 2, color: 0x5ee0d0, alpha: pulse });
     }
   }
 
@@ -449,8 +451,8 @@ export class PixiBoard {
       const top = headY - 9;
       const ratio = Math.max(0, u.hp) / u.maxHp;
       v.bars.clear();
-      v.bars.roundRect(-w / 2 - 1, top - 1, w + 2, 7, 3).fill({ color: 0x000000, alpha: 0.65 });
-      v.bars.roundRect(-w / 2, top, w * ratio, 5, 2).fill(u.team === 'player' ? 0x6cc070 : 0xe0544f);
+      v.bars.roundRect(-w / 2 - 1.5, top - 1.5, w + 3, 8, 4).fill({ color: 0x0b1020, alpha: 0.78 });
+      if (ratio > 0) v.bars.roundRect(-w / 2, top, Math.max(5, w * ratio), 5, 2.5).fill(u.team === 'player' ? 0x6cc070 : 0xe0544f);
       if (u.burning) v.bars.circle(w / 2 + 6, top + 2, 4.5).fill(0xe8643c).stroke({ width: 1, color: 0x1b1f2a });
       v.pm.text = u.pmMalus > 0 ? `-${u.pmMalus}PM` : '';
       v.pm.position.set(w / 2 + (u.burning ? 13 : 4), top + 2);
@@ -543,7 +545,7 @@ export class PixiBoard {
       const age = (scene.now - fl.born) / 1000;
       if (age < 0 || age > 1.2) continue;
       if (f >= this.floatPool.length) {
-        const t = new Text({ text: '', style: new TextStyle({ fontFamily: 'system-ui, sans-serif', fontWeight: '800', fill: 0xffffff, stroke: { color: 0x000000, width: 4, alpha: 0.75 } }) });
+        const t = new Text({ text: '', style: new TextStyle({ fontFamily: 'Outfit, system-ui, sans-serif', fontWeight: '800', fill: 0xffffff, stroke: { color: 0x000000, width: 4, alpha: 0.75 } }) });
         t.anchor.set(0.5, 1);
         this.labels.addChild(t);
         this.floatPool.push(t);

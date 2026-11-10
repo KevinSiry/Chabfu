@@ -1,15 +1,13 @@
 /*
- * Chabfu — habillage « new gen » (aperçu de directions).
- * Actif seulement quand <html data-skin="nuit|ivoire|bois">. Remplace les cadres peints en 9-slice
+ * Chabfu — habillage « new gen », direction « Verre nocturne » retenue par Kevin.
+ * Actif quand <html data-skin="nuit"> (posé dans index.html). Remplace les cadres peints en 9-slice
  * par des surfaces lisses (verre dépoli, aplats, dégradés doux) et une typographie nette.
  */
 @import '@fontsource/outfit/500.css';
 @import '@fontsource/outfit/600.css';
 @import '@fontsource/outfit/700.css';
-@import '@fontsource/fredoka/500.css';
-@import '@fontsource/fredoka/600.css';
 
-/* ---------- Jetons par direction ---------- */
+/* ---------- Jetons ---------- */
 :root[data-skin='nuit'] {
   --ng-bg: #0b1020;
   --ng-surface: rgba(17, 23, 39, 0.74);
@@ -35,59 +33,6 @@
   --ng-title-font: 'Outfit', system-ui, sans-serif;
   --ng-title-weight: 700;
   --ng-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-}
-:root[data-skin='ivoire'] {
-  --ng-bg: #efe7da;
-  --ng-surface: rgba(255, 251, 244, 0.9);
-  --ng-surface-2: rgba(70, 45, 20, 0.06);
-  --ng-surface-solid: #fffaf2;
-  --ng-border: rgba(70, 45, 20, 0.12);
-  --ng-border-strong: rgba(70, 45, 20, 0.28);
-  --ng-text: #2d2318;
-  --ng-muted: #7d6c58;
-  --ng-title: #2d2318;
-  --ng-accent: #f2672b;
-  --ng-cta-a: #ff9f55;
-  --ng-cta-b: #f2672b;
-  --ng-cta-ink: #ffffff;
-  --ng-cta-glow: rgba(242, 103, 43, 0.35);
-  --ng-track: rgba(70, 45, 20, 0.1);
-  --ng-slot: linear-gradient(180deg, #f4ebde, #e4d5bf);
-  --ng-veil: linear-gradient(180deg, rgba(250, 244, 234, 0.3), rgba(250, 244, 234, 0.88));
-  --ng-scene-veil: radial-gradient(ellipse at 50% 45%, rgba(250, 244, 234, 0), rgba(250, 244, 234, 0.55));
-  --ng-bg-blur: 3px;
-  --ng-bg-bright: 1.02;
-  --ng-bar: rgba(255, 250, 242, 0.88);
-  --ng-title-font: 'Fredoka', system-ui, sans-serif;
-  --ng-title-weight: 600;
-  --ng-shadow: 0 10px 30px rgba(70, 45, 20, 0.16);
-  color-scheme: light;
-}
-:root[data-skin='bois'] {
-  --ng-bg: #140e0a;
-  --ng-surface: rgba(36, 26, 18, 0.86);
-  --ng-surface-2: rgba(255, 220, 160, 0.06);
-  --ng-surface-solid: #261b13;
-  --ng-border: rgba(236, 200, 120, 0.16);
-  --ng-border-strong: rgba(236, 200, 120, 0.4);
-  --ng-text: #f3e8d3;
-  --ng-muted: #b5a084;
-  --ng-title: #f2cf86;
-  --ng-accent: #f2c25b;
-  --ng-cta-a: #ffd77a;
-  --ng-cta-b: #e09a2c;
-  --ng-cta-ink: #3a2206;
-  --ng-cta-glow: rgba(224, 154, 44, 0.35);
-  --ng-track: rgba(0, 0, 0, 0.35);
-  --ng-slot: linear-gradient(180deg, #3a2a1d, #221810);
-  --ng-veil: linear-gradient(180deg, rgba(20, 14, 10, 0.45), rgba(20, 14, 10, 0.88));
-  --ng-scene-veil: radial-gradient(ellipse at 50% 45%, rgba(20, 14, 10, 0.15), rgba(20, 14, 10, 0.78));
-  --ng-bg-blur: 5px;
-  --ng-bg-bright: 0.85;
-  --ng-bar: rgba(30, 21, 15, 0.86);
-  --ng-title-font: 'Outfit', system-ui, sans-serif;
-  --ng-title-weight: 700;
-  --ng-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
 }
 
 /* Anciens jetons recâblés : le contenu généré suit la direction choisie. */
@@ -182,16 +127,16 @@
 :root[data-skin] .chip.on { border-color: transparent; background: linear-gradient(180deg, var(--ng-cta-a), var(--ng-cta-b)); color: var(--ng-cta-ink); text-shadow: none; box-shadow: 0 4px 12px var(--ng-cta-glow); }
 
 /* ---------- Hub ---------- */
-:root[data-skin] #app:has(.hub-bar) { background: none; position: relative; isolation: isolate; }
-:root[data-skin] #app:has(.hub-bar)::before { content: ''; position: fixed; inset: -40px; z-index: -2; background: url('/assets/ui/hub-bg.webp') center / cover; filter: blur(var(--ng-bg-blur)) brightness(var(--ng-bg-bright)) saturate(1.1); }
-:root[data-skin] #app:has(.hub-bar)::after { content: ''; position: fixed; inset: 0; z-index: -1; background: var(--ng-veil); pointer-events: none; }
+:root[data-skin] #app { min-height: 100vh; background: none; position: relative; isolation: isolate; }
+:root[data-skin] #app::before { content: ''; position: fixed; inset: -40px; z-index: -2; background: url('/assets/ui/hub-bg.webp') center / cover; filter: blur(var(--ng-bg-blur)) brightness(var(--ng-bg-bright)) saturate(1.1); }
+:root[data-skin] #app::after { content: ''; position: fixed; inset: 0; z-index: -1; background: var(--ng-veil); pointer-events: none; }
 :root[data-skin] .hub-bar { background: var(--ng-bar); border-bottom: 1px solid var(--ng-border); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); backdrop-filter: blur(18px) saturate(1.3); padding: 12px 24px; }
 :root[data-skin] .hub-logo { font-family: var(--ng-title-font); font-weight: 700; color: var(--ng-title); text-shadow: none; letter-spacing: -0.02em; font-size: 30px; }
 :root[data-skin] .hub-logo small { font-family: var(--ng-title-font); color: var(--ng-muted); letter-spacing: 0.32em; }
 :root[data-skin] .hub-tabs { gap: 4px; padding: 4px; background: var(--ng-surface-2); border: 1px solid var(--ng-border); border-radius: 16px; justify-self: center; }
 :root[data-skin] .hub-tab { border: 0; border-image: none; background: transparent; box-shadow: none; filter: none; color: var(--ng-muted); text-shadow: none; font-family: var(--ng-title-font); font-weight: 600; font-size: 16px; padding: 8px 18px; border-radius: 12px; }
 :root[data-skin] .hub-tab:hover { color: var(--ng-text); background: var(--ng-surface-2); filter: none; }
-:root[data-skin] .hub-tab.on { padding: 8px 18px; font-size: 16px; box-shadow: 0 6px 16px var(--ng-cta-glow); }
+:root[data-skin] .hub-tab.on, :root[data-skin] .hub-tab.on:hover { padding: 8px 18px; font-size: 16px; color: var(--ng-cta-ink); background: linear-gradient(180deg, var(--ng-cta-a), var(--ng-cta-b)); box-shadow: 0 6px 16px var(--ng-cta-glow), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
 :root[data-skin] .char-plate-name b { font-family: var(--ng-title-font); font-weight: 600; color: var(--ng-text); text-shadow: none; }
 :root[data-skin] .char-level { background: linear-gradient(180deg, var(--ng-cta-a), var(--ng-cta-b)); color: var(--ng-cta-ink); text-shadow: none; border: 0; box-shadow: 0 0 0 3px var(--ng-surface-solid), 0 6px 16px var(--ng-cta-glow); font-family: var(--ng-title-font); font-weight: 700; }
 :root[data-skin] .char-level small { color: inherit; opacity: 0.75; }
@@ -211,6 +156,8 @@
 :root[data-skin] .deck-slot, :root[data-skin] .deck-slot.empty, :root[data-skin] .spell-card-icon { background: var(--ng-slot); border: 0; border-radius: 16px; box-shadow: inset 0 0 0 1px var(--ng-border), 0 4px 12px rgba(0, 0, 0, 0.18); padding: 0; opacity: 1; }
 :root[data-skin] .deck-slot.empty { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ng-border-strong); border: 0; outline: 0; background-image: none; }
 :root[data-skin] .deck-slot.empty { box-shadow: none; border: 1.5px dashed var(--ng-border-strong); }
+:root[data-skin] .deck-slot kbd { position: absolute; top: 6px; left: 6px; z-index: 2; }
+:root[data-skin] .deck-slot span { padding-bottom: 6px; color: var(--ng-muted); text-shadow: none; }
 :root[data-skin] .deck-slot > img, :root[data-skin] .spell-card-icon > img { inset: 0; width: 100%; height: 100%; border-radius: 16px; }
 :root[data-skin] .spell-card, :root[data-skin] .passive-card { border: 1px solid var(--ng-border); box-shadow: none; background: var(--ng-surface-2); }
 :root[data-skin] .spell-card { border-left: 4px solid var(--c, var(--ng-accent)); }
