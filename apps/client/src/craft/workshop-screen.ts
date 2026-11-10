@@ -27,7 +27,8 @@ import './craft.css';
 import { itemIconImg } from '../ui/assets';
 import { getCrafting, setCrafting } from './store';
 import { icon } from '../ui/icons';
-import { bindSegmented, openSheet, segmented } from '../ui/components';
+import { bindSegmented, openSheet, segmented, toast } from '../ui/components';
+import { pageAll, pagerHtml } from '../ui/pager';
 import { itemCardHtml } from '../stuff/item-view';
 
 export interface WorkshopScreenOptions {
@@ -56,89 +57,97 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     .sort((a, b) => b[1] - a[1]);
 
   const res = dungeonResources(dungeonId);
-  const craftPane = `
+  const di = dungeons.findIndex((d) => d.id === dungeonId);
+  const shardsHtml = `<span class="ws-shards">${icon('shard')}<b>${shards}</b><small>Éclats T${o.trancheId}</small></span>`;
+  const craftSide = `
+      <div class="ws-dungeon">
+        <button class="ui-icon-btn ui-icon-btn--sm" data-dstep="-1" aria-label="Donjon précédent">${icon('back')}</button>
+        <b>${dungeons[di]?.name ?? ''}</b>
+        <button class="ui-icon-btn ui-icon-btn--sm" data-dstep="1" aria-label="Donjon suivant">${icon('chevronRight')}</button>
+      </div>
+      ${shardsHtml}
       <div class="ws-res">
-        <span class="ws-shards">${icon('shard')}<b>${shards}</b><small>Éclats T${o.trancheId}</small></span>
         ${res
           .map((r) => {
             const n = st.resources[r.id] ?? 0;
-            return `<span class="ws-pill tier-${r.tier}${n ? '' : ' none'}" title="${RESOURCE_TIERS[r.tier].label} · dès difficulté ${r.refDifficulty}"><b>${n}</b>${r.name}</span>`;
+            return `<span class="ws-pill tier-${r.tier}${n ? '' : ' none'}" title="${RESOURCE_TIERS[r.tier].label} · dès difficulté ${r.refDifficulty}"><b>${n}</b><span>${r.name}</span></span>`;
           })
           .join('')}
-      </div>
-      <div class="chips">
-        ${dungeons.map((d) => `<button class="chip${d.id === dungeonId ? ' on' : ''}" data-dfilter="${d.id}">${d.name}</button>`).join('')}
-      </div>
-      <div class="chips">
+      </div>`;
+  const craftMain = `
+      <div class="chips ws-rarities">
         ${(['all', ...CRAFT_RARITIES] as const)
           .map((r) => `<button class="chip${rarityFilter === r ? ' on' : ''}" data-rfilter="${r}">${r === 'all' ? 'Toutes' : RARITIES[r].label}</button>`)
           .join('')}
       </div>
-      <div class="ws-recipes">
+      <div class="ws-recipes" data-paged="ws-recipes-${dungeonId}-${rarityFilter}">
         ${recipes
           .map((r) => {
             const miss = missingForRecipe(st, r);
             const ok = canCraft(st, r);
             const def = getItem(r.itemId);
             const ing = (name: string, have: number, need: number, missing: boolean) =>
-              `<div class="ws-ing${missing ? ' miss' : ''}"><span>${name}</span><b>${have}/${need}</b><i style="width:${Math.min(100, (100 * have) / need)}%"></i></div>`;
+              `<div class="ws-ing${missing ? ' miss' : ''}" title="${name}"><span>${name}</span><b>${have}/${need}</b><i style="width:${Math.min(100, (100 * have) / need)}%"></i></div>`;
             return `<div class="ws-recipe rarity-${r.rarity}">
               <div class="ws-recipe-head"><span class="eq-tile rarity-${r.rarity}">${itemIconImg(def.kind)}</span><div><b>${def.name}</b><span class="rarity-label">${RARITIES[r.rarity].label}</span></div></div>
+              <div class="ws-ings">
               ${Object.entries(r.resources)
                 .map(([id, n]) => ing(getResource(id).name, st.resources[id] ?? 0, n, !!miss.resources[id]))
                 .join('')}
               ${r.shards ? ing(`Éclats T${r.tranche}`, shards, r.shards, !!miss.shards) : ''}
+              </div>
               <button class="ui-btn ${ok ? 'ui-btn--primary' : ''} ui-btn--sm ui-btn--block" data-craft="${r.id}" ${ok ? '' : 'disabled'}>${icon('hammer')} Fabriquer</button>
             </div>`;
           })
           .join('')}
-      </div>`;
-  const recyclePane = `
-      <div class="ws-recycle-top">
-        <span class="ws-shards">${icon('shard')}<b>${shards}</b><small>Éclats T${o.trancheId}</small></span>
-        <label class="ws-field">Recyclage auto après chaque run
-          <select id="auto-recycle">
-            <option value="">Désactivé</option>
-            ${RARITY_ORDER.slice(1)
-              .map((r) => `<option value="${r}" ${st.autoRecycleBelow === r ? 'selected' : ''}>Sous ${RARITIES[r].label}</option>`)
-              .join('')}
-          </select></label>
-        <div class="ws-field ws-bulk">Tout recycler sous
-          <select id="bulk-rarity">${RARITY_ORDER.slice(1)
-            .map((r) => `<option value="${r}">${RARITIES[r].label}</option>`)
-            .join('')}</select>
-          <button class="ui-btn ui-btn--gold ui-btn--sm" id="bulk-recycle">${icon('recycle')} Recycler</button>
-        </div>
       </div>
-      ${
-        bag.length
-          ? `<div class="eq-grid ws-bag">${bag
-              .map((it) => {
-                const eq = isEquipped(inv, it.uid);
-                return `<button class="eq-tile rarity-${it.rarity} ${eq ? 'worn' : ''}" data-ritem="${it.uid}" aria-label="${getItem(it.itemId).name}">${itemIconImg(getItem(it.itemId).kind)}</button>`;
-              })
-              .join('')}</div><p class="muted">Touchez un objet pour le recycler. Les objets équipés ne sont jamais recyclés.</p>`
-          : `<div class="ui-empty eq-empty">${icon('bag')}<b>Sac vide</b><p>Le butin des boss arrive ici.</p></div>`
-      }
-      <h3 class="ws-sub">Maîtrise d'objet</h3>
-      ${
-        masteries.length
-          ? masteries
-              .map(([id, n]) => {
-                const lvl = masteryLevel(n);
-                const next = MASTERY_THRESHOLDS[lvl];
-                return `<div class="mastery-row"><span>${getItem(id).name}</span><span>Palier ${lvl} · ${n}${next ? `/${next}` : ''}</span></div>`;
-              })
-              .join('')
-          : '<p class="muted">Recyclez plusieurs exemplaires d’un objet pour progresser dans sa maîtrise.</p>'
-      }`;
+      ${pagerHtml(`ws-recipes-${dungeonId}-${rarityFilter}`)}`;
+  const recycleSide = `
+      ${shardsHtml}
+      <label class="ws-field">Recyclage auto après chaque run
+        <select id="auto-recycle">
+          <option value="">Désactivé</option>
+          ${RARITY_ORDER.slice(1)
+            .map((r) => `<option value="${r}" ${st.autoRecycleBelow === r ? 'selected' : ''}>Sous ${RARITIES[r].label}</option>`)
+            .join('')}
+        </select></label>
+      <div class="ws-field ws-bulk"><span>Tout recycler sous</span>
+        <div class="ws-bulk-row"><select id="bulk-rarity">${RARITY_ORDER.slice(1)
+          .map((r) => `<option value="${r}">${RARITIES[r].label}</option>`)
+          .join('')}</select>
+        <button class="ui-btn ui-btn--gold ui-btn--sm" id="bulk-recycle">${icon('recycle')} Recycler</button></div>
+      </div>
+      <button class="ui-btn ui-btn--blue ui-btn--sm ui-btn--block" id="ws-mastery">${icon('trophy')} Maîtrise d’objet</button>`;
+  const recycleMain = bag.length
+    ? `<p class="ws-hint">Touchez un objet pour le recycler. Les objets équipés ne sont jamais recyclés.</p>
+       <div class="eq-grid ws-bag" data-paged="ws-bag-${o.trancheId}">${bag
+         .map((it) => {
+           const eq = isEquipped(inv, it.uid);
+           return `<button class="eq-tile rarity-${it.rarity} ${eq ? 'worn' : ''}" data-ritem="${it.uid}" aria-label="${getItem(it.itemId).name}">${itemIconImg(getItem(it.itemId).kind)}</button>`;
+         })
+         .join('')}</div>${pagerHtml(`ws-bag-${o.trancheId}`)}`
+    : `<div class="ui-empty eq-empty">${icon('bag')}<b>Sac vide</b><p>Le butin des boss arrive ici.</p></div>`;
+  const masteryHtml = masteries.length
+    ? `<div class="ws-mastery" data-paged="ws-mastery">${masteries
+        .map(([id, n]) => {
+          const lvl = masteryLevel(n);
+          const next = MASTERY_THRESHOLDS[lvl];
+          return `<div class="mastery-row"><span>${getItem(id).name}</span><span>Palier ${lvl} · ${n}${next ? `/${next}` : ''}</span></div>`;
+        })
+        .join('')}</div>${pagerHtml('ws-mastery')}`
+    : '<p class="muted">Recyclez plusieurs exemplaires d’un objet pour progresser dans sa maîtrise.</p>';
 
   app.innerHTML = `
-    <div class="setup stuff ws">
-      ${segmented('ws-mode', [{ value: 'craft', label: `${icon('hammer')} Fabriquer` }, { value: 'recycle', label: `${icon('recycle')} Recycler` }], mode)}
-      <p class="craft-flash" id="craft-flash">${flash}</p>
-      <section class="ui-panel ws-pane">${mode === 'craft' ? craftPane : recyclePane}</section>
+    <div class="setup stuff ws ws--${mode}">
+      <aside class="ui-panel ws-side">
+        ${segmented('ws-mode', [{ value: 'craft', label: `${icon('hammer')} Fabriquer` }, { value: 'recycle', label: `${icon('recycle')} Recycler` }], mode)}
+        ${mode === 'craft' ? craftSide : recycleSide}
+      </aside>
+      <section class="ws-main">${mode === 'craft' ? craftMain : recycleMain}</section>
     </div>`;
+  pageAll(app);
+  if (flash) toast(flash, 'success');
+  flash = '';
 
   const rerender = () => renderWorkshopScreen(app, o);
   bindSegmented(app, 'ws-mode', (v) => {
@@ -172,18 +181,22 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
       rerender();
     }),
   );
-  app.querySelectorAll<HTMLButtonElement>('[data-dfilter]').forEach((b) =>
+  app.querySelectorAll<HTMLButtonElement>('[data-dstep]').forEach((b) =>
     b.addEventListener('click', () => {
-      dungeonFilter = b.dataset.dfilter!;
+      dungeonFilter = dungeons[(di + Number(b.dataset.dstep) + dungeons.length) % dungeons.length].id;
       rerender();
     }),
   );
+  app.querySelector('#ws-mastery')?.addEventListener('click', () => {
+    const sheet = openSheet({ title: 'Maîtrise d’objet', html: `<div class="ws-mastery-sheet">${masteryHtml}</div>`, cls: 'ws-mastery-panel' });
+    pageAll(sheet.body);
+  });
   app.querySelectorAll<HTMLButtonElement>('[data-craft]').forEach((b) =>
     b.addEventListener('click', () => {
       const res = craft(getInventory(), getCrafting(), b.dataset.craft!);
       setInventory(res.inventory);
       setCrafting(res.crafting);
-      flash = `${icon('check')} ${getItem(res.item.itemId).name} (${RARITIES[res.item.rarity].label}) ajouté au sac.`;
+      flash = `${getItem(res.item.itemId).name} (${RARITIES[res.item.rarity].label}) ajouté au sac.`;
       rerender();
     }),
   );
@@ -192,7 +205,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     setInventory(res.inventory);
     setCrafting(res.crafting);
     const gained = res.shardsGained[o.trancheId] ?? 0;
-    flash = res.recycled.length ? `${icon('recycle')} ${res.recycled.length} objet${res.recycled.length > 1 ? 's' : ''} recyclé${res.recycled.length > 1 ? 's' : ''} : +${gained} éclats.` : '';
+    flash = res.recycled.length ? `${res.recycled.length} objet${res.recycled.length > 1 ? 's' : ''} recyclé${res.recycled.length > 1 ? 's' : ''} : +${gained} éclats.` : '';
     rerender();
   };
   app.querySelectorAll<HTMLButtonElement>('[data-recycle]').forEach((b) => b.addEventListener('click', () => recycle([b.dataset.recycle!])));

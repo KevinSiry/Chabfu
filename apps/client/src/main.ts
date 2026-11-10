@@ -42,7 +42,9 @@ import './ui/skin-ng.css';
 import './ui/components.css';
 import { coachTour, type CoachStep } from './ui/coach';
 import './ui/onboarding.css';
-import { openSheet, trackInputMode } from './ui/components';
+import { bindSegmented, openSheet, segmented, trackInputMode } from './ui/components';
+import { pageAll, pagerHtml } from './ui/pager';
+import './ui/fit.css';
 import { sfx, unlockAudio } from './ui/sfx';
 import { applySettings } from './ui/settings';
 import { elementIcon, icon } from './ui/icons';
@@ -128,6 +130,8 @@ function goTab(t: HubTab): void {
 
 /** Onglet affiché, pour revenir au même écran après un changement de tranche ou de personnage. */
 let currentTab: HubTab = 'dungeons';
+/** Volet du grimoire : sorts ou passifs. */
+let grTab: 'spells' | 'passives' = 'spells';
 
 /**
  * Coquille commune des écrans hors combat : barre de navigation fixe et zone d'écran.
@@ -282,9 +286,14 @@ function renderSetup(): void {
         <button class="ui-btn ui-btn--primary ui-btn--lg gr-go" id="start">Combattre</button>
         <p class="lb-error" id="deck-error"></p>
       </section>
-      <section class="gr-section">
-        <div class="gr-title">Sorts <small>Touchez une carte pour la voir en détail et l’ajouter au deck.</small></div>
-        <div class="gr-grid">
+      <section class="gr-main">
+        <div class="gr-bar">
+          ${segmented('gr-tab', [{ value: 'spells', label: `${icon('grimoire')} Sorts` }, { value: 'passives', label: `${icon('sparkle')} Passifs <b id="passive-count"></b>` }], grTab)}
+          <small class="gr-hint">${grTab === 'spells' ? 'Touchez une carte pour sa fiche et l’ajouter au deck.' : `Touchez un passif pour l’équiper (${tranche.passiveSlots} emplacement${tranche.passiveSlots > 1 ? 's' : ''}).`}</small>
+        </div>
+        ${
+          grTab === 'spells'
+            ? `<div class="gr-grid" data-paged="gr-spells-${tranche.id}">
           ${spells
             .map((sp) => {
               const locked = sp.level > effLevel;
@@ -295,11 +304,8 @@ function renderSetup(): void {
             </button>`;
             })
             .join('')}
-        </div>
-      </section>
-      <section class="gr-section">
-        <div class="gr-title">Passifs <b id="passive-count"></b></div>
-        <div class="gr-passives">
+        </div>${pagerHtml(`gr-spells-${tranche.id}`)}`
+            : `<div class="gr-passives" data-paged="gr-passives-${tranche.id}">
           ${passives
             .map((pa) => {
               const locked = pa.level > effLevel;
@@ -310,18 +316,21 @@ function renderSetup(): void {
             </button>`;
             })
             .join('')}
-        </div>
+        </div>${pagerHtml(`gr-passives-${tranche.id}`)}`
+        }
       </section>
     </div>`;
 
-  const keepScroll = currentTab === tab && app.classList.contains('has-hub') ? window.scrollY : 0;
   const screen = hubShell(tab)!;
   const header =
     '';
   screen.innerHTML = `<div class="setup hub">${header}${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>
     <div class="spell-tip grimoire-tip" id="grimoire-tip" hidden></div>`;
-  // Le grimoire se redessine à chaque clic : on garde la position de défilement.
-  window.scrollTo(0, keepScroll);
+  pageAll(screen);
+  bindSegmented(screen, 'gr-tab', (v) => {
+    grTab = v as 'spells' | 'passives';
+    renderSetup();
+  });
   const deck = new Set(loadout.deck);
   const chosenPassives = new Set(loadout.passives);
   const persist = () => {

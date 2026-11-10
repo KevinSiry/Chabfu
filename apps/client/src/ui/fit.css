@@ -1,0 +1,121 @@
+/*
+ * « Une seule page » : aucun écran ne défile, en paysage sur téléphone comme sur ordinateur.
+ * Chaque écran remplit exactement la zone entre la barre du haut et les onglets ;
+ * les listes longues (sorts, sac, recettes) se découpent en pages (ui/pager.ts).
+ */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+
+/* ---------- Zone d'écran du hub : hauteur fixe ---------- */
+#app.has-hub { height: 100dvh; min-height: 0; overflow: hidden; }
+#app.has-hub .hub-screen {
+  height: calc((100dvh - var(--safe-t) - var(--safe-b)) / var(--hub-zoom) - var(--top-h) - var(--tabs-h));
+  min-height: 0; overflow: hidden; justify-content: flex-start;
+}
+#app.has-hub .hub-screen > :where(.setup) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#app.has-hub .hub-screen > :where(.setup) > * { min-height: 0; }
+
+/* ---------- Pagination ---------- */
+.ui-seg { flex: none; }
+[data-paged] { min-height: 0; overflow: hidden; align-content: start; }
+[data-paged] > [hidden] { display: none !important; }
+.ui-pager { flex: none; display: flex; align-items: center; justify-content: center; gap: 10px; height: 36px; }
+.ui-pager.is-single { visibility: hidden; }
+.ui-pager .ui-pager__btn { width: 34px; height: 34px; min-height: 0; }
+.ui-pager .ui-pager__btn:disabled { opacity: 0.35; }
+.ui-pager__dots { display: flex; align-items: center; gap: 7px; }
+.ui-pager__dots button { width: 11px; height: 11px; padding: 0; border: 0; border-radius: 50%; background: var(--c-well); box-shadow: 0 0 0 2px var(--c-ink); cursor: pointer; position: relative; }
+.ui-pager__dots button::after { content: ''; position: absolute; inset: -8px -4px; }
+.ui-pager__dots button.on { width: 26px; border-radius: 6px; background: var(--c-gold-a); }
+.ui-pager__dots b { font: 15px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+
+/* ---------- Grimoire : deck à gauche, sorts ou passifs paginés à droite ---------- */
+#app.has-hub .gr { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: none; gap: 14px; align-items: stretch; }
+#app .gr-deck-panel { grid-area: auto; position: static; align-self: start; padding: 12px; gap: 10px; }
+#app .gr-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+#app .gr-bar { flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#app .gr-bar .ui-seg button { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; }
+#app .gr-bar .ui-seg .ico { width: 18px; height: 18px; }
+#app .gr-bar .ui-seg b { color: var(--c-gold-a); }
+#app .gr-hint { flex: 1; min-width: 180px; font: 800 13px/1.25 var(--font-ui); color: var(--c-text-2); }
+#app .gr-grid { flex: 1; margin: 0; padding: 8px 10px 0; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 14px 12px; }
+#app .gr-passives { flex: 1; margin: 0; padding: 8px 8px 0; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+#app .gr-passive { min-height: 92px; }
+
+/* ---------- Téléphone en paysage ---------- */
+@media (max-height: 520px) and (orientation: landscape) {
+  #app.has-hub .gr { grid-template-columns: 210px minmax(0, 1fr); gap: 10px; }
+  #app .gr-deck-panel { padding: 10px; gap: 8px; }
+  #app .gr-deck { gap: 6px; }
+  #app .gr-head { font-size: 19px; }
+  #app .gr-go { min-height: 50px; font-size: 22px; }
+  #app .gr-bar { gap: 8px; }
+  #app .gr-hint { display: none; }
+  #app .gr-grid { grid-template-columns: repeat(auto-fill, minmax(62px, 68px)); justify-content: space-between; gap: 8px 10px; padding-top: 6px; }
+  #app .gr-name { font-size: 12px; }
+  #app .gr-art .lb-cost { width: 24px; height: 24px; font-size: 14px; right: -6px; bottom: -6px; }
+  #app .gr-check { width: 22px; height: 22px; top: -6px; right: -6px; }
+  #app .gr-passives { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+  #app .gr-passive { min-height: 0; padding: 8px 10px; gap: 4px; }
+  #app .gr-passive-head b { font-size: 15px; }
+  #app .gr-passive-desc { font-size: 12px; line-height: 1.25; }
+  .ui-pager { height: 30px; }
+  .ui-pager .ui-pager__btn { width: 30px; height: 30px; }
+}
+
+/* ---------- Atelier : réglages à gauche, recettes ou sac paginés à droite ---------- */
+#app.has-hub .ws { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 14px; }
+#app .ws-side { min-height: 0; padding: 12px; display: flex; flex-direction: column; gap: 10px; align-self: start; }
+#app .ws-side .ui-seg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+#app .ws-side .ui-seg button { min-height: 36px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 15px; }
+#app .ws-side .ui-seg .ico { width: 16px; height: 16px; }
+#app .ws-dungeon { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+#app .ws-dungeon b { font: 16px/1.1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); text-align: center; }
+#app .ws-dungeon .ui-icon-btn { width: 32px; height: 32px; min-height: 0; }
+#app .ws-side .ws-shards { align-self: stretch; justify-content: center; height: 36px; }
+#app .ws-side .ws-res { display: flex; flex-direction: column; align-items: stretch; gap: 5px; }
+#app .ws-side .ws-pill { height: 28px; padding-right: 10px; }
+#app .ws-side .ws-pill span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#app .ws-field { display: flex; flex-direction: column; align-items: stretch; gap: 5px; }
+#app .ws-field select { height: 34px; border-radius: 10px; font: 800 14px/1 var(--font-ui); }
+#app .ws-bulk-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+#app .ws-bulk-row .ui-btn { margin: 0; }
+#app .ws-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+#app .ws .ws-rarities { flex: none; margin: 0; }
+#app .ws-recipes { flex: 1; margin: 0; padding: 2px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+#app .ws-recipe { padding: 10px; gap: 6px; }
+#app .ws-recipe-head { margin: 0; }
+#app .ws-ings { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+#app .ws-ing { height: 24px; padding: 0 8px; font-size: 12px; border-radius: 12px; }
+#app .ws-ing span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#app .ws-recipe .ws-ing:last-of-type { margin-bottom: 0; }
+#app .ws-recipe .ui-btn { margin-top: 2px; }
+#app .ws-hint { flex: none; margin: 0; font: 800 13px/1.25 var(--font-ui); color: var(--c-text-2); }
+#app .ws-bag { flex: 1; margin: 0; padding: 6px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+.ws-mastery-sheet { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ws-mastery { flex: 1; display: grid; grid-auto-rows: max-content; gap: 6px; }
+.ws-mastery .mastery-row { padding: 6px 10px; border-radius: 10px; background: var(--c-well); font-weight: 800; }
+
+@media (max-height: 520px) and (orientation: landscape) {
+  #app.has-hub .ws { grid-template-columns: 220px minmax(0, 1fr); gap: 10px; }
+  #app .ws-side { padding: 8px; gap: 7px; }
+  #app .ws-side .ws-shards { height: 30px; }
+  #app .ws-side .ws-shards b { font-size: 18px; }
+  #app .ws-side .ws-res { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  #app .ws-side .ws-pill { padding: 0 6px 0 2px; gap: 4px; }
+  #app .ws-side .ws-pill { height: 23px; font-size: 12px; }
+  #app .ws-side .ws-pill b { height: 19px; min-width: 22px; font-size: 12px; }
+  #app .ws-dungeon b { font-size: 14px; }
+  #app .ws-dungeon .ui-icon-btn { width: 28px; height: 28px; }
+  #app.has-hub .ws .chips .chip { height: 28px; line-height: 28px; font-size: 13px; padding: 0 10px; }
+  #app .ws-recipes { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+  #app .ws-recipe { padding: 8px; gap: 5px; }
+  #app .ws-recipe-head .eq-tile { width: 38px; height: 38px; }
+  #app .ws-recipe-head b { font-size: 14px; }
+  #app .ws-recipe-head .rarity-label { font-size: 12px; }
+  #app .ws-ing { height: 21px; font-size: 11px; padding: 0 6px; }
+  #app .ws-recipe .ui-btn { min-height: 32px; }
+  #app .ws-field { font-size: 12px; gap: 3px; }
+  #app .ws-field select { height: 30px; }
+  #app .ws-hint { display: none; }
+  #app .ws-bag { grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 8px; }
+}
