@@ -513,7 +513,7 @@ export class PixiBoard {
       if (tex) {
         if (!v.sprite) {
           v.sprite = new Sprite(tex);
-          v.sprite.anchor.set(0.5, 0.92);
+          v.sprite.anchor.set(0.5, 0.96); // sprites Arène : pieds au bas du canevas
           v.body.addChild(v.sprite);
           v.fallback.visible = false;
           v.initial.visible = false;
