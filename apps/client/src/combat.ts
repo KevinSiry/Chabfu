@@ -57,6 +57,7 @@ import {
   type Highlight,
   type Marker,
   type Projectile,
+  type Scene,
 } from './render';
 
 export interface RunHooks {
@@ -115,7 +116,7 @@ interface RunView {
   busy: boolean;
   startedAt: number;
   endedAt: number | null;
-  ctx: CanvasRenderingContext2D;
+  board: BoardRenderer | null;
   overlayKey: string;
   overlay: Overlay | null;
 }
@@ -182,10 +183,39 @@ function zoneOf(v: RunView, id: string): ThreatZone {
   return z;
 }
 
+interface BoardRenderer {
+  canvas: HTMLCanvasElement;
+  render(scene: Scene): void;
+  destroy(): void;
+}
+
+let currentBoard: BoardRenderer | null = null;
+
+/** Plateau PixiJS (WebGL) ; repli sur le rendu canvas 2D si WebGL est indisponible. */
+async function createBoard(wrap: HTMLElement): Promise<BoardRenderer> {
+  const placeholder = wrap.querySelector('#board') as HTMLCanvasElement;
+  try {
+    const { PixiBoard } = await import('./board/pixi-board');
+    placeholder.remove();
+    return await PixiBoard.create(wrap);
+  } catch (e) {
+    console.warn('PixiJS indisponible, rendu canvas 2D', e);
+    if (!placeholder.isConnected) wrap.prepend(placeholder);
+    const dpr = window.devicePixelRatio || 1;
+    placeholder.width = CANVAS_W * dpr;
+    placeholder.height = CANVAS_H * dpr;
+    const ctx = placeholder.getContext('2d')!;
+    ctx.scale(dpr, dpr);
+    return { canvas: placeholder, render: (scene) => draw(ctx, scene), destroy: () => undefined };
+  }
+}
+
 /** Quitte l'écran de combat (arrête la boucle d'affichage). */
 export function leaveRun(): void {
   view = null;
   cancelAnimationFrame(frame);
+  currentBoard?.destroy();
+  currentBoard = null;
 }
 
 export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): void {
@@ -228,12 +258,9 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
       </footer>
     </div>`;
 
-  const canvas = app.querySelector('#board') as HTMLCanvasElement;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = CANVAS_W * dpr;
-  canvas.height = CANVAS_H * dpr;
-  const ctx = canvas.getContext('2d')!;
-  ctx.scale(dpr, dpr);
+  cancelAnimationFrame(frame);
+  currentBoard?.destroy();
+  currentBoard = null;
 
   view = {
     config,
@@ -261,31 +288,24 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
     busy: false,
     startedAt: performance.now(),
     endedAt: null,
-    ctx,
+    board: null,
     overlayKey: '',
     overlay: null,
   };
 
   const wrap = app.querySelector('#board-wrap') as HTMLElement;
-  canvas.addEventListener('mousemove', (e) => {
-    if (!view) return;
-    const r = canvas.getBoundingClientRect();
-    view.hover = toCell(view.displayRoom, ((e.clientX - r.left) / r.width) * CANVAS_W, ((e.clientY - r.top) / r.height) * CANVAS_H);
-    const wr = wrap.getBoundingClientRect();
-    view.mouse = { x: e.clientX - wr.left, y: e.clientY - wr.top };
+  const v0 = view;
+  void createBoard(wrap).then((board) => {
+    if (view !== v0) {
+      board.destroy();
+      return;
+    }
+    currentBoard = board;
+    v0.board = board;
+    bindBoardEvents(board.canvas, wrap);
   });
-  canvas.addEventListener('mouseleave', () => {
+
     if (!view) return;
-    view.hover = null;
-    view.mouse = null;
-  });
-  canvas.addEventListener('click', () => view?.hover && onCellClick(view.hover));
-  canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    if (!view) return;
-    if (view.selectedSpell) selectSpell(null);
-    else view.pinned = null;
-  });
   const endBtn = app.querySelector('#end-turn') as HTMLButtonElement;
   endBtn.addEventListener('click', () => act({ type: 'endTurn' }));
   endBtn.addEventListener('mouseenter', () => view && (view.hoverEndTurn = true));
@@ -337,7 +357,6 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
   });
 
   renderHud();
-  cancelAnimationFrame(frame);
   const loop = () => {
     if (!view) return;
     refreshOverlay();
@@ -346,6 +365,29 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
     frame = requestAnimationFrame(loop);
   };
   frame = requestAnimationFrame(loop);
+}
+
+
+function bindBoardEvents(canvas: HTMLCanvasElement, wrap: HTMLElement): void {
+  canvas.addEventListener('mousemove', (e) => {
+    if (!view) return;
+    const r = canvas.getBoundingClientRect();
+    view.hover = toCell(view.displayRoom, ((e.clientX - r.left) / r.width) * CANVAS_W, ((e.clientY - r.top) / r.height) * CANVAS_H);
+    const wr = wrap.getBoundingClientRect();
+    view.mouse = { x: e.clientX - wr.left, y: e.clientY - wr.top };
+  });
+  canvas.addEventListener('mouseleave', () => {
+    if (!view) return;
+    view.hover = null;
+    view.mouse = null;
+  });
+  canvas.addEventListener('click', () => view?.hover && onCellClick(view.hover));
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (!view) return;
+    if (view.selectedSpell) selectSpell(null);
+    else view.pinned = null;
+  });
 }
 
 window.addEventListener('keydown', (e) => {
@@ -813,7 +855,8 @@ function drawBoard(): void {
   const now = performance.now();
   v.floats = v.floats.filter((f) => now - f.born < 1300);
   v.projectiles = v.projectiles.filter((p) => now - p.born < p.duration);
-  draw(v.ctx, {
+  if (!v.board) return;
+  v.board.render({
     room: v.displayRoom,
     units: [...v.display.values()].filter((u) => u.alive),
     highlights: o?.highlights ?? [],
