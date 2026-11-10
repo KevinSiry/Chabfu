@@ -118,3 +118,24 @@
 .el-table td b { color: #fff; }
 .el-table td b.capped { color: var(--gold-300); }
 .small { font-size: 12px; }
+
+/* Habillage « Verre nocturne » (html[data-skin]) : surfaces lisses, pas de cadre doré. */
+:root[data-skin] .stat-medal { width: 22px; height: 22px; border-radius: 8px; font-size: 11px; text-shadow: none; color: var(--sc); background: color-mix(in srgb, var(--sc) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sc) 45%, transparent); }
+:root[data-skin] .stat-medal.st-resistance { border-radius: 8px 8px 11px 11px; }
+:root[data-skin] .stat-rows { background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 0 0 1px var(--ng-border); border-radius: 12px; }
+:root[data-skin] .stat-rows .stat-label { color: var(--ng-muted); }
+:root[data-skin] .stat-rows .stat-val { color: var(--ng-text); text-shadow: none; font-family: var(--ng-title-font); font-weight: 600; }
+:root[data-skin] .stat-delta { background: transparent; box-shadow: inset 0 0 0 1px var(--ng-border); border-radius: 12px; }
+:root[data-skin] .stat-delta .stat-medal { width: 18px; height: 18px; border-radius: 6px; font-size: 9px; }
+:root[data-skin] .stat-delta li.up b { color: #6fe08f; }
+:root[data-skin] .stat-delta li.down b { color: #ff7b72; }
+:root[data-skin] .cstat { background: var(--ng-surface-2); box-shadow: inset 0 0 0 1px var(--ng-border); border-radius: 16px; }
+:root[data-skin] .cstat b { font-family: var(--ng-title-font); font-weight: 700; text-shadow: none; }
+:root[data-skin] .cstat span { color: var(--ng-muted); }
+:root[data-skin] .cstat .stat-medal { width: 28px; height: 28px; border-radius: 10px; font-size: 14px; }
+:root[data-skin] .el-table { background: rgba(255, 255, 255, 0.03); box-shadow: inset 0 0 0 1px var(--ng-border); border-radius: 12px; }
+:root[data-skin] .el-table th { color: var(--ng-muted); background: rgba(255, 255, 255, 0.04); }
+:root[data-skin] .el-table td { border-top: 1px solid var(--ng-border); }
+:root[data-skin] .el-table td b { color: var(--ng-text); }
+:root[data-skin] .el-table td b.capped { color: var(--ng-accent); }
+:root[data-skin] .slot .item-tip .item-card { background: var(--ng-surface-solid); box-shadow: var(--ng-shadow); }
