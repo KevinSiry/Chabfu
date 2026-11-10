@@ -42,7 +42,8 @@ export function pagedGrid(grid: HTMLElement, key: string, pager: HTMLElement | n
     if (cols < 0) cols = all.length;
     const cs = getComputedStyle(grid);
     const rowGap = parseFloat(cs.rowGap) || 0;
-    const rowH = Math.max(...all.slice(0, cols).map((el) => el.offsetHeight));
+    // Hauteur de la plus haute carte : une page ne déborde jamais, quelle que soit la page affichée.
+    const rowH = Math.max(...all.map((el) => el.offsetHeight));
     const avail = grid.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
     const rows = Math.max(1, Math.floor((avail + rowGap + 1) / (rowH + rowGap)));
     return Math.max(1, cols * rows);
