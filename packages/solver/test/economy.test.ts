@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runsForFullSet } from '../src/economy.js';
+import { runsForFullSet, runsForRunes } from '../src/economy.js';
 
 /** Garde-fous du rythme de farm (GDD section 8, « Rythme d'obtention ») : le stuff doit se mériter. */
 describe('économie du stuff', () => {
@@ -16,5 +16,13 @@ describe('économie du stuff', () => {
 
   it('une panoplie Inhabituelle reste accessible en début de partie', () => {
     expect(runs(3, 'uncommon')).toBeLessThan(40);
+  });
+});
+
+describe('économie des runes', () => {
+  it('le jeu de 18 Parfaites demande plusieurs centaines de runs en D10', () => {
+    const r = runsForRunes('bosquet_des_ronces', 10, { seeds: 10, maxRuns: 2500 });
+    expect(r.perfectSet ?? Infinity).toBeGreaterThan(300);
+    expect(r.firstRune ?? Infinity).toBeLessThan(10);
   });
 });

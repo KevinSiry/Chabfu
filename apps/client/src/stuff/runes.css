@@ -1,0 +1,128 @@
+/* Runes : pierres serties (DA Arène : contour épais encre, couleurs franches, reflet en haut). */
+.rune-braise { --rc: #ff7a3d; --rc2: #c8321b; }
+.rune-maree { --rc: #4fc3ff; --rc2: #1d6fd1; }
+.rune-racine { --rc: #9be15a; --rc2: #3f8e22; }
+.rune-rafale { --rc: #c9f4ff; --rc2: #5fb4c9; }
+.rune-seve { --rc: #ff8fb4; --rc2: #c93d72; }
+.rune-rempart { --rc: #d5dbe6; --rc2: #7a8599; }
+.rune-pointe { --rc: #ffd84a; --rc2: #d18a12; }
+.rune-mire { --rc: #b8a4ff; --rc2: #6a4ae0; }
+.rune-focus { --rc: #7ff0d0; --rc2: #1fa384; }
+
+.rune-gem { position: relative; display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; }
+.rune-gem.rune-sm { width: 28px; height: 28px; }
+.rune-gem.rune-lg { width: 56px; height: 56px; }
+.rune-gem .rune-stone {
+  position: absolute; inset: 12%; transform: rotate(45deg); border-radius: 22%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.85) 0 12%, transparent 13%), linear-gradient(160deg, var(--rc), var(--rc2));
+  box-shadow: 0 0 0 2.5px var(--c-ink, #140c38), inset 0 -3px 0 rgba(0, 0, 0, 0.25), 0 3px 0 var(--c-ink, #140c38);
+}
+.rune-gem .asset-rune { position: relative; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 0 var(--c-ink, #140c38)); }
+/* Une icône peinte remplace la pierre dessinée. */
+.rune-gem .asset-rune ~ .rune-pips { z-index: 1; }
+.rune-gem:has(.asset-rune) .rune-stone { display: none; }
+.rune-gem.grade-parfaite .rune-stone { box-shadow: 0 0 0 2.5px var(--c-ink, #140c38), 0 0 0 4.5px var(--c-gold-a, #ffe866), 0 3px 0 4.5px var(--c-ink, #140c38); }
+.rune-gem.grade-brute .rune-stone { filter: saturate(0.55) brightness(0.92); }
+.rune-gem.dim { opacity: 0.4; filter: grayscale(0.8); }
+.rune-pips { position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
+.rune-pips i { width: 6px; height: 6px; border-radius: 50%; background: var(--c-gold-a, #ffe866); box-shadow: 0 0 0 1.5px var(--c-ink, #140c38); }
+.rune-sm .rune-pips i { width: 4px; height: 4px; }
+.rune-count {
+  position: absolute; top: -4px; right: -6px; min-width: 18px; padding: 0 4px; border-radius: 9px; font-size: 11px; line-height: 18px; text-align: center;
+  background: var(--c-ink, #140c38); color: #fff; box-shadow: 0 0 0 2px var(--c-line-strong, rgba(255, 255, 255, 0.3));
+}
+.rune-empty::before {
+  content: ''; position: absolute; inset: 16%; transform: rotate(45deg); border-radius: 22%;
+  background: var(--c-fill-strong, rgba(10, 5, 40, 0.45)); box-shadow: inset 0 0 0 2px var(--c-line-strong, rgba(255, 255, 255, 0.3));
+}
+.rune-line { display: inline-flex; align-items: center; gap: 8px; text-align: left; }
+.rune-line small { display: block; color: var(--c-text-2, #d4ccff); font-size: 12px; }
+
+/* Emplacements de runes dans la fiche d'objet. */
+.item-runes { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; align-items: center; }
+.item-runes .rune-slot {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 12px; border: 0; font: inherit; color: inherit; text-align: left;
+  background: var(--c-fill, rgba(10, 5, 40, 0.32)); box-shadow: inset 0 0 0 2px var(--c-line, rgba(255, 255, 255, 0.14)); font-size: 12px; line-height: 1.15;
+}
+.item-runes button.rune-slot { cursor: pointer; }
+.item-runes button.rune-slot:hover { box-shadow: inset 0 0 0 2px var(--c-gold-a, #ffe866); }
+.item-runes .rune-slot small { display: block; color: var(--c-text-2, #d4ccff); }
+.item-runes .rune-slot.ignored { opacity: 0.6; }
+
+/* Choix d'une rune à sertir. */
+.rune-pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.rune-pick { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 0; border-radius: 12px; font: inherit; color: inherit; text-align: left; cursor: pointer; background: var(--c-fill); box-shadow: inset 0 0 0 2px var(--c-line); font-size: 12px; }
+.rune-pick:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--c-gold-a); }
+.rune-pick:disabled { opacity: 0.45; cursor: default; }
+.rune-pick b { display: block; font-size: 13px; }
+.rune-pick small { color: var(--c-text-2); }
+.rune-sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.rune-sheet-note { color: var(--c-text-2); font-size: 13px; margin: 8px 0 0; }
+
+/* ---------- Atelier : onglet Runes et bouton Briser ---------- */
+#app .ws .ui-seg button { font-size: 13px; gap: 4px; padding: 0 4px; }
+#app .ws .ui-seg .ico { width: 15px; height: 15px; }
+#app .ws-rec-go { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#app .ws-rec-go .ws-go { min-height: 48px; font-size: 18px; padding: 0 6px; }
+#app .ws-bag-hint .rune-gem { vertical-align: middle; }
+
+#app.has-hub .ws .ui-seg { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#app .rn-tiles { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 6px; }
+#app .rn-tile { min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px; border: 0; border-radius: 14px; background: var(--c-fill); color: inherit; cursor: pointer; box-shadow: inset 0 0 0 2px transparent; }
+#app .rn-tile:hover { background: var(--c-fill-strong); }
+#app .rn-tile.on { background: color-mix(in srgb, var(--c-gold-a) 18%, var(--c-fill-strong)); box-shadow: inset 0 0 0 3px var(--c-gold-a); }
+#app .rn-name { max-width: 100%; font: 800 12px/1.1 var(--font-ui); color: var(--c-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#app .rn-tile.on .rn-name { color: #fff; }
+#app .rn-total { flex: none; margin: 0; font: 800 12px/1 var(--font-ui); color: var(--c-text-3); text-align: center; }
+#app .rn-detail .ws-d-head .rune-gem { flex: none; }
+#app .rn-body { align-items: stretch; }
+#app .rn-effects { list-style: none; margin: 0; padding: 6px 10px; display: flex; flex-direction: column; gap: 6px; border-radius: 12px; background: var(--c-fill); }
+#app .rn-effects li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font: 700 14px/1.15 var(--font-ui); }
+#app .rn-effects em { font: 16px/1 var(--font-display); font-style: normal; color: #fff; text-shadow: var(--stroke-sm); }
+#app .rn-note { margin: 0; font: 600 12px/1.3 var(--font-ui); color: var(--c-text-3); }
+#app .rn-targets { grid-template-columns: 1fr 1fr; }
+#app .rn-targets button { color: #fff; }
+#app .rn-fuse { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 4px 0; }
+#app .rn-arrow .ico { width: 22px; height: 22px; }
+#app .rn-cost { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+#app .rn-cost .rune-gem { position: relative; z-index: 1; }
+#app .rn-detail .ws-go { margin-top: auto; }
+#app .ws-cost.tier-rune::before { display: none; }
+#app .ws-cost.tier-rune { padding-left: 4px; }
+
+@media (max-height: 520px) and (orientation: landscape) {
+  #app .rn-tile { gap: 1px; padding: 2px; border-radius: 10px; }
+  #app .rn-tile .rune-gem { width: 30px; height: 30px; }
+  #app .rn-name { font-size: 10px; }
+  #app .rn-total, #app .rn-howto { display: none; }
+  #app .rn-effects { padding: 4px 8px; gap: 3px; }
+  #app .rn-effects li { font-size: 11px; gap: 5px; }
+  #app .rn-effects .rune-gem { width: 22px; height: 22px; }
+  #app .rn-effects em { font-size: 13px; }
+  #app .rn-fuse { padding: 0; gap: 6px; }
+  #app .rn-fuse .rune-gem { width: 30px; height: 30px; }
+  #app .rn-fuse .rune-gem.rune-lg { width: 40px; height: 40px; }
+  #app .rn-cost { gap: 3px; }
+  #app .rn-cost .ws-cost { height: 24px; font-size: 11px; padding-right: 8px; }
+  #app .rn-cost .ws-cost b { font-size: 13px; }
+  #app .rn-cost .rune-gem, #app .rn-cost .asset-res { width: 20px; height: 20px; }
+  #app .rn-detail .ws-d-head .rune-gem.rune-lg { width: 40px; height: 40px; }
+  #app .rn-detail .ws-go { min-height: 36px; font-size: 16px; margin: 0; }
+  #app .ws-rec-go .ws-go { min-height: 36px; font-size: 14px; }
+  #app .rn-targets button { height: 24px; }
+}
+#app.has-hub .ws .ui-seg .ico { display: none; }
+#app .rn-targets { --r: #3fa0ff; }
+#app .rn-tile .rune-gem { margin-bottom: 4px; }
+@media (max-height: 520px) and (orientation: landscape) {
+  #app .rn-fuse { display: none; }
+  #app .rn-tile .rune-gem { margin-bottom: 2px; }
+}
+.rune-picks { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.rune-picks .ui-pager { align-self: center; }
+@media (max-height: 520px) and (orientation: landscape) {
+  .rune-pick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rune-pick { padding: 4px 6px; gap: 6px; }
+  .rune-pick b { font-size: 11px; }
+  .rune-pick small { font-size: 10px; }
+}

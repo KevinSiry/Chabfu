@@ -19,10 +19,12 @@ export interface CraftingState {
   recycled: Record<string, number>;
   /** Recyclage automatique des objets reçus strictement en dessous de cette rareté (null : désactivé). */
   autoRecycleBelow: Rarity | null;
+  /** Stock de runes non serties (clé « type:niveau »). Absent dans les anciennes sauvegardes. */
+  runes?: Record<string, number>;
 }
 
 export function createCraftingState(): CraftingState {
-  return { resources: {}, shards: {}, recycled: {}, autoRecycleBelow: null };
+  return { resources: {}, shards: {}, recycled: {}, autoRecycleBelow: null, runes: {} };
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +149,13 @@ export function recycleItems(inventory: Inventory, state: CraftingState, uids: s
     shardsGained,
     recycled,
   };
+}
+
+/** Compte des objets détruits pour la maîtrise d'objet (recyclage ou bris). */
+export function recycleCount(state: CraftingState, items: ItemInstance[]): CraftingState {
+  const counts = { ...state.recycled };
+  for (const it of items) counts[it.itemId] = (counts[it.itemId] ?? 0) + 1;
+  return { ...state, recycled: counts };
 }
 
 export function setAutoRecycle(state: CraftingState, below: Rarity | null): CraftingState {

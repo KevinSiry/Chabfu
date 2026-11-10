@@ -11,6 +11,11 @@ import {
   compareWithEquipped,
   isEquipped,
   itemStats,
+  breakItems,
+  breakResult,
+  canBreak,
+  runeLabel,
+  type RuneKey,
   masteryLevel,
   missingForRecipe,
   recipesForTranche,
@@ -32,6 +37,8 @@ import { bindSegmented, openSheet, segmented, toast } from '../ui/components';
 import { pageAll, pagerHtml } from '../ui/pager';
 import { KIND_LABEL, bonusScore, itemCardHtml } from '../stuff/item-view';
 import { statCompareHtml } from '../stuff/stat-view';
+import { runeGemHtml } from '../stuff/rune-view';
+import { bindRunesPanel, runesPanelHtml } from './runes-panel';
 
 const PREVIEW_UID = '__craft-preview__';
 
@@ -53,7 +60,7 @@ let dungeonFilter: string | null = null;
 let selectedItem: string | null = null;
 let selectedRarity: CraftRarity | null = null;
 let flash = '';
-let mode: 'craft' | 'recycle' = 'craft';
+let mode: 'craft' | 'recycle' | 'runes' = 'craft';
 /** Objets cochés pour le recyclage (uids). */
 const picked = new Set<string>();
 let lastPicked: string | null = null;
@@ -74,7 +81,11 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
   const allRecipes = recipesForTranche(o.trancheId).filter((r) => r.dungeonId === dungeonId);
   const itemIds = [...new Set(allRecipes.map((r) => r.itemId))];
   const shardsHtml = `<span class="ws-shards" title="Éclats de la tranche ${o.trancheId}">${shardIconImg()}<b>${shards}</b><small>Éclats</small></span>`;
-  const modeSeg = segmented('ws-mode', [{ value: 'craft', label: `${icon('hammer')} Fabriquer` }, { value: 'recycle', label: `${icon('recycle')} Recycler` }], mode);
+  const modeSeg = segmented('ws-mode', [
+      { value: 'craft', label: `${icon('hammer')} Fabriquer` },
+      { value: 'recycle', label: `${icon('recycle')} Recycler` },
+      { value: 'runes', label: `${icon('sparkle')} Runes` },
+    ], mode);
 
   /** Écart de stats si l'on équipait cet objet (fabriqué dans cette rareté). */
   const deltaOf = (itemId: string, rarity: Rarity) => {
@@ -163,6 +174,8 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
         ${pagerHtml(`ws-items-${dungeonId}`)}
       </aside>
       <section class="ui-panel ws-detail">${shardsHtml}${detail}</section>`;
+  } else if (mode === 'runes') {
+    body = runesPanelHtml(st, o.trancheId, modeSeg, shardsHtml);
   } else {
     const all = inv.items.filter((i) => getItem(i.itemId).tranche === o.trancheId);
     // Raretés basses d'abord : ce sont elles qu'on recycle.
@@ -173,6 +186,8 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     const sel = free.filter((it) => picked.has(it.uid));
     const gain = sel.reduce((s, it) => s + SHARDS_BY_RARITY[it.rarity], 0);
     const byRarity = RARITY_ORDER.map((r) => ({ r, items: free.filter((it) => it.rarity === r) })).filter((g) => g.items.length);
+    // Briser : seulement si toute la sélection est Rare ou mieux.
+    const breakable = sel.length > 0 && sel.every((it) => canBreak(inv, it));
     const last = lastPicked ? all.find((it) => it.uid === lastPicked) : undefined;
 
     const grid = all.length
@@ -203,7 +218,10 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
             })
             .join('')}
         </div>
-        <button class="ui-btn ui-btn--gold ui-btn--block ws-go" id="ws-recycle-go" ${sel.length ? '' : 'disabled'}>${icon('recycle')} Recycler</button>
+        <div class="ws-rec-go">
+          <button class="ui-btn ui-btn--gold ws-go" id="ws-recycle-go" ${sel.length ? '' : 'disabled'}>${icon('recycle')} Recycler</button>
+          <button class="ui-btn ui-btn--blue ws-go" id="ws-break-go" ${breakable ? '' : 'disabled'} title="Objets Rares ou mieux : une rune chacun, pas d’éclats">${icon('sparkle')} Briser</button>
+        </div>
         <div class="ws-rec-foot">
           <select id="auto-recycle" aria-label="Recyclage automatique après chaque run">
             <option value="">Auto : non</option>
@@ -219,8 +237,10 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
           ${shardsHtml}
           <span class="ws-bag-hint">${
             last
-              ? `<b class="rarity-${last.rarity}">${getItem(last.itemId).name}</b> <span class="rarity-label rarity-${last.rarity}">${RARITY_SHORT[last.rarity]}</span> · +${SHARDS_BY_RARITY[last.rarity]} éclats`
-              : 'Touchez les objets à recycler. Les objets équipés sont protégés.'
+              ? `<b class="rarity-${last.rarity}">${getItem(last.itemId).name}</b> <span class="rarity-label rarity-${last.rarity}">${RARITY_SHORT[last.rarity]}</span> · +${SHARDS_BY_RARITY[last.rarity]} éclats${
+                  breakResult(last) ? ` ou ${runeGemHtml(breakResult(last), { size: 'sm' })} ${runeLabel(breakResult(last)!)}` : ''
+                }`
+              : 'Touchez les objets à recycler ou à briser. Les objets équipés sont protégés.'
           }</span>
           ${last ? `<button class="ui-icon-btn ui-icon-btn--sm" id="ws-last-info" aria-label="Fiche de l’objet">${icon('info')}</button>` : ''}
         </div>
@@ -248,9 +268,14 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
 
   const rerender = () => renderWorkshopScreen(app, o);
   bindSegmented(app, 'ws-mode', (v) => {
-    mode = v as 'craft' | 'recycle';
+    mode = v as 'craft' | 'recycle' | 'runes';
     rerender();
   });
+  if (mode === 'runes')
+    bindRunesPanel(app, o.trancheId, (msg) => {
+      if (msg) flash = msg;
+      rerender();
+    });
 
   // ----- Fabriquer -----
   app.querySelectorAll<HTMLButtonElement>('[data-item]').forEach((b) =>
@@ -339,13 +364,14 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
   app.querySelector('#ws-recycle-go')?.addEventListener('click', () => {
     const cur = getInventory();
     const sel = cur.items.filter((it) => picked.has(it.uid));
-    const precious = sel.filter((it) => RARITY_ORDER.indexOf(it.rarity) >= RARITY_ORDER.indexOf('rare'));
+    const precious = sel.filter((it) => RARITY_ORDER.indexOf(it.rarity) >= RARITY_ORDER.indexOf('rare') || (it.runes ?? []).some(Boolean));
+    const lostRunes = sel.reduce((n, it) => n + (it.runes ?? []).filter(Boolean).length, 0);
     if (!precious.length) return recycle(sel.map((it) => it.uid));
     // Objets rares ou mieux dans la sélection : on confirme avant de les détruire.
     const gain = sel.reduce((s, it) => s + SHARDS_BY_RARITY[it.rarity], 0);
     const sheet = openSheet({
       title: 'Recycler ?',
-      html: `<p class="ws-confirm">${sel.length} objet${sel.length > 1 ? 's' : ''}, dont <b>${precious.length} rare${precious.length > 1 ? 's' : ''} ou mieux</b>, contre <b>+${gain} éclats</b>. C’est définitif.</p>
+      html: `<p class="ws-confirm">${sel.length} objet${sel.length > 1 ? 's' : ''}, dont <b>${precious.length} rare${precious.length > 1 ? 's' : ''} ou mieux</b>, contre <b>+${gain} éclats</b>.${lostRunes ? ` <b>${lostRunes} rune${lostRunes > 1 ? 's' : ''} sertie${lostRunes > 1 ? 's' : ''} sera détruite${lostRunes > 1 ? 's' : ''}.</b>` : ''} C’est définitif.</p>
         <div class="ws-confirm-items">${precious
           .slice(0, 12)
           .map((it) => `<span class="eq-tile rarity-${it.rarity}">${itemIconImg(it.itemId)}</span>`)
@@ -355,6 +381,29 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     sheet.el.querySelector('#ws-confirm')?.addEventListener('click', () => {
       sheet.close();
       recycle(sel.map((it) => it.uid));
+    });
+  });
+  app.querySelector('#ws-break-go')?.addEventListener('click', () => {
+    const cur = getInventory();
+    const sel = cur.items.filter((it) => picked.has(it.uid) && canBreak(cur, it));
+    if (!sel.length) return;
+    const runes = sel.map((it) => breakResult(it)!) as RuneKey[];
+    const lost = sel.reduce((n, it) => n + (it.runes ?? []).filter(Boolean).length, 0);
+    const sheet = openSheet({
+      title: 'Briser ?',
+      html: `<p class="ws-confirm">${sel.length} objet${sel.length > 1 ? 's' : ''} détruit${sel.length > 1 ? 's' : ''} contre ${runes.length} rune${runes.length > 1 ? 's' : ''}, sans éclats.${lost ? ` <b>${lost} rune${lost > 1 ? 's' : ''} sertie${lost > 1 ? 's' : ''} sera détruite${lost > 1 ? 's' : ''}.</b>` : ''} C’est définitif.</p>
+        <div class="ws-confirm-items">${runes.slice(0, 12).map((k) => runeGemHtml(k, { size: 'md' })).join('')}</div>
+        <div class="gr-sheet-action"><button class="ui-btn ui-btn--blue ui-btn--block" id="ws-break-confirm">${icon('sparkle')} Briser</button></div>`,
+    });
+    sheet.el.querySelector('#ws-break-confirm')?.addEventListener('click', () => {
+      sheet.close();
+      const res = breakItems(getInventory(), getCrafting(), sel.map((it) => it.uid));
+      setInventory(res.inventory);
+      setCrafting(res.crafting);
+      picked.clear();
+      lastPicked = null;
+      flash = `${res.gained.length} rune${res.gained.length > 1 ? 's' : ''} obtenue${res.gained.length > 1 ? 's' : ''} : ${res.gained.map(runeLabel).join(', ')}.`;
+      rerender();
     });
   });
   app.querySelector('#auto-recycle')?.addEventListener('change', (e) => {

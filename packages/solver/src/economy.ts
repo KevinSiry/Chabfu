@@ -7,6 +7,17 @@
  * (ou mieux) est payable pour un emplacement encore vide. Moyenne sur plusieurs graines.
  */
 import {
+  addResources,
+  addRunes,
+  breakResult,
+  canFuse,
+  createCraftingState,
+  fuseRunes,
+  fusionCost,
+  rollRuneDrops,
+  type CraftingState,
+  type RuneKey,
+  type RuneType,
   RARITY_ORDER,
   RECIPES,
   SHARDS_BY_RARITY,
@@ -105,4 +116,78 @@ export function runsForFullSet(
 function payable(r: Recipe, res: Record<string, number>, shards: number): boolean {
   if (shards < r.shards) return false;
   return Object.entries(r.resources).every(([id, q]) => (res[id] ?? 0) >= q);
+}
+
+// ---------------------------------------------------------------------------
+// Runes
+// ---------------------------------------------------------------------------
+
+/**
+ * Jeu de runes de référence du « stuff parfait » (panoplie Mythique : 18 emplacements) :
+ * Mire et Focus, puis des Parfaites de maîtrise, de Pointe et de Sève. C'est aussi celui du solveur.
+ */
+export const PERFECT_RUNE_SET: Partial<Record<RuneType, number>> = { mire: 1, focus: 1, pointe: 2, braise: 8, seve: 3, rempart: 3 };
+
+export interface RuneEconomyResult {
+  dungeonId: string;
+  difficulty: number;
+  /** Runs avant la première rune (drop ou bris). */
+  firstRune: number | null;
+  /** Runs pour 18 runes Taillées ou mieux, de n'importe quel type. */
+  eighteenCut: number | null;
+  /** Runs pour le jeu parfait (PERFECT_RUNE_SET en Parfaite). */
+  perfectSet: number | null;
+}
+
+/**
+ * Joueur modèle déjà équipé : il farme un donjon pour ses runes. Il brise tous les objets Rares ou mieux
+ * (des doublons), recycle les autres en éclats, et fusionne dès que possible les types dont il a besoin.
+ */
+export function runsForRunes(dungeonId: string, difficulty: number, opts: { seeds?: number; maxRuns?: number } = {}): RuneEconomyResult {
+  const seeds = opts.seeds ?? 100;
+  const maxRuns = opts.maxRuns ?? 3000;
+  const first: number[] = [];
+  const cut: number[] = [];
+  const perfect: number[] = [];
+  const need = PERFECT_RUNE_SET;
+  for (let s = 0; s < seeds; s++) {
+    const rng = seededRandom(0x51ed270b ^ (s * 7919 + difficulty * 104729));
+    let st: CraftingState = createCraftingState();
+    let f = Infinity;
+    let c = Infinity;
+    let p = Infinity;
+    for (let n = 1; n <= maxRuns && p === Infinity; n++) {
+      const gained: RuneKey[] = rollRuneDrops(difficulty, Math.floor(rng() * 2 ** 32));
+      let shards = 0;
+      for (const d of rollBossLoot(dungeonId, difficulty, Math.floor(rng() * 2 ** 32))) {
+        const r = breakResult(d);
+        if (r) gained.push(r);
+        else shards += SHARDS_BY_RARITY[d.rarity];
+      }
+      st = addRunes(addResources({ ...st, shards: { 1: (st.shards[1] ?? 0) + shards } }, rollResourceDrops(dungeonId, difficulty, Math.floor(rng() * 2 ** 32))), gained);
+      // Fusions : d'abord vers Parfaite, puis vers Taillée, pour les types du jeu visé.
+      for (let again = true; again; ) {
+        again = false;
+        for (const grade of ['parfaite', 'taillee'] as const)
+          for (const type of Object.keys(need) as RuneType[]) {
+            const cost = fusionCost(type, grade);
+            if (cost && canFuse(st, cost)) {
+              st = fuseRunes(st, type, grade);
+              again = true;
+            }
+          }
+      }
+      const stock = st.runes ?? {};
+      const total = Object.values(stock).reduce((a, b) => a + b, 0);
+      if (f === Infinity && total > 0) f = n;
+      const cutCount = Object.entries(stock).filter(([k]) => !k.endsWith(':brute')).reduce((a, [, v]) => a + v, 0);
+      if (c === Infinity && cutCount >= 18) c = n;
+      if (Object.entries(need).every(([t, q]) => (stock[`${t}:parfaite`] ?? 0) >= q!)) p = n;
+    }
+    first.push(f);
+    cut.push(c);
+    perfect.push(p);
+  }
+  const mean = (a: number[]) => (a.every(Number.isFinite) ? a.reduce((x, y) => x + y, 0) / a.length : null);
+  return { dungeonId, difficulty, firstRune: mean(first), eighteenCut: mean(cut), perfectSet: mean(perfect) };
 }
