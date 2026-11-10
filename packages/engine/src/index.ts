@@ -8,7 +8,7 @@ export * from './equipment.js';
 export * from './stats.js';
 export * from './preview.js';
 export { ITEMS, BOSS_DROP_TABLES, getItem, getBossDropTable, type DropEntry } from './data/items.js';
-export { SPELLS, getSpell, type SpellDef, type Zone } from './data/spells.js';
+export { SPELLS, ELEMENT_IDENTITY, getSpell, type SpellDef, type SpellRole, type Zone } from './data/spells.js';
 export { MONSTERS, getMonster, monsterBehavior, type MonsterTemplate, type MonsterAttack, type MonsterBehavior } from './data/monsters.js';
 export { DUNGEONS, getDungeon, dungeonsForTranche, type DungeonDef } from './data/dungeons.js';
 export * from './passives.js';

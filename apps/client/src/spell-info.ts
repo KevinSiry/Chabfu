@@ -40,16 +40,19 @@ const TARGET_LABEL: Record<SpellDef['target'], string> = {
 };
 
 function zoneDiagram(zone: SpellDef['zone']): string {
+  // Zones en ligne : le lanceur est en bas, la ligne part vers le haut.
   const on = (x: number, y: number) =>
-    zone === 'cross' ? (x === 1 || y === 1) && !(x !== 1 && y !== 1) : zone === 'square' ? true : x === 1 && y === 1;
+    zone === 'cross' ? (x === 1 || y === 1) && !(x !== 1 && y !== 1) : zone === 'square' ? true : zone === 'line' || zone === 'pierce' ? x === 1 : x === 1 && y === 1;
   const cells = [];
   for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) cells.push(`<i class="${on(x, y) ? 'on' : ''} ${x === 1 && y === 1 ? 'c' : ''}"></i>`);
   return `<span class="zone-mini">${cells.join('')}</span>`;
 }
 
-function zoneLabel(zone: SpellDef['zone']): string {
+function zoneLabel(zone: SpellDef['zone'], length?: number): string {
   if (zone === 'cross') return 'Croix de 5 cases';
   if (zone === 'square') return 'Carré de 9 cases';
+  if (zone === 'line') return `Ligne de ${length ?? 1} cases`;
+  if (zone === 'pierce') return 'Toute la ligne';
   return '1 case';
 }
 
@@ -128,6 +131,11 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
     fx.push({ icon: icon('slow'), cls: 'water', html: `<b>Ralentit</b> : retire <b>${s.pmRemoval} PM</b> à la cible pour son prochain tour. <span class="muted">Se cumule si vous le relancez.</span>` });
   }
   if (s.jump) fx.push({ icon: icon('jump'), cls: 'neutral', html: `<b>Saut</b> : l’Archer atterrit sur la case visée, par-dessus rochers et unités. <span class="muted">Ne coûte pas de PM.</span>` });
+  if (s.zone === 'pierce') fx.push({ icon: icon('range'), cls: 'earth', html: `<b>Perforant</b> : touche <b>tous les ennemis alignés</b> derrière la cible, jusqu’au premier rocher.` });
+  if (s.recoil) fx.push({ icon: icon('jump'), cls: 'air', html: `<b>Recul</b> : après le tir, l’Archer recule de <b>${plural(s.recoil, 'case')}</b> à l’opposé de la cible, si la case est libre. <span class="muted">Ne coûte ni PM ni Concentration.</span>` });
+  if (s.detonateBurn) fx.push({ icon: icon('burn'), cls: 'fire', html: `<b>Éclatement</b> : toute la brûlure restante de la cible part d’un coup, <b>+${Math.round((s.detonateBurn - 1) * 100)} %</b>, puis s’éteint. <span class="muted">Sans brûlure, seuls les dégâts directs s’appliquent.</span>` });
+  if (s.bonusVsSlowed) fx.push({ icon: icon('slow'), cls: 'water', html: `<b>Brise-glace</b> : <b>+${Math.round((s.bonusVsSlowed - 1) * 100)} %</b> de dégâts sur une cible ralentie (PM retirés pour son prochain tour).` });
+  if (s.bonusVsObstacle) fx.push({ icon: icon('push'), cls: 'earth', html: `<b>Écrasement</b> : dégâts <b>×${num(s.bonusVsObstacle)}</b> si un rocher, le bord ou une unité se trouve juste derrière la cible, dans l’axe du tir.` });
   if (s.gainPm) fx.push({ icon: icon('pm'), cls: 'air', html: `<b>Élan</b> : rend <b>${s.gainPm} PM</b> à l’Archer, utilisable tout de suite.` });
   if (s.buffNextShot) {
     fx.push({
@@ -182,7 +190,7 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
         <span>Cible</span><b>${TARGET_LABEL[s.target]}</b>
         ${s.target !== 'self' ? `<span>Ligne de vue</span><b>${s.los ? 'Requise' : '<span class="pos">Non requise</span>'}</b>` : ''}
         ${s.target !== 'self' ? `<span>Lancer</span><b>${s.inLine ? 'En ligne droite uniquement' : 'Dans toutes les directions'}</b>` : ''}
-        ${s.damage !== undefined ? `<span>Zone</span><b>${zoneDiagram(s.zone)} ${zoneLabel(s.zone)}</b>` : ''}
+        ${s.damage !== undefined ? `<span>Zone</span><b>${zoneDiagram(s.zone)} ${zoneLabel(s.zone, s.zoneLength)}</b>` : ''}
         <span>Utilisations</span><b>${s.maxPerTurn ? `${plural(s.maxPerTurn, 'fois')} par tour` : 'Illimitées'} <span class="muted">· pas de temps de recharge</span></b>
       </div>
       ${conc.length ? `<div class="ss-conc"><div class="ss-sec">Concentration</div>${conc.map((c) => `<p>${c}</p>`).join('')}</div>` : ''}
@@ -197,16 +205,20 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
 // ---------------------------------------------------------------------------
 
 /** Effets du sort en quelques mots (le détail exact reste dans `spellSheet`). */
-function briefEffects(state: RunState, s: SpellDef): string[] {
+export function briefEffects(state: RunState, s: SpellDef): string[] {
   const power = spellPower(state, s.id);
   const out: string[] = [];
-  if (s.zone) out.push(zoneLabel(s.zone));
+  if (s.zone) out.push(zoneLabel(s.zone, s.zoneLength));
   if (s.burn && power.burn) out.push(`Brûlure ${power.burn.perTurn.normal} × ${power.burn.turns} tours`);
   if (s.push) out.push(`Pousse de ${plural(s.push, 'case')}`);
   if (s.pmRemoval) out.push(`−${s.pmRemoval} PM à la cible`);
   if (s.jump) out.push('Saut sur la case');
   if (s.gainPm) out.push(`+${s.gainPm} PM`);
   if (s.buffNextShot) out.push('Prochain tir ×2');
+  if (s.recoil) out.push(`Recule de ${plural(s.recoil, 'case')}`);
+  if (s.detonateBurn) out.push(`Fait éclater la brûlure +${Math.round((s.detonateBurn - 1) * 100)} %`);
+  if (s.bonusVsSlowed) out.push(`+${Math.round((s.bonusVsSlowed - 1) * 100)} % sur cible ralentie`);
+  if (s.bonusVsObstacle) out.push(`×${num(s.bonusVsObstacle)} contre un obstacle`);
   return out;
 }
 

@@ -51,6 +51,8 @@ import './ui/fit.css';
 import { sfx, unlockAudio } from './ui/sfx';
 import { applySettings } from './ui/settings';
 import { elementIcon, icon } from './ui/icons';
+import { grimoireFocusHtml, grimoireTableHtml, spellGlyph, type GrimoireLayout } from './ui/grimoire';
+import './ui/grimoire.css';
 
 
 const app = document.getElementById('app')!;
@@ -135,6 +137,10 @@ function goTab(t: HubTab): void {
 let currentTab: HubTab = 'dungeons';
 /** Volet du grimoire : sorts ou passifs. */
 let grTab: 'spells' | 'passives' = 'spells';
+/** Présentation du grimoire (maquettes A et B, `?gr=table|focus`). */
+const grLayout: GrimoireLayout = new URLSearchParams(location.search).get('gr') === 'focus' ? 'focus' : 'table';
+let grElement: import('@chabfu/engine').Element = 'fire';
+let grSelected: string | undefined;
 
 /**
  * Coquille commune des écrans hors combat : barre de navigation fixe et zone d'écran.
@@ -271,6 +277,13 @@ function renderSetup(): void {
     : `<div class="ui-empty"><b>Aucun donjon</b><p>La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p></div>`;
 
   const inDeck = new Set(loadout.deck);
+  const grView = {
+    spells,
+    deck: inDeck,
+    effLevel,
+    deckSize: tranche.deckSize,
+    state: dungeon ? grimoireState(characterRunConfig(character, dungeon.id, save.difficulty), loadout.deck) : null,
+  };
   const grimoireTab = `
     <div class="gr">
       <section class="ui-panel gr-deck-panel">
@@ -279,7 +292,7 @@ function renderSetup(): void {
           ${Array.from({ length: tranche.deckSize }, (_, i) => {
             const sp = loadout.deck[i] ? SPELLS.find((x) => x.id === loadout.deck[i]) : undefined;
             return sp
-              ? `<button class="lb-card gr-slot" data-open="${sp.id}" aria-label="${sp.name}">${spellIconImg(sp.id)}<span class="lb-cost">${sp.pa}</span></button>`
+              ? `<button class="lb-card gr-slot el-theme-${sp.element}" data-open="${sp.id}" aria-label="${sp.name}"><span class="grx-glyph">${spellGlyph(sp.name)}</span>${spellIconImg(sp.id)}<span class="lb-cost">${sp.pa}</span></button>`
               : `<div class="lb-card empty"></div>`;
           }).join('')}
         </div>
@@ -290,22 +303,13 @@ function renderSetup(): void {
         <div class="gr-bar">
           ${segmented('gr-tab', [{ value: 'spells', label: `${icon('grimoire')} Sorts` }, { value: 'passives', label: `${icon('sparkle')} Passifs <b id="passive-count"></b>` }], grTab)}
           <small class="gr-hint">${grTab === 'spells' ? 'Touchez une carte pour sa fiche et l’ajouter au deck.' : `Touchez un passif pour l’équiper (${tranche.passiveSlots} emplacement${tranche.passiveSlots > 1 ? 's' : ''}).`}</small>
-          ${pagerHtml(`gr-${grTab}-${tranche.id}`)}
+          ${grTab === 'passives' ? pagerHtml(`gr-${grTab}-${tranche.id}`) : ''}
         </div>
         ${
           grTab === 'spells'
-            ? `<div class="gr-grid" data-paged="gr-spells-${tranche.id}">
-          ${spells
-            .map((sp) => {
-              const locked = sp.level > effLevel;
-              return `
-            <button class="gr-card el-theme-${sp.element} ${locked ? 'locked' : ''} ${inDeck.has(sp.id) ? 'in' : ''}" data-open="${sp.id}">
-              <span class="gr-art">${spellIconImg(sp.id)}${locked ? `<span class="gr-lock">${icon('lock')}<b>Niv. ${sp.level}</b></span>` : `<span class="lb-cost">${sp.pa}</span>`}${inDeck.has(sp.id) ? `<span class="gr-check">${icon('check')}</span>` : ''}</span>
-              <span class="gr-name">${sp.name}</span>
-            </button>`;
-            })
-            .join('')}
-        </div>`
+            ? grLayout === 'table'
+              ? grimoireTableHtml(grView)
+              : grimoireFocusHtml(grView, grElement, grSelected)
             : `<div class="gr-passives" data-paged="gr-passives-${tranche.id}">
           ${passives
             .map((pa) => {
@@ -379,6 +383,29 @@ function renderSetup(): void {
         sheet.close();
         rerender();
       });
+    }),
+  );
+  app.querySelectorAll<HTMLButtonElement>('[data-el]').forEach((b) =>
+    b.addEventListener('click', () => {
+      grElement = b.dataset.el as typeof grElement;
+      grSelected = undefined;
+      rerender();
+    }),
+  );
+  app.querySelectorAll<HTMLButtonElement>('[data-pick]').forEach((b) =>
+    b.addEventListener('click', () => {
+      grSelected = b.dataset.pick;
+      rerender();
+    }),
+  );
+  app.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const id = b.dataset.toggle!;
+      if (deck.has(id)) deck.delete(id);
+      else if (deck.size < tranche.deckSize) deck.add(id);
+      grSelected = id;
+      persist();
+      rerender();
     }),
   );
   app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) =>

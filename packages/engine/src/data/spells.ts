@@ -54,8 +54,21 @@ export interface SpellDef {
   bonusVsSlowed?: number;
   /** Multiplicateur de dégâts si la case derrière la cible (dans l'axe du tir) est un rocher ou une unité. */
   bonusVsObstacle?: number;
+  /** Rôle du sort dans son élément, affiché dans le grimoire. */
+  role: SpellRole;
   description: string;
 }
+
+export type SpellRole = 'Base' | 'Zone' | 'Gros coup' | 'Rapide' | 'Contrôle' | 'Mobilité' | 'Contact' | 'Renfort' | 'Fuite';
+
+/** Identité de chaque élément pour l'Archer. */
+export const ELEMENT_IDENTITY: Record<Element, { name: string; text: string }> = {
+  fire: { name: 'Brûlure', text: 'Dégâts sur la durée, qu’on fait éclater d’un coup.' },
+  water: { name: 'Ralenti', text: 'Retire des PM ; une cible ralentie devient vulnérable.' },
+  earth: { name: 'Poussée', text: 'Pousse, collisions, frappe plus fort contre un obstacle.' },
+  air: { name: 'Distance', text: 'Portée, tirs en cloche, recul et Concentration.' },
+  neutral: { name: 'Utilitaires', text: 'Se dégager et préparer un tir doublé.' },
+};
 
 /** Catalogue de l'Archer, sorts jusqu'au niveau 20 (tranche T1). Valeurs indicatives du GDD. */
 export const SPELLS: SpellDef[] = [
@@ -75,6 +88,7 @@ export const SPELLS: SpellDef[] = [
     burn: { damage: 4, turns: 2 },
     concentrationGain: 1,
     concentrationGainMinDistance: 5,
+    role: 'Base',
     description: 'Dégâts Feu + brûlure 2 tours. +1 Concentration si la cible est à 5 cases ou plus.',
   },
   {
@@ -91,6 +105,7 @@ export const SPELLS: SpellDef[] = [
     target: 'emptyCell',
     jump: true,
     concentrationLoss: 1,
+    role: 'Fuite',
     description: 'Bondit de 2 cases en ligne droite, par-dessus les obstacles. -1 Concentration.',
   },
   {
@@ -107,6 +122,7 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     damage: 8,
     recoil: 1,
+    role: 'Mobilité',
     description: 'Dégâts Air en ligne droite, puis l’Archer recule d’une case à l’opposé de la cible.',
   },
   {
@@ -123,6 +139,7 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     damage: 10,
     push: 2,
+    role: 'Base',
     description: 'Dégâts Terre + pousse de 2 cases. Dégâts de collision contre un rocher ou un monstre.',
   },
   {
@@ -141,6 +158,7 @@ export const SPELLS: SpellDef[] = [
     zoneLength: 3,
     damage: 5,
     pmRemoval: 1,
+    role: 'Zone',
     description: 'Vague de 3 cases en ligne : faibles dégâts Eau et -1 PM à chaque ennemi touché.',
   },
   {
@@ -156,6 +174,7 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     damage: 4,
     burn: { damage: 3, turns: 2 },
+    role: 'Rapide',
     description: 'Petit tir Feu rapide qui enflamme la cible 2 tours. 2 fois par tour.',
   },
   {
@@ -171,6 +190,7 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     damage: 9,
     pmRemoval: 1,
+    role: 'Base',
     description: 'Dégâts Eau + retire 1 PM à la cible pour son prochain tour.',
   },
   {
@@ -185,6 +205,7 @@ export const SPELLS: SpellDef[] = [
     maxPerTurn: 1,
     target: 'emptyCell',
     jump: true,
+    role: 'Mobilité',
     description: 'Roule sur une case voisine libre, sans PM et sans perdre de Concentration.',
   },
   {
@@ -201,6 +222,7 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     damage: 12,
     bonusVsObstacle: 2,
+    role: 'Gros coup',
     description: 'Gros dégâts Terre en ligne droite, doublés si un rocher ou une unité se trouve juste derrière la cible.',
   },
   {
@@ -215,6 +237,7 @@ export const SPELLS: SpellDef[] = [
     maxPerTurn: 3,
     target: 'unit',
     damage: 6,
+    role: 'Rapide',
     description: 'Faibles dégâts Air, portée maximale +2.',
   },
   {
@@ -230,6 +253,7 @@ export const SPELLS: SpellDef[] = [
     target: 'cell',
     zone: 'square',
     damage: 9,
+    role: 'Zone',
     description: 'Explosion Feu sur un carré de 9 cases autour de la case visée.',
   },
   {
@@ -246,6 +270,7 @@ export const SPELLS: SpellDef[] = [
     zone: 'cross',
     damage: 4,
     pmRemoval: 2,
+    role: 'Contrôle',
     description: 'Brume glacée en croix : faibles dégâts Eau et -2 PM à chaque ennemi touché.',
   },
   {
@@ -261,6 +286,7 @@ export const SPELLS: SpellDef[] = [
     target: 'self',
     concentrationCost: 4,
     buffNextShot: true,
+    role: 'Renfort',
     description: 'Consomme 4 Concentration : le prochain tir inflige le double de dégâts.',
   },
   {
@@ -277,6 +303,7 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     zone: 'pierce',
     damage: 9,
+    role: 'Zone',
     description: 'Traverse la ligne : dégâts Terre à tous les ennemis alignés, jusqu’au premier rocher.',
   },
   {
@@ -292,6 +319,7 @@ export const SPELLS: SpellDef[] = [
     target: 'cell',
     zone: 'cross',
     damage: 7,
+    role: 'Zone',
     description: 'Dégâts Air en croix autour de la case ciblée.',
   },
   {
@@ -307,6 +335,7 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     damage: 6,
     detonateBurn: 1.5,
+    role: 'Gros coup',
     description: 'Dégâts Feu, puis toute la brûlure restante de la cible éclate d’un coup, +50 %.',
   },
   {
@@ -322,6 +351,7 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     damage: 13,
     bonusVsSlowed: 1.5,
+    role: 'Gros coup',
     description: 'Gros dégâts Eau, +50 % sur une cible ralentie.',
   },
   {
@@ -338,6 +368,7 @@ export const SPELLS: SpellDef[] = [
     damage: 5,
     push: 1,
     gainPm: 1,
+    role: 'Contact',
     description: 'Corps à corps : dégâts Terre, pousse de 1 case et rend 1 PM.',
   },
   {
@@ -353,6 +384,7 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     damage: 13,
     concentrationGain: 1,
+    role: 'Gros coup',
     description: 'Tir en cloche, sans ligne de vue : gros dégâts Air et +1 Concentration.',
   },
 ];

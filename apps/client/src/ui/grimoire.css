@@ -1,0 +1,121 @@
+/* Grimoire par élément (variantes « table » et « focus »). Tout tient sur une page, sans défilement. */
+
+#app .gr-deck { grid-template-columns: repeat(3, 1fr); }
+#app .gr-slot, #app .gr-deck .lb-card { position: relative; }
+
+/* Repli quand l'icône peinte manque : initiales sur fond de l'élément. */
+.grx-art { background: radial-gradient(circle at 35% 30%, var(--c, #8a7cff), var(--c2, #2a2160)) !important; }
+.grx-glyph { position: absolute; inset: 0; display: grid; place-items: center; font: 26px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); opacity: 0.9; }
+.grx-art > img { position: relative; }
+
+/* ---- Variante A : une rangée par élément ---- */
+.grt { flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.grt-row { display: grid; grid-template-columns: 128px repeat(4, minmax(0, 1fr)); gap: 8px; align-items: stretch; min-height: 0; padding: 6px; border-radius: 16px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 30%, transparent), color-mix(in srgb, var(--c) 8%, transparent)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 45%, transparent); }
+.grt-head { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 6px; min-width: 0; }
+.grt-head .el-ico { width: 26px; height: 26px; flex: none; color: var(--c); filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.4)); }
+.grt-el { display: flex; flex-direction: column; min-width: 0; }
+.grt-el b { font: 19px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+.grt-el small { font: 800 12px/1.2 var(--font-ui); color: var(--c); }
+.grt-n { position: absolute; right: 2px; top: 50%; translate: 0 -50%; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; display: grid; place-items: center; font: 900 13px/1 var(--font-ui); font-style: normal; color: var(--c-ink, #1b1240); background: var(--c-cta-a, #8be04e); }
+.grt-card { min-width: 0; min-height: 0; display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; border: 0; border-radius: 12px; background: rgba(14, 8, 40, 0.55); color: #fff; cursor: pointer; text-align: left; transition: transform var(--d-fast) var(--ease-spring); }
+.grt-card:active { transform: scale(0.96); }
+#app .grt-card .gr-art { width: clamp(30px, 9vh, 64px); height: auto; align-self: center; aspect-ratio: 1; flex: none; border-radius: 12px; }
+#app .grt-card .gr-art > img { border-radius: 10px; }
+#app .grt-card .gr-art .lb-cost { width: 22px; height: 22px; font-size: 13px; right: -6px; bottom: -6px; }
+.grt-card .gr-check { width: 20px; height: 20px; top: -6px; right: -6px; }
+.grt-card .gr-lock b { font-size: 11px; }
+.grt-card.in { background: color-mix(in srgb, var(--c-cta-a, #8be04e) 22%, rgba(14, 8, 40, 0.6)); box-shadow: inset 0 0 0 2px var(--c-cta-a, #8be04e); }
+.grt-card.locked { opacity: 0.55; }
+.grt-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.grt-txt b { font: 900 14px/1.1 var(--font-ui); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.grt-txt small { font: 800 11px/1 var(--font-ui); color: var(--c); text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* ---- Variante B : onglets d'élément et fiche intégrée ---- */
+.grf { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.grf-tabs { flex: none; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.grf-tab { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; border: 0; border-radius: 12px; background: rgba(14, 8, 40, 0.55); color: var(--c-text-2, #cfc8ff); font: 900 15px/1 var(--font-ui); cursor: pointer; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 35%, transparent); }
+.grf-tab .el-ico { width: 20px; height: 20px; color: var(--c); }
+.grf-tab.on { color: #fff; background: linear-gradient(180deg, var(--c), var(--c2)); box-shadow: inset 0 0 0 2px #fff3, 0 4px 0 rgba(0, 0, 0, 0.35); text-shadow: var(--stroke-sm); }
+.grf-tab.on .el-ico { color: #fff; }
+.grf-tab em { text-shadow: none; position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; border-radius: 10px; display: grid; place-items: center; font: 900 12px/1 var(--font-ui); font-style: normal; color: var(--c-ink, #1b1240); background: var(--c-cta-a, #8be04e); }
+.grf-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 8px 12px; }
+.grf-ident { grid-column: 1; font: 800 13px/1.3 var(--font-ui); color: var(--c-text-2, #cfc8ff); }
+.grf-ident b { font: 18px/1 var(--font-display); color: var(--c); margin-right: 4px; text-shadow: var(--stroke-sm); }
+.grf-cards { grid-column: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px; }
+.grf-card { min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-content: center; column-gap: 10px; padding: 6px; border: 0; border-radius: 14px; background: rgba(14, 8, 40, 0.55); color: #fff; text-align: left; cursor: pointer; }
+#app .grf-card .gr-art { grid-row: span 2; align-self: center; width: clamp(40px, 12vh, 84px); height: auto; aspect-ratio: 1; border-radius: 12px; }
+#app .grf-card .gr-art .lb-cost { width: 24px; height: 24px; font-size: 14px; right: -6px; bottom: -6px; }
+.grf-card .gr-check { width: 22px; height: 22px; top: -6px; right: -6px; }
+.grf-name { align-self: end; font: 900 15px/1.1 var(--font-ui); }
+.grf-role { align-self: start; font: 800 11px/1.2 var(--font-ui); color: var(--c); text-transform: uppercase; letter-spacing: 0.03em; }
+.grf-card.sel { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 45%, transparent), color-mix(in srgb, var(--c) 15%, transparent)); box-shadow: inset 0 0 0 3px #fff; }
+.grf-card.in:not(.sel) { box-shadow: inset 0 0 0 2px var(--c-cta-a, #8be04e); }
+.grf-card.locked { opacity: 0.55; }
+.grf-sheet { grid-column: 2; grid-row: 1 / span 2; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.grf-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.grf-sheet-head b { font: 22px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+.grf-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+.grf-stats span { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 10px; background: rgba(14, 8, 40, 0.6); font: 800 13px/1 var(--font-ui); }
+.grf-stats .ico { width: 14px; height: 14px; }
+.grf-stats b { color: var(--c-gold-a, #ffd34d); }
+.grf-dmg b { color: var(--c) !important; }
+.grf-desc { margin: 0; font: 700 13px/1.35 var(--font-ui); color: var(--c-text-1, #fff); }
+.grf-fx { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px; }
+.grf-fx li { padding: 3px 8px; border-radius: 8px; font: 800 12px/1.2 var(--font-ui); background: color-mix(in srgb, var(--c) 25%, transparent); }
+.grf-actions { margin-top: auto; display: flex; gap: 8px; }
+.grf-actions .ui-btn--block { flex: 1; }
+
+/* Téléphone paysage */
+@media (max-height: 500px) {
+  .grt { gap: 4px; }
+  .grt-row { grid-template-columns: 74px repeat(4, minmax(0, 1fr)); gap: 4px; padding: 3px; border-radius: 12px; }
+  .grt-head { padding: 0 2px; gap: 4px; }
+  .grt-head .el-ico { width: 16px; height: 16px; }
+  .grt-el b { font-size: 13px; }
+  .grt-el small { font-size: 9px; }
+  .grt-n { min-width: 16px; height: 16px; font-size: 10px; right: -2px; }
+  .grt-card { gap: 5px; padding: 2px 4px 2px 2px; border-radius: 9px; }
+  #app .grt-card .gr-art { border-radius: 8px; }
+  #app .grt-card .gr-art .lb-cost { width: 16px; height: 16px; font-size: 10px; right: -4px; bottom: -4px; }
+  .grt-card .gr-check { width: 14px; height: 14px; top: -4px; right: -4px; }
+  .grt-card .gr-lock .ico { width: 12px; height: 12px; }
+  .grt-card .gr-lock b { font-size: 8px; }
+  .grt-txt b { font-size: 10.5px; }
+  .grt-txt small { font-size: 8px; }
+  .grx-glyph { font-size: 13px; }
+  .grf { gap: 5px; }
+  .grf-tab { min-height: 30px; font-size: 11px; gap: 3px; border-radius: 9px; }
+  .grf-tab .el-ico { width: 14px; height: 14px; }
+  .grf-tab em { min-width: 16px; height: 16px; font-size: 10px; }
+  .grf-body { gap: 4px 8px; }
+  .grf-ident { font-size: 10px; line-height: 1.2; }
+  .grf-ident b { font-size: 13px; }
+  .grf-cards { gap: 5px; }
+  .grf-card { padding: 4px; column-gap: 6px; border-radius: 10px; }
+  #app .grf-card .gr-art { min-height: 0; border-radius: 8px; }
+  #app .grf-card .gr-art .lb-cost { width: 18px; height: 18px; font-size: 11px; }
+  .grf-card .gr-check { width: 16px; height: 16px; }
+  .grf-name { font-size: 11.5px; }
+  .grf-role { font-size: 8.5px; }
+  .grf-sheet { padding: 7px; gap: 4px; }
+  .grf-sheet-head b { font-size: 15px; }
+  .grf-sheet-head .ui-chip { font-size: 9px; padding: 2px 6px; }
+  .grf-stats { gap: 3px; }
+  .grf-stats span { padding: 2px 5px; font-size: 10px; }
+  .grf-desc { font-size: 10px; line-height: 1.25; }
+  .grf-fx li { font-size: 9px; padding: 2px 5px; }
+  .grf-actions .ui-btn { min-height: 30px; font-size: 12px; padding: 0 8px; }
+}
+
+#app .gr-deck .lb-card .grx-glyph { font-size: 20px; }
+#app .gr-deck .lb-card { background: radial-gradient(circle at 35% 30%, var(--c, #8a7cff), var(--c2, #2a2160)); }
+#app .gr-deck .lb-card.empty { background: var(--c-well); }
+
+@media (max-height: 500px) {
+  #app.has-hub .gr { grid-template-columns: 150px minmax(0, 1fr); }
+  #app .gr-deck { gap: 6px; }
+  #app .gr-deck .lb-cost { width: 18px; height: 18px; font-size: 11px; right: -4px; bottom: -4px; }
+  #app .gr-head { font-size: 16px; }
+  #app .gr-go { min-height: 42px; font-size: 18px; }
+  .grt-txt b { font-size: 11px; }
+}
