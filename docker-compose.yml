@@ -1,0 +1,26 @@
+services:
+  # Production : http://localhost:8080
+  web:
+    build:
+      context: .
+      target: prod
+    image: chabfu-web
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  # Développement : http://localhost:5173 (docker compose --profile dev up dev)
+  dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      target: dev
+    ports:
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./packages/engine/src:/app/packages/engine/src
+      - ./packages/engine/test:/app/packages/engine/test
+      - ./apps/client/src:/app/apps/client/src
+      - ./apps/client/index.html:/app/apps/client/index.html

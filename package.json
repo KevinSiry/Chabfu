@@ -1,0 +1,16 @@
+{
+  "name": "chabfu",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "npm run dev -w @chabfu/client",
+    "build": "npm run build -w @chabfu/client",
+    "test": "npm test -w @chabfu/engine",
+    "typecheck": "tsc -p packages/engine && tsc -p apps/client"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
