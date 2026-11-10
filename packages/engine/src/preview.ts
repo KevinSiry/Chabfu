@@ -4,7 +4,7 @@
  * mêmes fonctions que le moteur. Les aperçus sont donc exacts (le combat est déterministe).
  */
 import { canUseAttack } from './ai.js';
-import { PLAYER_ID, applyAction, computeDamage, getCastError, getPlayer, getReachableCells, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
+import { PLAYER_ID, applyAction, computeDamage, equipmentFlatDamage, playerResistance, getCastError, getPlayer, getReachableCells, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
 import { getMonster, monsterBehavior } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
 import { isWall, key, reachable } from './grid.js';
@@ -130,6 +130,8 @@ export interface DamageBreakdown {
   /** Dégâts directs finaux. */
   amount: number;
   base: number;
+  /** Dégâts fixes ajoutés par l'équipement (stat Dommages). */
+  flat: number;
   element: Element;
   mastery: number;
   weakness: boolean;
@@ -146,8 +148,9 @@ export function spellDamageOn(state: RunState, spellId: string, target: Unit): D
   const player = getPlayer(state);
   const doubled = state.player.nextShotDouble;
   return {
-    amount: computeDamage(state, spell.damage, spell.element, player, target, doubled),
+    amount: computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, target, doubled),
     base: spell.damage,
+    flat: equipmentFlatDamage(state),
     element: spell.element,
     mastery: state.player.masteries[spell.element] ?? 0,
     weakness: spell.element !== 'neutral' && target.weakness === spell.element,
@@ -163,8 +166,10 @@ export interface AttackInfo {
   id: string;
   name: string;
   element: Element;
-  /** Dégâts infligés à l'Archer, difficulté comprise. */
+  /** Dégâts infligés à l'Archer, difficulté et résistances comprises. */
   damage: number;
+  /** Résistance de l'Archer à l'élément de l'attaque, en %. */
+  resisted: number;
   pa: number;
   minRange: number;
   maxRange: number;
@@ -183,6 +188,7 @@ export function monsterAttacks(state: RunState, monster: Unit): AttackInfo[] {
     name: a.name,
     element: a.element,
     damage: computeDamage(state, a.damage, a.element, monster, player),
+    resisted: playerResistance(state, a.element),
     pa: a.pa,
     minRange: a.minRange,
     maxRange: a.maxRange,

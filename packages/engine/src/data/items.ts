@@ -3,12 +3,25 @@ import type { Element } from '../types.js';
 /** Familles d'objets (GDD section 8). Les anneaux vont dans l'un des deux emplacements d'anneau. */
 export type ItemKind = 'arc' | 'carquois' | 'coiffe' | 'cape' | 'plastron' | 'bottes' | 'amulette' | 'anneau';
 
-/** Caractéristiques d'un objet. PV et maîtrises (en %) suivent la puissance de la rareté ; PA et PM restent entiers. */
+/**
+ * Caractéristiques d'un objet (valeurs maximales en rareté Commune).
+ * PV, maîtrises, résistances et dommages suivent la puissance de la rareté ;
+ * PA, PM, portée et Concentration restent des entiers fixes (+1), sinon le jeu casse.
+ */
 export interface ItemStats {
   hp?: number;
   pa?: number;
   pm?: number;
+  /** +% de dégâts infligés dans l'élément. */
   masteries?: Partial<Record<Element, number>>;
+  /** -% de dégâts reçus dans l'élément (total plafonné, voir MAX_RESISTANCE). */
+  resistances?: Partial<Record<Element, number>>;
+  /** Dégâts fixes ajoutés à chaque coup de sort, avant les multiplicateurs. */
+  damage?: number;
+  /** Portée maximale en plus pour les tirs à distance. */
+  range?: number;
+  /** Concentration gagnée au début de chaque salle. */
+  concentration?: number;
 }
 
 export interface ItemDef {
@@ -31,30 +44,30 @@ export interface DropEntry {
 
 export const ITEMS: ItemDef[] = [
   // --- T1 : panoplie du Gardien racineux (Bosquet des Ronces) ---
-  { id: 'arc_racineux', name: 'Arc racineux', kind: 'arc', tranche: 1, stats: { masteries: { fire: 10, earth: 6 } }, flavor: 'Taillé dans une racine du Gardien, il brûle encore un peu.' },
-  { id: 'carquois_epines', name: 'Carquois d’épines', kind: 'carquois', tranche: 1, stats: { hp: 6, masteries: { air: 8, water: 4 } }, flavor: 'Chaque flèche en sort hérissée.' },
-  { id: 'coiffe_lierre', name: 'Coiffe de lierre', kind: 'coiffe', tranche: 1, stats: { hp: 15, masteries: { water: 5 } }, flavor: 'Elle repousse d’elle-même quand on la taille.' },
-  { id: 'cape_feuilles', name: 'Cape de feuilles mortes', kind: 'cape', tranche: 1, stats: { hp: 10, masteries: { air: 6 } }, flavor: 'Bruisse au moindre pas, mais tient chaud.' },
-  { id: 'plastron_ecorce', name: 'Plastron d’écorce', kind: 'plastron', tranche: 1, stats: { hp: 25 }, flavor: 'Épais comme le tronc dont il vient.' },
-  { id: 'bottes_mousse', name: 'Bottes de mousse', kind: 'bottes', tranche: 1, stats: { hp: 10, masteries: { earth: 6 } }, flavor: 'On n’entend jamais l’archer arriver.' },
-  { id: 'amulette_seve', name: 'Amulette de sève', kind: 'amulette', tranche: 1, stats: { hp: 8, masteries: { fire: 4, water: 4, earth: 4, air: 4 } }, flavor: 'Une goutte de sève figée, tiède au toucher.' },
-  { id: 'anneau_ronce', name: 'Anneau de ronce', kind: 'anneau', tranche: 1, stats: { hp: 4, masteries: { fire: 6 } }, flavor: 'Pique le doigt, aiguise le tir.' },
-  { id: 'anneau_gardien', name: 'Anneau du Gardien', kind: 'anneau', tranche: 1, stats: { hp: 8, masteries: { fire: 5, water: 5, earth: 5, air: 5 } }, flavor: 'Le cœur du Gardien, resserré en un anneau.' },
+  { id: 'arc_racineux', name: 'Arc racineux', kind: 'arc', tranche: 1, stats: { masteries: { fire: 10, earth: 6 }, damage: 2 }, flavor: 'Taillé dans une racine du Gardien, il brûle encore un peu.' },
+  { id: 'carquois_epines', name: 'Carquois d’épines', kind: 'carquois', tranche: 1, stats: { hp: 6, masteries: { air: 8, water: 4 }, concentration: 1 }, flavor: 'Chaque flèche en sort hérissée.' },
+  { id: 'coiffe_lierre', name: 'Coiffe de lierre', kind: 'coiffe', tranche: 1, stats: { hp: 15, masteries: { water: 5 }, resistances: { earth: 6, water: 4 } }, flavor: 'Elle repousse d’elle-même quand on la taille.' },
+  { id: 'cape_feuilles', name: 'Cape de feuilles mortes', kind: 'cape', tranche: 1, stats: { hp: 10, masteries: { air: 6 }, resistances: { air: 6 } }, flavor: 'Bruisse au moindre pas, mais tient chaud.' },
+  { id: 'plastron_ecorce', name: 'Plastron d’écorce', kind: 'plastron', tranche: 1, stats: { hp: 25, resistances: { earth: 5, water: 5 } }, flavor: 'Épais comme le tronc dont il vient.' },
+  { id: 'bottes_mousse', name: 'Bottes de mousse', kind: 'bottes', tranche: 1, stats: { hp: 10, masteries: { earth: 6 }, resistances: { earth: 4 } }, flavor: 'On n’entend jamais l’archer arriver.' },
+  { id: 'amulette_seve', name: 'Amulette de sève', kind: 'amulette', tranche: 1, stats: { hp: 8, masteries: { fire: 4, water: 4, earth: 4, air: 4 }, concentration: 1 }, flavor: 'Une goutte de sève figée, tiède au toucher.' },
+  { id: 'anneau_ronce', name: 'Anneau de ronce', kind: 'anneau', tranche: 1, stats: { hp: 4, masteries: { fire: 6 }, damage: 1 }, flavor: 'Pique le doigt, aiguise le tir.' },
+  { id: 'anneau_gardien', name: 'Anneau du Gardien', kind: 'anneau', tranche: 1, stats: { hp: 8, masteries: { fire: 5, water: 5, earth: 5, air: 5 }, resistances: { fire: 3, water: 3, earth: 3, air: 3 } }, flavor: 'Le cœur du Gardien, resserré en un anneau.' },
   // --- T1 : butin de la Reine Batracienne (Tourbière des Noyés) ---
-  { id: 'arc_roseau', name: 'Arc de roseau', kind: 'arc', tranche: 1, stats: { masteries: { air: 10, water: 6 } }, flavor: 'Léger comme un brin de roseau, il siffle à chaque tir.' },
-  { id: 'cape_vase', name: 'Cape de vase séchée', kind: 'cape', tranche: 1, stats: { hp: 12, masteries: { air: 6 } }, flavor: 'Elle craquelle, mais rien ne la traverse.' },
-  { id: 'bottes_batracien', name: 'Bottes de batracien', kind: 'bottes', tranche: 1, stats: { hp: 8, masteries: { air: 6, water: 4 } }, flavor: 'Pour ne plus jamais s’enliser.' },
-  { id: 'anneau_nenuphar', name: 'Anneau de nénuphar', kind: 'anneau', tranche: 1, stats: { hp: 6, masteries: { air: 5, water: 5 } }, flavor: 'Une fleur de la mare, figée dans l’ambre.' },
+  { id: 'arc_roseau', name: 'Arc de roseau', kind: 'arc', tranche: 1, stats: { masteries: { air: 10, water: 6 }, range: 1 }, flavor: 'Léger comme un brin de roseau, il siffle à chaque tir.' },
+  { id: 'cape_vase', name: 'Cape de vase séchée', kind: 'cape', tranche: 1, stats: { hp: 12, masteries: { air: 6 }, resistances: { water: 6 } }, flavor: 'Elle craquelle, mais rien ne la traverse.' },
+  { id: 'bottes_batracien', name: 'Bottes de batracien', kind: 'bottes', tranche: 1, stats: { hp: 8, masteries: { air: 6, water: 4 }, pm: 1 }, flavor: 'Pour ne plus jamais s’enliser.' },
+  { id: 'anneau_nenuphar', name: 'Anneau de nénuphar', kind: 'anneau', tranche: 1, stats: { hp: 6, masteries: { air: 5, water: 5 }, resistances: { water: 4, air: 4 } }, flavor: 'Une fleur de la mare, figée dans l’ambre.' },
   // --- T1 : butin du Golem de magma (Caldeira des Cendres) ---
-  { id: 'arc_obsidienne', name: 'Arc d’obsidienne', kind: 'arc', tranche: 1, stats: { masteries: { water: 10, fire: 6 } }, flavor: 'Du verre volcanique trempé dans l’eau glacée.' },
-  { id: 'plastron_scorie', name: 'Plastron de scorie', kind: 'plastron', tranche: 1, stats: { hp: 30 }, flavor: 'Lourd, mais la lave glisse dessus.' },
-  { id: 'coiffe_cendres', name: 'Coiffe de cendres', kind: 'coiffe', tranche: 1, stats: { hp: 12, masteries: { water: 6 } }, flavor: 'Elle sent encore le feu de bois.' },
-  { id: 'amulette_braise', name: 'Amulette de braise', kind: 'amulette', tranche: 1, stats: { hp: 6, masteries: { water: 6, fire: 6 } }, flavor: 'Une braise du Golem qui refuse de s’éteindre.' },
+  { id: 'arc_obsidienne', name: 'Arc d’obsidienne', kind: 'arc', tranche: 1, stats: { masteries: { water: 10, fire: 6 }, damage: 2 }, flavor: 'Du verre volcanique trempé dans l’eau glacée.' },
+  { id: 'plastron_scorie', name: 'Plastron de scorie', kind: 'plastron', tranche: 1, stats: { hp: 30, resistances: { fire: 8 } }, flavor: 'Lourd, mais la lave glisse dessus.' },
+  { id: 'coiffe_cendres', name: 'Coiffe de cendres', kind: 'coiffe', tranche: 1, stats: { hp: 12, masteries: { water: 6 }, resistances: { fire: 6 } }, flavor: 'Elle sent encore le feu de bois.' },
+  { id: 'amulette_braise', name: 'Amulette de braise', kind: 'amulette', tranche: 1, stats: { hp: 6, masteries: { water: 6, fire: 6 }, concentration: 1, resistances: { fire: 4 } }, flavor: 'Une braise du Golem qui refuse de s’éteindre.' },
   // --- T1 : butin de la Harpie matriarche (Falaises Hurlantes) ---
-  { id: 'arc_plumes', name: 'Arc des cimes', kind: 'arc', tranche: 1, stats: { masteries: { earth: 10, air: 6 } }, flavor: 'Bois noueux des crêtes, tendu de crin de bouquetin.' },
-  { id: 'carquois_serres', name: 'Carquois de serres', kind: 'carquois', tranche: 1, stats: { hp: 6, masteries: { earth: 8 } }, flavor: 'Les flèches y sont tenues par des griffes.' },
-  { id: 'cape_plumes', name: 'Cape de plumes', kind: 'cape', tranche: 1, stats: { hp: 10, masteries: { earth: 6, air: 4 } }, flavor: 'Le vent la gonfle sans jamais vous emporter.' },
-  { id: 'anneau_vent', name: 'Anneau du vent', kind: 'anneau', tranche: 1, stats: { hp: 6, masteries: { earth: 5, air: 5 } }, flavor: 'On l’entend siffler quand on tend l’arc.' },
+  { id: 'arc_plumes', name: 'Arc des cimes', kind: 'arc', tranche: 1, stats: { masteries: { earth: 10, air: 6 }, range: 1 }, flavor: 'Bois noueux des crêtes, tendu de crin de bouquetin.' },
+  { id: 'carquois_serres', name: 'Carquois de serres', kind: 'carquois', tranche: 1, stats: { hp: 6, masteries: { earth: 8 }, damage: 2 }, flavor: 'Les flèches y sont tenues par des griffes.' },
+  { id: 'cape_plumes', name: 'Cape de plumes', kind: 'cape', tranche: 1, stats: { hp: 10, masteries: { earth: 6, air: 4 }, resistances: { air: 6 } }, flavor: 'Le vent la gonfle sans jamais vous emporter.' },
+  { id: 'anneau_vent', name: 'Anneau du vent', kind: 'anneau', tranche: 1, stats: { hp: 6, masteries: { earth: 5, air: 5 }, resistances: { air: 4, earth: 3 } }, flavor: 'On l’entend siffler quand on tend l’arc.' },
 ];
 
 /** Table de drop du boss de chaque donjon. Chaque entrée est tirée indépendamment. */
