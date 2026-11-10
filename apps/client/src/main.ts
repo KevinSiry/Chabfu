@@ -116,21 +116,41 @@ function goTab(t: HubTab): void {
   }
 }
 
-/** Ajoute la barre du hub au-dessus d'un écran existant (équipement, atelier). */
-function withHubBar(active: HubTab): void {
+/** Onglet affiché, pour revenir au même écran après un changement de tranche ou de personnage. */
+let currentTab: HubTab = 'dungeons';
+
+/**
+ * Coquille commune des écrans hors combat : barre de navigation fixe et zone d'écran.
+ * Les écrans (et leurs re-rendus internes) n'écrivent que dans la zone renvoyée,
+ * si bien que la barre ne disparaît jamais.
+ */
+function hubShell(active: HubTab): HTMLElement | null {
   const c = getCharacter();
-  if (!c) return;
-  app.insertAdjacentHTML('afterbegin', hubBarHtml(active, c));
+  if (!c) return null;
+  // Petite transition seulement quand on change d'écran, pas à chaque re-rendu du même onglet.
+  const entering = active !== currentTab || !app.classList.contains('has-hub');
+  currentTab = active;
+  app.innerHTML = `${hubBarHtml(active, c)}<main class="hub-screen${entering ? ' entering' : ''}" id="hub-screen"></main>`;
   app.classList.add('has-hub');
   bindHubTabs(app, goTab);
-  bindCharacterBanner(app, renderSetup);
+  bindCharacterBanner(app, refreshCurrent);
+  window.scrollTo(0, 0);
+  return app.querySelector<HTMLElement>('#hub-screen');
+}
+
+function refreshCurrent(): void {
+  if (!getCharacter()) renderSetup();
+  else goTab(currentTab);
 }
 
 function renderSetup(): void {
   app.classList.remove('has-hub');
   const character = getCharacter();
   if (!character) {
-    renderCharacterCreation(app, renderSetup);
+    renderCharacterCreation(app, () => {
+      tab = 'dungeons';
+      renderSetup();
+    });
     return;
   }
   const tranche = getTranche(character.trancheId);
@@ -157,7 +177,7 @@ function renderSetup(): void {
     <div class="hub-grid">
       <div class="hub-main">
         <section class="card">
-          <div class="panel-title">Donjons de la tranche T${tranche.id}</div>
+          <div class="panel-title">Choix du donjon</div>
           ${dungeons.length ? dungeonListHtml(dungeons, dungeon) : `<p class="muted">La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p>`}
         </section>
         ${
@@ -259,12 +279,15 @@ function renderSetup(): void {
       </aside>
     </div>`;
 
-  app.innerHTML = `
-    ${hubBarHtml(tab, character)}
-    <div class="setup hub">${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>`;
-
-  bindHubTabs(app, goTab);
-  bindCharacterBanner(app, renderSetup);
+  const keepScroll = currentTab === tab && app.classList.contains('has-hub') ? window.scrollY : 0;
+  const screen = hubShell(tab)!;
+  const header =
+    tab === 'dungeons'
+      ? `<header><h1>Donjons</h1><p>Tranche T${tranche.id} · choisissez un donjon, sa difficulté, puis lancez l’expédition</p></header>`
+      : `<header><h1>Grimoire</h1><p>Tranche T${tranche.id} · sorts et passifs emportés en donjon</p></header>`;
+  screen.innerHTML = `<div class="setup hub">${header}${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>`;
+  // Le grimoire se redessine à chaque clic : on garde la position de défilement.
+  window.scrollTo(0, keepScroll);
   const deck = new Set(loadout.deck);
   const chosenPassives = new Set(loadout.passives);
   const persist = () => {
@@ -356,16 +379,18 @@ function openEquipment(): void {
   const trancheId = getCharacter()?.trancheId ?? 1;
   const dungeons = DUNGEONS.filter((d) => d.tranche === trancheId);
   const dungeon = dungeons.find((d) => d.id === save.dungeonId) ?? dungeons[0] ?? DUNGEONS[0];
-  renderEquipmentScreen(app, { trancheId, dungeonId: dungeon.id, difficulty: save.difficulty, onBack: renderSetup });
-  withHubBar('equipment');
+  const screen = hubShell('equipment');
+  if (!screen) return renderSetup();
+  renderEquipmentScreen(screen, { trancheId, dungeonId: dungeon.id, difficulty: save.difficulty, onBack: renderSetup });
 }
 
 function openWorkshop(): void {
   const trancheId = getCharacter()?.trancheId ?? 1;
   const dungeons = DUNGEONS.filter((d) => d.tranche === trancheId);
   const dungeon = dungeons.find((d) => d.id === save.dungeonId) ?? dungeons[0] ?? DUNGEONS[0];
-  renderWorkshopScreen(app, { trancheId, dungeonId: dungeon.id, onBack: renderSetup });
-  withHubBar('workshop');
+  const screen = hubShell('workshop');
+  if (!screen) return renderSetup();
+  renderWorkshopScreen(screen, { trancheId, dungeonId: dungeon.id, onBack: renderSetup });
 }
 
 function startRun(baseConfig: RunConfig): void {
@@ -461,5 +486,13 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     }
   });
 }
+
+// Échap ferme la fenêtre ouverte (fiche, tranches…), sauf l'écran de fin de run qui attend un choix.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const overlays = document.querySelectorAll<HTMLElement>('.overlay');
+  const top = overlays[overlays.length - 1];
+  if (top && top.querySelector('[data-close]')) top.remove();
+});
 
 renderSetup();

@@ -48,6 +48,21 @@
   --line-strong: var(--ng-border-strong);
   --outline: none;
   --font-title: var(--ng-title-font);
+  /* Échelles bois et or remappées : tout style resté sur ces jetons passe en bleu nuit. */
+  --wood-950: #070b16;
+  --wood-900: #0b1020;
+  --wood-850: #0f1527;
+  --wood-800: #121a2d;
+  --wood-700: #18213a;
+  --wood-600: #1f2a46;
+  --wood-500: #2a3757;
+  --gold-900: rgba(255, 255, 255, 0.1);
+  --gold-700: rgba(255, 255, 255, 0.18);
+  --gold-500: rgba(255, 255, 255, 0.28);
+  --bg: var(--ng-bg);
+  --panel: var(--ng-surface-solid);
+  --panel-2: rgba(255, 255, 255, 0.05);
+  --panel-3: rgba(255, 255, 255, 0.09);
   --radius: 14px;
   --img-panel: none;
   --img-btn-gold: none;
@@ -257,3 +272,27 @@
   :root[data-skin] .hud-dock { grid-template-columns: 1fr; }
   :root[data-skin] .run > .side { display: none; }
 }
+
+/* ---------- Cohérence des écrans (passe UI/UX) ---------- */
+:root[data-skin] .hub-screen { display: block; }
+:root[data-skin] .hub-screen.entering { animation: screen-in 0.22s ease-out; }
+@keyframes screen-in { from { opacity: 0; transform: translateY(6px); } }
+:root[data-skin] .setup header { border-bottom-color: var(--ng-border); }
+:root[data-skin] .setup header h1 { color: var(--ng-title); text-shadow: none; }
+:root[data-skin] .overlay { background: rgba(5, 8, 18, 0.72); backdrop-filter: blur(6px); }
+:root[data-skin] .overlay .card { box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); background: var(--ng-surface-solid); }
+:root[data-skin] .slot[data-slot]:hover { background: var(--ng-border); }
+:root[data-skin] .recipe .ing { border-bottom-color: var(--ng-border); }
+:root[data-skin] .tranche-row { border-radius: 14px; border: 1px solid var(--ng-border); }
+:root[data-skin] .tranche-row.current { border-color: var(--ng-accent); box-shadow: 0 0 0 1px var(--ng-accent); }
+:root[data-skin] .stat { background: var(--ng-surface-2); border-color: var(--ng-border); border-radius: 14px; }
+:root[data-skin] .tag { background: var(--ng-surface-2); }
+:root[data-skin] .kv, :root[data-skin] .sheet-table td { border-bottom-color: var(--ng-border); }
+:root[data-skin] .dungeon-card, :root[data-skin] .spell-card:not(.locked), :root[data-skin] .passive-card:not(.locked), :root[data-skin] .slot[data-slot] { cursor: pointer; }
+:root[data-skin] .deck-strip { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; gap: 8px; }
+:root[data-skin] .setup .dungeon-list { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); }
+:root[data-skin] .dungeon-art { height: 104px; }
+/* Titres de panneau identiques sur tous les écrans (Équipement et Atelier utilisaient des h3). */
+:root[data-skin] :is(.stuff-grid, .craft-grid) .card > h3:first-child { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ng-muted); }
+:root[data-skin] :is(.stuff-grid, .craft-grid) .card > h3:first-child::after { content: ''; flex: 1; height: 1px; background: var(--ng-border); }
+:root[data-skin] :is(.stuff-grid, .craft-grid) .card > h3:first-child .muted { letter-spacing: 0; }
