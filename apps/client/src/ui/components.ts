@@ -66,14 +66,16 @@ export function openSheet(o: SheetOptions): SheetHandle {
   const body = el.querySelector<HTMLElement>('.ui-sheet__body')!;
   const titleEl = el.querySelector<HTMLElement>('.ui-sheet__title')!;
   const setContent = (html: string, title?: string) => {
-    body.innerHTML = html;
+    body.innerHTML = `<div class="ui-sheet__content">${html}</div>`;
     if (title !== undefined) titleEl.textContent = title;
     titleEl.hidden = !titleEl.textContent;
     el.setAttribute('aria-label', titleEl.textContent || 'Fiche');
+    fitSheet(el);
   };
   setContent(o.html, o.title ?? '');
   if (o.modeless) scrim.style.opacity = '0';
   document.body.append(scrim, el);
+  fitSheet(el);
   const previous = document.activeElement as HTMLElement | null;
   requestAnimationFrame(() => {
     scrim.classList.add('is-open');
@@ -81,10 +83,13 @@ export function openSheet(o: SheetOptions): SheetHandle {
     if (!o.modeless) el.querySelector<HTMLElement>('[data-sheet-close]')?.focus({ preventScroll: true });
   });
 
+  const onResize = () => fitSheet(el);
+  window.addEventListener('resize', onResize);
   let closed = false;
   const close = () => {
     if (closed) return;
     closed = true;
+    window.removeEventListener('resize', onResize);
     el.classList.remove('is-open');
     scrim.classList.remove('is-open');
     document.removeEventListener('keydown', onKey, true);
@@ -141,6 +146,73 @@ export function openSheet(o: SheetOptions): SheetHandle {
 }
 
 export const currentSheet = () => openSheetHandle;
+
+/**
+ * Une fiche ne défile jamais : si son contenu dépasse, elle s'élargit et passe sur deux colonnes,
+ * puis resserre son texte si cela ne suffit toujours pas.
+ */
+export function fitSheet(el: HTMLElement): void {
+  const body = el.querySelector<HTMLElement>('.ui-sheet__body');
+  const content = el.querySelector<HTMLElement>('.ui-sheet__content');
+  if (!body || !content) return;
+  const steps = ['is-wide', 'is-xwide', 'is-dense'];
+  el.classList.remove(...steps);
+  sheetColumns(content, 1);
+  const over = () => body.scrollHeight > body.clientHeight + 2 || content.scrollWidth > content.clientWidth + 2;
+  if (!body.clientHeight) return;
+  for (const step of steps) {
+    if (!over()) return;
+    el.classList.add(step);
+    sheetColumns(content, el.classList.contains('is-xwide') ? 3 : 2);
+  }
+}
+
+/**
+ * Répartit les blocs d'une fiche en colonnes (fiche élargie). Chaque bloc va dans la colonne prévue pour sa classe ;
+ * les blocs inconnus suivent le précédent. Avec n = 1, remet la fiche dans son ordre d'origine.
+ */
+const COLUMN_PLAN: Record<number, string[][]> = {
+  2: [['ss-head', 'ss-costs', 'ss-dmg', 'ss-fx', 'item-head', 'item-meta', 'stat-rows'], ['ss-grid', 'ss-conc', 'ss-passives', 'ss-note', 'stat-delta', 'gr-sheet-action']],
+  3: [['ss-head', 'ss-costs', 'ss-dmg', 'item-head', 'item-meta', 'stat-rows'], ['ss-fx', 'ss-conc', 'stat-delta'], ['ss-grid', 'ss-passives', 'ss-note', 'gr-sheet-action']],
+};
+function sheetColumns(content: HTMLElement, n: number): void {
+  // Remise à plat : chaque bloc revient à sa place d'origine.
+  const moved = [...content.querySelectorAll<HTMLElement>('[data-col-home]')];
+  moved
+    .sort((a, b) => Number(a.dataset.colOrder) - Number(b.dataset.colOrder))
+    .forEach((b) => {
+      const home = content.querySelector<HTMLElement>(`[data-col-id="${b.dataset.colHome}"]`) ?? content;
+      home.appendChild(b);
+      delete b.dataset.colHome;
+      delete b.dataset.colOrder;
+    });
+  content.querySelector('.ui-sheet__cols')?.remove();
+  content.classList.remove('has-cols');
+  const plan = COLUMN_PLAN[n];
+  if (!plan) return;
+  const host = content.querySelector<HTMLElement>('.ss, .item-card');
+  if (!host) return;
+  host.dataset.colId = 'host';
+  content.dataset.colId = 'content';
+  const blocks: { el: HTMLElement; home: string }[] = [
+    ...[...host.children].map((c) => ({ el: c as HTMLElement, home: 'host' })),
+    ...[...content.children].filter((c) => c !== host && !c.contains(host)).map((c) => ({ el: c as HTMLElement, home: 'content' })),
+  ];
+  const cols = document.createElement('div');
+  cols.className = 'ui-sheet__cols';
+  cols.style.setProperty('--n', String(n));
+  const colEls = plan.map(() => cols.appendChild(document.createElement('div')));
+  let last = 0;
+  blocks.forEach((b, i) => {
+    const ci = plan.findIndex((list) => list.some((cls) => b.el.classList.contains(cls)));
+    if (ci >= 0) last = ci;
+    b.el.dataset.colHome = b.home;
+    b.el.dataset.colOrder = String(i);
+    colEls[last].appendChild(b.el);
+  });
+  content.classList.add('has-cols');
+  content.prepend(cols);
+}
 
 // ---------------------------------------------------------------------------
 // Fenêtre de confirmation

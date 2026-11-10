@@ -19,12 +19,15 @@ import {
   type RunConfig,
   type RunScore,
   type RunState,
+  type RunSummary,
+  type ItemInstance,
+  dungeonResources,
 } from '@chabfu/engine';
 import { renderEquipmentScreen } from './stuff/equipment-screen';
 import { bindLootPanel, lootPanelHtml } from './stuff/loot-panel';
-import { withEquipment } from './stuff/store';
+import { getInventory, withEquipment } from './stuff/store';
 import { rewardsPanelHtml } from './craft/rewards-panel';
-import { grantRunRewards } from './craft/store';
+import { grantRunRewards, type RunRewards } from './craft/store';
 import { renderWorkshopScreen } from './craft/workshop-screen';
 import { formatTime, leaveRun, startRun as startCombat } from './combat';
 import { ELEMENT_LABEL, rangeLabel } from './info';
@@ -506,6 +509,41 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     saveCharacter(character);
     sections = renderRunEndSections({ config: v.config, state: v.state, summary, report, character, validated: !!check?.valid });
   }
+  showRunEnd({ config, state, timeMs, check, loot, rewards, sections });
+}
+
+// Aperçu de l'écran de fin (outils de développement uniquement) : window.__devRunEnd('won' | 'lost').
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__devRunEnd = (status: 'won' | 'lost' = 'won', drops = 3) => {
+    const c = getCharacter();
+    if (!c) return;
+    const dungeon = DUNGEONS.find((d) => d.tranche === c.trancheId)!;
+    const config = withEquipment(characterRunConfig(c, dungeon.id, 6));
+    const state = { ...createRun(config), status, turn: 14 } as RunState;
+    const loot = status === 'won' ? getInventory().items.filter((i) => !Object.values(getInventory().loadouts?.[c.trancheId] ?? {}).includes(i.uid)).slice(-drops) : [];
+    const summary = { ...summarizeRun(config, []), status, kills: [{ name: 'Ronceux', xp: 40 }, { name: 'Guêpe', xp: 30 }, { name: 'Gardien racineux', xp: 220 }] } as RunSummary;
+    const { character, report } = applyRunSummary(c, { ...summary, xpTotal: 900, xpFromKills: 290, xpVictoryBonus: 610 });
+    const sections = renderRunEndSections({ config, state, summary: { ...summary, xpVictoryBonus: 610 }, report: { ...report, xpGained: 900 }, character, validated: status === 'won' });
+    const rewards: RunRewards | null =
+      status === 'won' ? { kept: loot, autoRecycled: [{ uid: 'dev-r', itemId: loot[0]?.itemId ?? 'arc_racineux', rarity: 'common' }], shardsGained: { [c.trancheId]: 6 }, resources: Object.fromEntries(dungeonResources(dungeon.id).map((r, i) => [r.id, 3 - (i % 3)])), trancheId: c.trancheId } : null;
+    showRunEnd({ config, state, timeMs: 83000, check: status === 'won' ? { valid: true } as ReturnType<typeof verifyRun> : null, loot, rewards, sections });
+  };
+}
+
+/** Écran de fin de run, sur une seule page : titre et résumé en haut, blocs côte à côte, actions en bas. */
+function showRunEnd(o: {
+  config: RunConfig;
+  state: RunState;
+  timeMs: number;
+  check: ReturnType<typeof verifyRun> | null;
+  loot: ItemInstance[];
+  rewards: RunRewards | null;
+  sections: HTMLElement[];
+}): void {
+  const v = { config: o.config, state: o.state };
+  const { timeMs, check, loot, rewards, sections } = o;
+  const won = v.state.status === 'won';
+  const abandoned = v.state.status === 'playing';
   const overlay = document.createElement('div');
   overlay.className = `overlay end-ov ${won ? 'won' : 'lost'}`;
   const title = won ? 'Victoire !' : abandoned ? 'Run abandonné' : 'Défaite';
@@ -523,14 +561,16 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
         ${loot.length ? lootPanelHtml(loot, v.config) : ''}
         ${rewards ? rewardsPanelHtml(rewards) : ''}
       </div>
-      <div class="end-actions">
-        <button class="ui-btn ui-btn--blue ui-btn--lg" id="back">${icon('home')} Continuer</button>
-        <button class="ui-btn ui-btn--primary ui-btn--lg" id="again">${icon('replay')} Rejouer</button>
-      </div>
-      <div class="end-links">
-        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="equipment">${icon('equipment')} Équipement</button>
-        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="workshop">${icon('workshop')} Atelier</button>
-        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="copy">Copier le replay</button>
+      <div class="end-foot">
+        <div class="end-links">
+          <button class="ui-btn ui-btn--ghost ui-btn--sm" id="equipment" aria-label="Équipement">${icon('equipment')}<span>Équipement</span></button>
+          <button class="ui-btn ui-btn--ghost ui-btn--sm" id="workshop" aria-label="Atelier">${icon('workshop')}<span>Atelier</span></button>
+          <button class="ui-btn ui-btn--ghost ui-btn--sm" id="copy">Copier le replay</button>
+        </div>
+        <div class="end-actions">
+          <button class="ui-btn ui-btn--blue ui-btn--lg" id="back">${icon('home')} Continuer</button>
+          <button class="ui-btn ui-btn--primary ui-btn--lg" id="again">${icon('replay')} Rejouer</button>
+        </div>
       </div>
     </div>`;
   const body = overlay.querySelector('.end-body')!;
@@ -538,6 +578,7 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
   sections.reverse().forEach((el) => body.prepend(el));
   [...body.children].forEach((el, i) => (el as HTMLElement).style.setProperty('--i', String(i)));
   document.body.appendChild(overlay);
+  pageAll(overlay);
   if (won) loot.forEach((_, i) => setTimeout(() => sfx('coin'), 900 + i * 220));
   overlay.querySelector('#again')!.addEventListener('click', () => {
     overlay.remove();
