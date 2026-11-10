@@ -1427,14 +1427,13 @@ function syncInsets(): void {
   const top = document.querySelector(portrait ? '.cb-top' : '.cb-order')!.getBoundingClientRect();
   const dock = document.querySelector(portrait ? '.cb-dock' : '.cb-spells')!.getBoundingClientRect();
   const panel = document.getElementById('info-panel')!;
-  const wide = innerWidth >= 1100;
-  // Sur grand écran la colonne de la fiche est toujours réservée (pas de saut du plateau au survol).
   const cb = document.querySelector('.cb') as HTMLElement;
   const dockFull = document.querySelector('.cb-dock')!.getBoundingClientRect();
   cb.style.setProperty('--dock-h', `${Math.round(dockFull.height)}px`);
   let bottom = Math.max(0, stage.bottom - dock.top) + 4;
-  let right = wide ? 380 : 8;
-  if (!panel.hidden && !wide) {
+  let right = 8;
+  // À la souris la fiche suit le survol : elle passe par-dessus sans faire sauter le plateau.
+  if (!panel.hidden && !v.mouse) {
     // En portrait la fiche monte du bas : le plateau se cale au-dessus. Ailleurs elle occupe la droite.
     const r = panel.getBoundingClientRect();
     if (portrait) bottom = Math.max(bottom, stage.bottom - r.top + 4);

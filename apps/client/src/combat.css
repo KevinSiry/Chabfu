@@ -54,7 +54,7 @@
 #app .cb-info {
   position: absolute; z-index: var(--z-hud);
   right: var(--edge-r); top: calc(var(--edge-t) + 64px); bottom: calc(var(--edge-b) + var(--dock-h) + 8px);
-  width: min(340px, 44vw);
+  width: 340px; max-width: 44vw;
   overflow-y: auto; overscroll-behavior: contain;
   border-radius: var(--r-lg);
   background: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b) 260px);
@@ -202,13 +202,12 @@
   #app .cb-tools { top: auto; bottom: calc(var(--edge-b) + var(--dock-h) + 70px); transform: none; }
 }
 
-/* ---------- Grand écran : colonne de fiche réservée à droite ---------- */
-@media (min-width: 1100px) {
-  #app .cb-dock { right: calc(var(--edge-r) + 372px); grid-template-columns: 240px minmax(0, 1fr) 210px; }
-  #app .cb-info { top: var(--edge-t); bottom: var(--edge-b); width: 360px; }
-  #app .cb-top { right: calc(var(--edge-r) + 372px); }
-  /* La fiche de droite montre déjà le sort : pas de doublon en infobulle. */
-  #app .cb .spell-tip { display: none !important; }
-  #app .cb-spells .spell-btn, #app .cb-spells .slot-icon, #app .cb-spells .spell-empty, #app .cb-spells .spell-empty::before { width: 70px; height: 70px; }
-  #app .cb-spells .spell-btn { height: auto; }
-}
+/* ---------- Tablette et ordinateur : exactement le HUD du mobile paysage, agrandi ---------- */
+#app .cb { --hud-zoom: 1; }
+#app .cb-top, #app .cb-tools, #app .cb-dock, #app .cb-info, #app .cb-confirm { zoom: var(--hud-zoom); }
+@media (min-height: 600px) and (min-width: 900px) { #app .cb { --hud-zoom: 1.15; } }
+@media (min-height: 800px) and (min-width: 1300px) { #app .cb { --hud-zoom: 1.35; } }
+@media (min-height: 1000px) and (min-width: 1700px) { #app .cb { --hud-zoom: 1.55; } }
+@media (min-height: 1300px) and (min-width: 2300px) { #app .cb { --hud-zoom: 2; } }
+/* La fiche montre déjà le sort sélectionné : pas d'infobulle en doublon au survol de la barre. */
+#app .cb .spell-tip { display: none !important; }

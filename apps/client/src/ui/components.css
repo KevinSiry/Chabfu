@@ -189,8 +189,8 @@ body { background: var(--c-bg); color: var(--c-text); }
 .ui-sheet__head { flex: none; display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
 .ui-sheet__title { flex: 1; min-width: 0; margin: 0; font: calc(var(--fs-xl) * var(--text-scale)) / var(--lh-tight) var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
 .ui-sheet__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
-/* En paysage sur téléphone et sur grand écran, la feuille devient un panneau latéral. */
-@media (orientation: landscape) and (max-height: 560px), (min-width: 1100px) {
+/* En paysage (téléphone, tablette ou ordinateur, même rendu partout), la feuille devient un panneau latéral. */
+@media (orientation: landscape) {
   .ui-sheet { left: auto; right: calc(var(--sp-3) + var(--safe-r)); top: var(--sp-3); bottom: var(--sp-3); width: min(400px, 46vw); max-height: none; border-radius: var(--r-lg); transform: translateX(calc(100% + 24px)); padding-bottom: var(--sp-4); }
   .ui-sheet.is-open { transform: translateX(0); }
   .ui-sheet__grip { display: none; }
