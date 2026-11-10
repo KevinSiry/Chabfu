@@ -1,0 +1,259 @@
+/*
+ * Chabfu — habillage « new gen », direction « Verre nocturne » retenue par Kevin.
+ * Actif quand <html data-skin="nuit"> (posé dans index.html). Remplace les cadres peints en 9-slice
+ * par des surfaces lisses (verre dépoli, aplats, dégradés doux) et une typographie nette.
+ */
+@import '@fontsource/outfit/500.css';
+@import '@fontsource/outfit/600.css';
+@import '@fontsource/outfit/700.css';
+
+/* ---------- Jetons ---------- */
+:root[data-skin='nuit'] {
+  --ng-bg: #0b1020;
+  --ng-surface: rgba(17, 23, 39, 0.74);
+  --ng-surface-2: rgba(255, 255, 255, 0.06);
+  --ng-surface-solid: #141b2d;
+  --ng-border: rgba(255, 255, 255, 0.1);
+  --ng-border-strong: rgba(255, 255, 255, 0.24);
+  --ng-text: #eef2fb;
+  --ng-muted: #93a0b8;
+  --ng-title: #ffffff;
+  --ng-accent: #5ee0d0;
+  --ng-cta-a: #ffd56e;
+  --ng-cta-b: #f59e2b;
+  --ng-cta-ink: #2a1600;
+  --ng-cta-glow: rgba(245, 158, 43, 0.35);
+  --ng-track: rgba(255, 255, 255, 0.08);
+  --ng-slot: linear-gradient(180deg, #24324d, #141c2f);
+  --ng-veil: linear-gradient(180deg, rgba(8, 12, 24, 0.5), rgba(8, 12, 24, 0.86));
+  --ng-scene-veil: radial-gradient(ellipse at 50% 45%, rgba(8, 12, 24, 0.15), rgba(8, 12, 24, 0.75));
+  --ng-bg-blur: 6px;
+  --ng-bg-bright: 0.8;
+  --ng-bar: rgba(12, 17, 30, 0.72);
+  --ng-title-font: 'Outfit', system-ui, sans-serif;
+  --ng-title-weight: 700;
+  --ng-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Anciens jetons recâblés : le contenu généré suit la direction choisie. */
+:root[data-skin] {
+  --text: var(--ng-text);
+  --muted: var(--ng-muted);
+  --gold-100: var(--ng-text);
+  --gold-300: var(--ng-title);
+  --gold-400: var(--ng-accent);
+  --accent: var(--ng-accent);
+  --accent-bright: var(--ng-accent);
+  --line: var(--ng-border);
+  --line-strong: var(--ng-border-strong);
+  --outline: none;
+  --font-title: var(--ng-title-font);
+  --radius: 14px;
+  --img-panel: none;
+  --img-btn-gold: none;
+  --img-btn-wood: none;
+  --img-slot: none;
+  --img-medal: none;
+  --img-orb: none;
+  background: var(--ng-bg);
+}
+:root[data-skin] body { background: var(--ng-bg); color: var(--ng-text); }
+:root[data-skin] h1, :root[data-skin] h2, :root[data-skin] h3 { font-family: var(--ng-title-font); font-weight: var(--ng-title-weight); color: var(--ng-title); text-shadow: none; letter-spacing: -0.01em; }
+:root[data-skin] ::-webkit-scrollbar-track { background: transparent; }
+:root[data-skin] ::-webkit-scrollbar-thumb { background: var(--ng-border-strong); border: 3px solid transparent; background-clip: padding-box; border-radius: 8px; }
+:root[data-skin] :focus-visible { outline-color: var(--ng-accent); }
+
+/* ---------- Surfaces ---------- */
+:root[data-skin] .card, :root[data-skin] .frame {
+  background: var(--ng-surface);
+  border: 1px solid var(--ng-border);
+  border-image: none;
+  border-radius: 18px;
+  box-shadow: var(--ng-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  filter: none;
+  backdrop-filter: blur(16px) saturate(1.2);
+  padding: 16px 18px;
+}
+:root[data-skin] .panel-title { margin: 0 0 10px; font-family: var(--ng-title-font); font-weight: 600; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ng-muted); text-shadow: none; }
+:root[data-skin] .panel-title::before { content: none; }
+:root[data-skin] .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--ng-border); }
+
+/* ---------- Boutons ---------- */
+:root[data-skin] .primary, :root[data-skin] .end-turn, :root[data-skin] .launch, :root[data-skin] .hub-tab.on {
+  border: 0;
+  border-image: none;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--ng-cta-a), var(--ng-cta-b));
+  color: var(--ng-cta-ink);
+  text-shadow: none;
+  font-family: var(--ng-title-font);
+  font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: 0 8px 22px var(--ng-cta-glow), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  filter: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s;
+}
+:root[data-skin] .secondary, :root[data-skin] .tranche-btn {
+  border: 1px solid var(--ng-border);
+  border-image: none;
+  border-radius: 14px;
+  background: var(--ng-surface-2);
+  color: var(--ng-text);
+  text-shadow: none;
+  font-family: var(--ng-title-font);
+  font-weight: 600;
+  box-shadow: none;
+  filter: none;
+}
+:root[data-skin] .primary:hover:not(:disabled), :root[data-skin] .end-turn:hover:not(:disabled), :root[data-skin] .launch:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 12px 28px var(--ng-cta-glow), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+:root[data-skin] .secondary:hover:not(:disabled) { background: var(--ng-border); filter: none; }
+:root[data-skin] .primary:active:not(:disabled), :root[data-skin] .secondary:active:not(:disabled), :root[data-skin] .end-turn:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
+:root[data-skin] .end-turn { color: var(--ng-cta-ink); text-shadow: none; padding: 16px 22px; font-size: 18px; }
+:root[data-skin] .end-turn:disabled { filter: saturate(0.2) opacity(0.6); }
+:root[data-skin] .ghost { font-family: var(--ng-title-font); font-weight: 600; color: var(--ng-muted); }
+:root[data-skin] .ghost:hover { color: var(--ng-text); }
+:root[data-skin] kbd { background: var(--ng-surface-2); border: 1px solid var(--ng-border); border-bottom-width: 1px; color: var(--ng-muted); border-radius: 6px; font-family: var(--ng-title-font); }
+:root[data-skin] .end-turn kbd, :root[data-skin] .primary kbd { background: rgba(0, 0, 0, 0.14); border-color: transparent; color: inherit; }
+:root[data-skin] input[type='text'], :root[data-skin] input:not([type]), :root[data-skin] select { background: var(--ng-surface-2); border: 1px solid var(--ng-border); color: var(--ng-text); box-shadow: none; border-radius: 12px; }
+:root[data-skin] input[type='range'] { accent-color: var(--ng-accent); }
+
+/* ---------- Jauges ---------- */
+:root[data-skin] .bar, :root[data-skin] .xpbar { border: 0; outline: 0; background: var(--ng-track); box-shadow: none; border-radius: 999px; }
+:root[data-skin] .bar > div, :root[data-skin] .xpbar > div { border-radius: 999px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.25), transparent) !important; }
+:root[data-skin] .xpbar > div { background-color: var(--ng-accent) !important; background-image: linear-gradient(90deg, var(--ng-cta-b), var(--ng-cta-a)) !important; }
+:root[data-skin] .xpbar { height: 16px; }
+:root[data-skin] .xpbar > span { font-size: 11px; color: var(--ng-text); text-shadow: none; }
+:root[data-skin] .chip { border: 1px solid var(--ng-border); background: var(--ng-surface-2); box-shadow: none; color: var(--ng-text); text-shadow: none; border-radius: 999px; }
+:root[data-skin] .chip.on { border-color: transparent; background: linear-gradient(180deg, var(--ng-cta-a), var(--ng-cta-b)); color: var(--ng-cta-ink); text-shadow: none; box-shadow: 0 4px 12px var(--ng-cta-glow); }
+
+/* ---------- Hub ---------- */
+:root[data-skin] #app { min-height: 100vh; background: none; position: relative; isolation: isolate; }
+:root[data-skin] #app::before { content: ''; position: fixed; inset: -40px; z-index: -2; background: url('/assets/ui/hub-bg.webp') center / cover; filter: blur(var(--ng-bg-blur)) brightness(var(--ng-bg-bright)) saturate(1.1); }
+:root[data-skin] #app::after { content: ''; position: fixed; inset: 0; z-index: -1; background: var(--ng-veil); pointer-events: none; }
+:root[data-skin] .hub-bar { background: var(--ng-bar); border-bottom: 1px solid var(--ng-border); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); backdrop-filter: blur(18px) saturate(1.3); padding: 12px 24px; }
+:root[data-skin] .hub-logo { font-family: var(--ng-title-font); font-weight: 700; color: var(--ng-title); text-shadow: none; letter-spacing: -0.02em; font-size: 30px; }
+:root[data-skin] .hub-logo small { font-family: var(--ng-title-font); color: var(--ng-muted); letter-spacing: 0.32em; }
+:root[data-skin] .hub-tabs { gap: 4px; padding: 4px; background: var(--ng-surface-2); border: 1px solid var(--ng-border); border-radius: 16px; justify-self: center; }
+:root[data-skin] .hub-tab { border: 0; border-image: none; background: transparent; box-shadow: none; filter: none; color: var(--ng-muted); text-shadow: none; font-family: var(--ng-title-font); font-weight: 600; font-size: 16px; padding: 8px 18px; border-radius: 12px; }
+:root[data-skin] .hub-tab:hover { color: var(--ng-text); background: var(--ng-surface-2); filter: none; }
+:root[data-skin] .hub-tab.on, :root[data-skin] .hub-tab.on:hover { padding: 8px 18px; font-size: 16px; color: var(--ng-cta-ink); background: linear-gradient(180deg, var(--ng-cta-a), var(--ng-cta-b)); box-shadow: 0 6px 16px var(--ng-cta-glow), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+:root[data-skin] .char-plate-name b { font-family: var(--ng-title-font); font-weight: 600; color: var(--ng-text); text-shadow: none; }
+:root[data-skin] .char-level { background: linear-gradient(180deg, var(--ng-cta-a), var(--ng-cta-b)); color: var(--ng-cta-ink); text-shadow: none; border: 0; box-shadow: 0 0 0 3px var(--ng-surface-solid), 0 6px 16px var(--ng-cta-glow); font-family: var(--ng-title-font); font-weight: 700; }
+:root[data-skin] .char-level small { color: inherit; opacity: 0.75; }
+:root[data-skin] .tranche-btn { padding: 8px 12px; }
+
+:root[data-skin] .dungeon-card { border: 0; border-radius: 20px; background: var(--ng-surface); box-shadow: var(--ng-shadow), 0 0 0 1px var(--ng-border); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+:root[data-skin] .dungeon-card:hover { transform: translateY(-3px); }
+:root[data-skin] .dungeon-card.selected { box-shadow: 0 0 0 2px var(--ng-accent), 0 14px 36px var(--ng-cta-glow); }
+:root[data-skin] .dungeon-art { height: 128px; border: 0; }
+:root[data-skin] .dungeon-card .head { font-family: var(--ng-title-font); font-weight: 600; color: var(--ng-title); text-shadow: none; font-size: 19px; }
+:root[data-skin] .record { background: var(--ng-surface-2); color: var(--ng-muted); border: 1px solid var(--ng-border); }
+:root[data-skin] .record.done { color: var(--ng-accent); }
+:root[data-skin] .dungeon-detail-head .dungeon-sigil { border: 0; box-shadow: 0 0 0 3px var(--ng-surface-solid), 0 0 0 5px var(--ng-accent); }
+:root[data-skin] .room-step b { background: var(--ng-surface-solid); border: 0; box-shadow: 0 0 0 2px var(--ng-accent); color: var(--ng-text); text-shadow: none; font-family: var(--ng-title-font); font-weight: 700; }
+:root[data-skin] .room-step.boss b { background: linear-gradient(180deg, #ff7a66, #d8453c); color: #fff; box-shadow: 0 0 0 3px var(--ng-surface-solid), 0 6px 18px rgba(216, 69, 60, 0.45); }
+:root[data-skin] .room-link { height: 3px; background: var(--ng-border-strong); }
+:root[data-skin] .deck-slot, :root[data-skin] .deck-slot.empty, :root[data-skin] .spell-card-icon { background: var(--ng-slot); border: 0; border-radius: 16px; box-shadow: inset 0 0 0 1px var(--ng-border), 0 4px 12px rgba(0, 0, 0, 0.18); padding: 0; opacity: 1; }
+:root[data-skin] .deck-slot.empty { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ng-border-strong); border: 0; outline: 0; background-image: none; }
+:root[data-skin] .deck-slot.empty { box-shadow: none; border: 1.5px dashed var(--ng-border-strong); }
+:root[data-skin] .deck-slot kbd { position: absolute; top: 6px; left: 6px; z-index: 2; }
+:root[data-skin] .deck-slot span { padding-bottom: 6px; color: var(--ng-muted); text-shadow: none; }
+:root[data-skin] .deck-slot > img, :root[data-skin] .spell-card-icon > img { inset: 0; width: 100%; height: 100%; border-radius: 16px; }
+:root[data-skin] .spell-card, :root[data-skin] .passive-card { border: 1px solid var(--ng-border); box-shadow: none; background: var(--ng-surface-2); }
+:root[data-skin] .spell-card { border-left: 4px solid var(--c, var(--ng-accent)); }
+:root[data-skin] .spell-card.selected { border-color: var(--ng-accent); border-left-color: var(--c); box-shadow: 0 0 0 1px var(--ng-accent); }
+:root[data-skin] .spell-card .cost { font-family: var(--ng-title-font); text-shadow: none; color: var(--pa); }
+
+/* ---------- Objets, atelier ---------- */
+:root[data-skin] .item-card, :root[data-skin] .recipe { border: 1px solid var(--ng-border); border-top: 3px solid var(--r); background: var(--ng-surface-2); box-shadow: none; }
+:root[data-skin] .item-card.rarity-legendary, :root[data-skin] .item-card.rarity-mythic { box-shadow: 0 0 22px color-mix(in srgb, var(--r) 35%, transparent); }
+:root[data-skin] .item-name, :root[data-skin] .recipe-head b { font-family: var(--ng-title-font); font-weight: 600; text-shadow: none; }
+:root[data-skin] .item-icon { border-radius: 14px; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--r, var(--ng-accent)) 40%, var(--ng-surface-solid)), var(--ng-surface-solid) 80%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--r, var(--ng-border)) 60%, transparent); }
+:root[data-skin] .slot { background: var(--ng-surface-2); box-shadow: inset 0 0 0 1px var(--ng-border); border-top: 3px solid var(--r, transparent); }
+:root[data-skin] .res-row, :root[data-skin] .bag-row { background: var(--ng-surface-2); box-shadow: none; }
+:root[data-skin] .shards, :root[data-skin] .xp-gain { font-family: var(--ng-title-font); font-weight: 700; text-shadow: none; }
+:root[data-skin] .xp-gain { color: var(--ng-accent); }
+:root[data-skin] .level-up { font-family: var(--ng-title-font); text-shadow: none; }
+:root[data-skin] .end-banner h2 { background: none; padding: 10px 20px; font-family: var(--ng-title-font); font-weight: 700; font-size: 46px; color: var(--ng-title); text-shadow: 0 6px 30px var(--ng-cta-glow); }
+:root[data-skin] .end-banner::before { opacity: 0.25; }
+:root[data-skin] .end-stats span, :root[data-skin] .end-sections > div { background: var(--ng-surface-2); box-shadow: inset 0 0 0 1px var(--ng-border); }
+
+/* ---------- Combat : scène plein écran, HUD flottant ---------- */
+:root[data-skin] .run { position: relative; display: block; height: 100vh; padding: 0; overflow: hidden; isolation: isolate; }
+:root[data-skin] .run::before { content: ''; position: absolute; inset: -40px; z-index: -2; background: var(--scene-art, url('/assets/dungeons/bosquet_des_ronces.webp')) center / cover; filter: blur(14px) saturate(1.15) brightness(var(--ng-bg-bright)); }
+:root[data-skin] .run::after { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ng-scene-veil); pointer-events: none; }
+:root[data-skin] .main-col { position: absolute; inset: 84px 336px 132px 20px; }
+:root[data-skin] .board { border: 0; border-image: none; background: transparent; box-shadow: none; border-radius: 0; overflow: visible; }
+:root[data-skin] .board canvas { filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.4)); }
+:root[data-skin] .topbar { position: fixed; top: 26px; left: 20px; right: 336px; z-index: 4; }
+:root[data-skin] .topbar { justify-content: flex-start; }
+:root[data-skin] .topbar #clock { margin-left: auto; }
+:root[data-skin] .board-tools { position: fixed; left: 20px; bottom: 140px; z-index: 6; }
+:root[data-skin] .hud-top { position: absolute; top: 14px; left: 20px; right: 336px; z-index: 5; }
+:root[data-skin] .run > .side { position: absolute; top: 14px; right: 14px; bottom: 14px; width: 306px; z-index: 5; }
+:root[data-skin] .run > .side .frame { padding: 14px 16px; }
+:root[data-skin] .hud-dock { position: absolute; left: 20px; right: 336px; bottom: 14px; z-index: 5; display: grid; grid-template-columns: 290px minmax(0, 1fr) 220px; gap: 0; align-items: center; background: var(--ng-surface); border: 1px solid var(--ng-border); border-radius: 22px; box-shadow: var(--ng-shadow); backdrop-filter: blur(16px) saturate(1.2); padding: 8px; }
+:root[data-skin] .hud-dock > .frame { background: none; border: 0; box-shadow: none; backdrop-filter: none; padding: 4px 12px; border-radius: 0; }
+:root[data-skin] .hud-dock > .dock-spells { border-left: 1px solid var(--ng-border); border-right: 1px solid var(--ng-border); }
+:root[data-skin] .end-preview { font-size: 12px; margin-top: 6px; text-align: center; }
+
+:root[data-skin] .topbar span, :root[data-skin] .tool { background: var(--ng-surface); border: 1px solid var(--ng-border); color: var(--ng-text); backdrop-filter: blur(12px); font-family: var(--ng-title-font); font-weight: 600; padding: 4px 12px; }
+:root[data-skin] .topbar #room { font-family: var(--ng-title-font); font-size: 14px; }
+:root[data-skin] .cursor-tip, :root[data-skin] .spell-tip, :root[data-skin] .conc-info { background: var(--ng-surface-solid); border: 1px solid var(--ng-border); border-radius: 16px; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35); color: var(--ng-text); }
+
+/* Ordre des tours : vignettes arrondies */
+:root[data-skin] .turn-order { background: var(--ng-surface); border: 1px solid var(--ng-border); border-radius: 18px; box-shadow: var(--ng-shadow); backdrop-filter: blur(16px); padding: 8px 12px; gap: 8px; }
+:root[data-skin] .to-label { font-family: var(--ng-title-font); font-weight: 600; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ng-muted); }
+:root[data-skin] .to-dot { width: 46px; height: 46px; border-radius: 14px; overflow: hidden; }
+:root[data-skin] .to-dot::after { content: none; }
+:root[data-skin] .to-dot::before { inset: 0; border-radius: 14px; background: var(--ng-slot); }
+:root[data-skin] .to-dot > img { inset: 0; width: 100%; height: 100%; border-radius: 14px; transform: scale(1.6); transform-origin: 50% 18%; }
+:root[data-skin] .to-chip .to-dot { box-shadow: inset 0 0 0 2px #e0544f; }
+:root[data-skin] .to-chip[data-unit='archer'] .to-dot { box-shadow: inset 0 0 0 2px #6cc070; }
+:root[data-skin] .to-chip.now .to-dot { transform: scale(1.1); filter: none; outline: 2px solid var(--ng-accent); outline-offset: 2px; }
+:root[data-skin] .to-chip.now::before { border-top-color: var(--ng-accent); top: -8px; }
+:root[data-skin] .to-name { font-family: var(--ng-title-font); font-weight: 500; }
+:root[data-skin] .to-chip { gap: 6px; padding-top: 4px; }
+:root[data-skin] .to-hp { border: 0; background: var(--ng-track); height: 4px; border-radius: 999px; }
+:root[data-skin] .to-hp i { background: #e0544f; border-radius: 999px; }
+
+/* Joueur : orbe nette, compteurs aplats */
+:root[data-skin] .hp-orb-wrap { width: 84px; height: 84px; }
+:root[data-skin] .hp-orb-wrap::after { content: none; }
+:root[data-skin] .hp-orb { width: 76px; height: 76px; background: var(--ng-track); box-shadow: 0 0 0 3px var(--ng-surface-solid), 0 0 0 5px color-mix(in srgb, var(--hp) 70%, transparent), 0 8px 20px rgba(216, 69, 60, 0.3); }
+:root[data-skin] .hp-orb::after { opacity: 0.6; }
+:root[data-skin] .hp-orb-text b { font-family: var(--ng-title-font); font-weight: 700; color: #fff; }
+:root[data-skin] .dock-name { font-family: var(--ng-title-font); font-weight: 600; color: var(--ng-text); text-shadow: none; }
+:root[data-skin] .gem { border-radius: 10px; border: 1px solid; box-shadow: none; padding: 2px 4px; }
+:root[data-skin] .gem b { font-family: var(--ng-title-font); font-weight: 700; color: var(--ng-text); text-shadow: none; }
+:root[data-skin] .gem small { color: var(--ng-muted); }
+:root[data-skin] .gem-pa { background: color-mix(in srgb, var(--pa) 18%, transparent); border-color: color-mix(in srgb, var(--pa) 55%, transparent); }
+:root[data-skin] .gem-pm { background: color-mix(in srgb, var(--pm) 18%, transparent); border-color: color-mix(in srgb, var(--pm) 55%, transparent); }
+:root[data-skin] .gem-conc { background: color-mix(in srgb, var(--conc) 18%, transparent); border-color: color-mix(in srgb, var(--conc) 55%, transparent); }
+:root[data-skin] .gem-pa b { color: var(--pa); } :root[data-skin] .gem-pm b { color: var(--pm); } :root[data-skin] .gem-conc b { color: var(--conc); }
+:root[data-skin] .conc div { background: var(--ng-track); border: 0; border-radius: 999px; height: 6px; }
+:root[data-skin] .conc div.on { background: var(--conc); box-shadow: 0 0 6px color-mix(in srgb, var(--conc) 60%, transparent); }
+
+/* Sorts : tuiles arrondies, liseré d'élément */
+:root[data-skin] .spellbar { gap: 10px; }
+:root[data-skin] .spell-btn { width: 72px; }
+:root[data-skin] .slot-icon { width: 60px; height: 60px; border-radius: 16px; background: var(--ng-slot); box-shadow: inset 0 0 0 1px var(--ng-border), 0 6px 14px rgba(0, 0, 0, 0.25); filter: none; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+:root[data-skin] .slot-icon > img { inset: 0; width: 100%; height: 100%; border-radius: 16px; }
+:root[data-skin] .slot-icon::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--c); z-index: 2; }
+:root[data-skin] .spell-btn:hover:not(.off) .slot-icon { transform: translateY(-3px); }
+:root[data-skin] .spell-btn.active .slot-icon { transform: translateY(-4px); filter: none; box-shadow: 0 0 0 2px var(--ng-accent), 0 10px 24px color-mix(in srgb, var(--ng-accent) 40%, transparent); }
+:root[data-skin] .spell-btn.off .slot-icon { filter: grayscale(0.9) opacity(0.5); }
+:root[data-skin] .slot-pa { top: 42px; right: 2px; background: var(--pa); color: #fff; border: 2px solid var(--ng-surface-solid); border-radius: 999px; font-family: var(--ng-title-font); font-weight: 700; box-shadow: none; text-shadow: none; }
+:root[data-skin] .slot-uses { top: 44px; left: 2px; background: var(--ng-surface-solid); color: var(--ng-text); border: 1px solid var(--ng-border); border-radius: 999px; padding: 0 5px; font-size: 10px; font-weight: 700; text-shadow: none; }
+:root[data-skin] .slot-name { font-family: var(--ng-title-font); font-weight: 500; font-size: 12px; color: var(--ng-text); }
+:root[data-skin] .slot-range { color: var(--ng-muted); }
+:root[data-skin] .slot-key { background: var(--ng-surface-solid); }
+:root[data-skin] .spell-empty { width: 72px; height: 60px; }
+:root[data-skin] .spell-empty::before { left: 6px; width: 60px; height: 60px; border-radius: 16px; background: none; border: 1.5px dashed var(--ng-border-strong); opacity: 1; }
+
+@media (max-width: 1100px) {
+  :root[data-skin] .main-col { right: 20px; bottom: 200px; }
+  :root[data-skin] .hud-top, :root[data-skin] .hud-dock { right: 20px; }
+  :root[data-skin] .hud-dock { grid-template-columns: 1fr; }
+  :root[data-skin] .run > .side { display: none; }
+}

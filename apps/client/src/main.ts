@@ -33,8 +33,10 @@ import { bindHubTabs, hubBarHtml, type HubTab } from './ui/hub';
 import { renderRunEndSections } from './character/run-end';
 import { getCharacter, saveCharacter } from './character/store';
 import { bindCharacterBanner, renderCharacterCreation } from './character/ui';
-// Habillage peint : importé en dernier pour passer devant les styles de base.
+// Habillages : peint (bois et or), puis « new gen » (verre nocturne) qui le remplace quand html[data-skin] est posé.
 import './ui/skin.css';
+import './ui/skin-ng.css';
+
 
 const app = document.getElementById('app')!;
 const STORAGE_KEY = 'chabfu.v1';
