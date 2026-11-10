@@ -17,9 +17,29 @@ export const WEAKNESS_BONUS = 1.3;
 export const RESISTANCE_MALUS = 0.8;
 export const COLLISION_DAMAGE_PER_CELL = 8;
 
-/** Copie profonde : l'état du run est du JSON pur, ce qui le rend aussi sérialisable pour le serveur. */
+/**
+ * Copie profonde : l'état du run est du JSON pur, ce qui le rend aussi sérialisable pour le serveur.
+ * Copie récursive plutôt qu'un aller-retour JSON : plusieurs fois plus rapide, ce qui compte pour
+ * le solveur d'équilibrage qui applique des centaines de milliers d'actions. Les clés à `undefined`
+ * sont omises, comme avec JSON.
+ */
 export function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
+  return deepCopy(value) as T;
+}
+
+function deepCopy(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) {
+    const out = new Array(value.length);
+    for (let i = 0; i < value.length; i++) out[i] = deepCopy(value[i]);
+    return out;
+  }
+  const out: Record<string, unknown> = {};
+  for (const k in value as Record<string, unknown>) {
+    const v = (value as Record<string, unknown>)[k];
+    if (v !== undefined) out[k] = deepCopy(v);
+  }
+  return out;
 }
 
 export class InvalidActionError extends Error {}

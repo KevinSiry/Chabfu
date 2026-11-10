@@ -2,7 +2,7 @@ import type { DungeonDef } from '../dungeons.js';
 
 /**
  * Feu. Les braseros sont immobiles et tirent en cloche : la couverture ne protège pas d'eux,
- * seule la distance (plus de 6 cases) ou leur mort. Les golems, eux, bloquent les lignes de vue.
+ * seule la distance (plus de 10 cases) ou leur mort. Les golems, eux, bloquent les lignes de vue.
  * Deck conseillé : Eau (Flèche givrée), la Flèche ardente est résistée.
  */
 export const CALDEIRA_DES_CENDRES: DungeonDef = {

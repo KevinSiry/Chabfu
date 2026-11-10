@@ -5,6 +5,7 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/engine/package.json packages/engine/
+COPY packages/solver/package.json packages/solver/
 COPY apps/client/package.json apps/client/
 RUN npm ci --legacy-peer-deps --no-audit --no-fund
 

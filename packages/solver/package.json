@@ -1,0 +1,21 @@
+{
+  "name": "@chabfu/solver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=dist/cli.mjs --log-level=warning",
+    "solve": "npm run build && node dist/cli.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@chabfu/engine": "0.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "vitest": "4.1.12",
+    "@types/node": "22.20.5"
+  }
+}
