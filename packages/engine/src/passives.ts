@@ -58,8 +58,9 @@ export function isRangedShot(spell: SpellDef): boolean {
   return (spell.target === 'unit' || spell.target === 'cell') && spell.maxRange >= 2;
 }
 
-export function spellMaxRange(spell: SpellDef, passives: readonly string[] | undefined): number {
-  return spell.maxRange + (isRangedShot(spell) ? combinePassives(passives).rangeBonus : 0);
+/** Portée maximale d'un sort : passifs et portée de l'équipement s'ajoutent aux tirs à distance. */
+export function spellMaxRange(spell: SpellDef, passives: readonly string[] | undefined, equipmentRange = 0): number {
+  return spell.maxRange + (isRangedShot(spell) ? combinePassives(passives).rangeBonus + equipmentRange : 0);
 }
 
 export function spellConcentrationCost(spell: SpellDef, passives: readonly string[] | undefined): number {

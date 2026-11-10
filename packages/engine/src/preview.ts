@@ -4,7 +4,7 @@
  * mêmes fonctions que le moteur. Les aperçus sont donc exacts (le combat est déterministe).
  */
 import { canUseAttack } from './ai.js';
-import { PLAYER_ID, applyAction, computeDamage, getCastError, getPlayer, getReachableCells, getSpellZone, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
+import { PLAYER_ID, applyAction, computeDamage, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
 import { getMonster, monsterBehavior } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
 import { distance, isWall, key, reachable, samePos } from './grid.js';
@@ -133,6 +133,8 @@ export interface DamageBreakdown {
   /** Dégâts directs finaux. */
   amount: number;
   base: number;
+  /** Dégâts fixes ajoutés par l'équipement (stat Dommages). */
+  flat: number;
   element: Element;
   mastery: number;
   weakness: boolean;
@@ -149,8 +151,9 @@ export function spellDamageOn(state: RunState, spellId: string, target: Unit): D
   const player = getPlayer(state);
   const doubled = state.player.nextShotDouble;
   return {
-    amount: computeDamage(state, spell.damage, spell.element, player, target, doubled),
+    amount: computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, target, doubled),
     base: spell.damage,
+    flat: equipmentFlatDamage(state),
     element: spell.element,
     mastery: state.player.masteries[spell.element] ?? 0,
     weakness: spell.element !== 'neutral' && target.weakness === spell.element,
@@ -177,6 +180,8 @@ export interface SpellPower {
   element: Element;
   /** Dégâts de base du catalogue. */
   base: number;
+  /** Dégâts fixes ajoutés par l'équipement (stat Dommages), avant la maîtrise. */
+  flat: number;
   /** Maîtrise de l'élément du sort, en %. */
   mastery: number;
   /** Dégâts directs avec les stats actuelles du personnage (tir concentré compris s'il est actif). */
@@ -228,13 +233,14 @@ export function spellPower(state: RunState, spellId: string): SpellPower {
   return {
     element: spell.element,
     base: spell.damage ?? 0,
+    flat: spell.damage !== undefined ? equipmentFlatDamage(state) : 0,
     mastery: state.player.masteries[spell.element] ?? 0,
-    damage: spell.damage !== undefined ? spread(state, spell.damage, spell.element, doubled) : { normal: 0, weak: 0, resist: 0 },
+    damage: spell.damage !== undefined ? spread(state, spell.damage + equipmentFlatDamage(state), spell.element, doubled) : { normal: 0, weak: 0, resist: 0 },
     doubled,
     burn: spell.burn
       ? { base: spell.burn.damage, perTurn: spread(state, spell.burn.damage, spell.element, false), turns: spell.burn.turns + combinePassives(state.player.passives).burnExtraTurns }
       : undefined,
-    maxRange: spellMaxRange(spell, state.player.passives),
+    maxRange: spellMaxRange(spell, state.player.passives, equipmentRange(state)),
   };
 }
 
@@ -303,7 +309,7 @@ export function previewCastDetailed(state: RunState, spellId: string, target: Po
     targets: [],
     distance: d,
     minRange: spell.minRange,
-    maxRange: spellMaxRange(spell, state.player.passives),
+    maxRange: spellMaxRange(spell, state.player.passives, equipmentRange(state)),
     consumesDouble: spell.damage !== undefined && state.player.nextShotDouble,
   };
   if (spell.concentrationGain && spell.concentrationGainMinDistance !== undefined && d < spell.concentrationGainMinDistance) {
@@ -365,8 +371,10 @@ export interface AttackInfo {
   id: string;
   name: string;
   element: Element;
-  /** Dégâts infligés à l'Archer, difficulté comprise. */
+  /** Dégâts infligés à l'Archer, difficulté et résistances comprises. */
   damage: number;
+  /** Résistance de l'Archer à l'élément de l'attaque, en %. */
+  resisted: number;
   pa: number;
   minRange: number;
   maxRange: number;
@@ -385,6 +393,7 @@ export function monsterAttacks(state: RunState, monster: Unit): AttackInfo[] {
     name: a.name,
     element: a.element,
     damage: computeDamage(state, a.damage, a.element, monster, player),
+    resisted: playerResistance(state, a.element),
     pa: a.pa,
     minRange: a.minRange,
     maxRange: a.maxRange,

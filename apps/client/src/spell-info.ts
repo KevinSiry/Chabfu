@@ -82,6 +82,7 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
   let damage = '';
   if (s.damage !== undefined) {
     const factors = [`${s.damage} de base`];
+    if (power.flat) factors.push(`+ ${power.flat} <span class="muted">dommages (équipement)</span>`);
     if (power.mastery) factors.push(`× ${num(1 + power.mastery / 100)} <span class="muted">maîtrise ${ELEMENT_LABEL[s.element]} +${power.mastery} %</span>`);
     if (power.doubled) factors.push('× 2 <span class="muted">Tir concentré</span>');
     damage = `
@@ -176,7 +177,7 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
       ${damage}
       ${fx.length ? `<ul class="ss-fx">${fx.map((f) => `<li class="${f.cls}"><i>${f.icon}</i><span>${f.html}</span></li>`).join('')}</ul>` : ''}
       <div class="ss-grid">
-        <span>Portée</span><b>${range}${power.maxRange > s.maxRange ? ` <span class="pos">(+${power.maxRange - s.maxRange} passif)</span>` : ''}</b>
+        <span>Portée</span><b>${range}${power.maxRange > s.maxRange ? ` <span class="pos">(+${power.maxRange - s.maxRange} passifs et équipement)</span>` : ''}</b>
         <span>Cible</span><b>${TARGET_LABEL[s.target]}</b>
         ${s.target !== 'self' ? `<span>Ligne de vue</span><b>${s.los ? 'Requise' : '<span class="pos">Non requise</span>'}</b>` : ''}
         ${s.target !== 'self' ? `<span>Lancer</span><b>${s.inLine ? 'En ligne droite uniquement' : 'Dans toutes les directions'}</b>` : ''}
@@ -196,6 +197,7 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
 
 function factorLine(d: DamageBreakdown): string {
   const f: string[] = [`${d.base} ${ELEMENT_LABEL[d.element]}`];
+  if (d.flat) f.push(`+${d.flat} dommages`);
   if (d.mastery) f.push(`maîtrise +${d.mastery} %`);
   if (d.weakness) f.push(`<span class="pos">faiblesse ×${num(DAMAGE_FACTORS.weakness)}</span>`);
   if (d.resistance) f.push(`<span class="neg">résistance ×${num(DAMAGE_FACTORS.resistance)}</span>`);

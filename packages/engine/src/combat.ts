@@ -4,6 +4,7 @@ import { getMonster, type MonsterAttack } from './data/monsters.js';
 import { getSpell, type SpellDef } from './data/spells.js';
 import { DIRS, distance, hasLineOfSight, isFree, isWall, key, reachable, samePos, unitAt } from './grid.js';
 import { MAX_DIFFICULTY, MIN_DIFFICULTY, difficultyMultiplier } from './loot.js';
+import { MAX_RESISTANCE } from './equipment.js';
 import { combinePassives, spellConcentrationCost, spellConcentrationLoss, spellMaxRange, validatePassives } from './passives.js';
 import { effectiveLevel, getTranche, validateDeck } from './progression.js';
 import type { Action, Element, GameEvent, Pos, RunConfig, RunState, Unit } from './types.js';
@@ -144,6 +145,8 @@ function enterRoom(state: RunState, index: number, events: GameEvent[]): void {
     });
   });
   events.push({ type: 'roomEnter', roomIndex: index, name: tpl.name });
+  const roomConcentration = state.config.equipment?.concentration ?? 0;
+  if (roomConcentration) changeConcentration(state, roomConcentration, events);
   startPlayerTurn(state, events);
 }
 
@@ -155,6 +158,21 @@ export function getPlayer(state: RunState): Unit {
   const p = state.units.find((u) => u.id === PLAYER_ID);
   if (!p) throw new Error('Archer introuvable');
   return p;
+}
+
+/** Portée en plus donnée par l'équipement aux tirs à distance. */
+export function equipmentRange(state: RunState): number {
+  return state.config.equipment?.range ?? 0;
+}
+
+/** Dégâts fixes ajoutés à chaque coup de sort de l'Archer (pas aux brûlures). */
+export function equipmentFlatDamage(state: RunState): number {
+  return state.config.equipment?.damage ?? 0;
+}
+
+/** Résistance de l'Archer dans un élément, en %, plafonnée à MAX_RESISTANCE. */
+export function playerResistance(state: RunState, element: Element): number {
+  return Math.max(0, Math.min(MAX_RESISTANCE, state.config.equipment?.resistances?.[element] ?? 0));
 }
 
 export function getMonsters(state: RunState): Unit[] {
@@ -194,7 +212,7 @@ function getTargetError(state: RunState, spell: SpellDef, target: Pos): string |
   const player = getPlayer(state);
   if (spell.target === 'self') return samePos(target, player.pos) ? null : 'Ce sort se lance sur soi.';
   const d = distance(player.pos, target);
-  if (d < spell.minRange || d > spellMaxRange(spell, state.player.passives)) return 'Hors de portée.';
+  if (d < spell.minRange || d > spellMaxRange(spell, state.player.passives, equipmentRange(state))) return 'Hors de portée.';
   if (spell.inLine && player.pos.x !== target.x && player.pos.y !== target.y) return 'Ce sort se lance en ligne droite.';
   if (isWall(state.room, target)) return 'Case invalide.';
   if (spell.los && !hasLineOfSight(state.room, state.units, player.pos, target)) return 'Pas de ligne de vue.';
@@ -210,7 +228,7 @@ export function getSpellRange(state: RunState, spellId: string): { pos: Pos; los
   const player = getPlayer(state);
   if (spell.target === 'self') return [{ pos: player.pos, los: true }];
   const cells: { pos: Pos; los: boolean }[] = [];
-  const maxRange = spellMaxRange(spell, state.player.passives);
+  const maxRange = spellMaxRange(spell, state.player.passives, equipmentRange(state));
   for (let y = 0; y < state.room.height; y++) {
     for (let x = 0; x < state.room.width; x++) {
       const p = { x, y };
@@ -249,6 +267,7 @@ export function computeDamage(
   let dmg = base;
   if (attacker?.team === 'player') dmg *= 1 + (state.player.masteries[element] ?? 0) / 100;
   if (attacker?.team === 'monster') dmg *= difficultyMultiplier(state.config.difficulty);
+  if (target.team === 'player') dmg *= 1 - playerResistance(state, element) / 100;
   if (element !== 'neutral' && target.weakness === element) dmg *= WEAKNESS_BONUS;
   if (element !== 'neutral' && target.resistance === element) dmg *= RESISTANCE_MALUS;
   if (doubled) dmg *= 2;
@@ -475,7 +494,7 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
       .map((c) => unitAt(state.units, c))
       .filter((u): u is Unit => !!u && u.team === 'monster');
     for (const victim of victims) {
-      dealDamage(state, victim, computeDamage(state, spell.damage, spell.element, player, victim, doubled), spell.element, 'spell', events);
+      dealDamage(state, victim, computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, victim, doubled), spell.element, 'spell', events);
       if (victim.hp <= 0) continue;
       if (spell.burn) {
         const dmg = computeDamage(state, spell.burn.damage, spell.element, player, victim);

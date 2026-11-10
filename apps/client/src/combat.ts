@@ -12,6 +12,7 @@ import {
   spellConcentrationCost,
   spellConcentrationLoss,
   spellMaxRange,
+  equipmentRange,
   getCastError,
   getDungeon,
   getMonster,
@@ -938,7 +939,7 @@ function renderHud(): void {
       const uses = state.player.spellUses[id] ?? 0;
       const disabled = !!err || v.busy;
       const cc = spellConcentrationCost(s, state.player.passives ?? []);
-      const mr = spellMaxRange(s, state.player.passives ?? []);
+      const mr = spellMaxRange(s, state.player.passives ?? [], equipmentRange(state));
       const range = mr === 0 ? 'soi' : s.minRange === mr ? `${s.minRange}` : `${s.minRange}–${mr}`;
       return `<button class="spell-btn el-${s.element} ${v.selectedSpell === id ? 'active' : ''} ${disabled ? 'off' : ''}" data-spell="${id}" ${disabled ? 'aria-disabled="true"' : ''} aria-label="${esc(s.name)}">
         <span class="slot-icon">${spellGlyph(s.name)}${spellIconImg(id)}</span>
