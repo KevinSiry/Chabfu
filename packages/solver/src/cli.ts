@@ -16,15 +16,18 @@
  *   --level <n>           Niveau du personnage (défaut : niveau de redéfinition de la tranche). Les decks
  *                         prédéfinis indisponibles à ce niveau sont remplacés par tous les sorts débloqués.
  *   --passives <liste>    Passifs équipés, ex. patience (défaut : aucun).
+ *   --check               Vérifie les cibles d'équilibrage (voir check.ts) sur chaque donjon, en plus du reste.
+ *                         Sans --difficulty ni --stuff explicites, ne lance que la vérification.
  *   --beam <n>            Largeur du faisceau (défaut 48). --quick équivaut à --beam 16.
  *   --no-walk             Ajoute une passe « Archer immobile » (sans marcher) pour mesurer la tension de la Concentration.
  *   --jobs <n>            Calculs en parallèle (défaut : nombre de cœurs - 1).
  *   --out <dossier>       Dossier du rapport (défaut : reports). Écrit equilibrage.md, resultats.json et les routes.
  */
 import { availableCpus, runJobs, type Job } from './pool.js';
-import { DUNGEONS, getTranche, availableSpells, effectiveLevel, validateDeck } from '@chabfu/engine';
+import { DUNGEONS, getDungeon, getTranche, availableSpells, effectiveLevel, validateDeck } from '@chabfu/engine';
 import { buildReport, byQuality, type JobResult } from './report.js';
 import { fullSetBonus } from './stuff.js';
+import { CHECK_TARGETS, checkReport, evaluateChecks } from './check.js';
 import { DEFAULT_OPTIONS, estimateDurationSeconds } from './solver.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -47,6 +50,8 @@ function parseArgs(argv: string[]) {
     overrides: [] as string[],
     level: undefined as number | undefined,
     passives: [] as string[],
+    check: false,
+    explicitRuns: false,
     beam: DEFAULT_OPTIONS.beamWidth,
     noWalk: false,
     jobs: Math.max(1, availableCpus() - 1),
@@ -60,12 +65,18 @@ function parseArgs(argv: string[]) {
       return v;
     };
     if (a === '--dungeon') args.dungeons.push(...next().split(','));
-    else if (a === '--difficulty') args.difficulties = parseRange(next());
+    else if (a === '--difficulty') {
+      args.difficulties = parseRange(next());
+      args.explicitRuns = true;
+    } else if (a === '--check') args.check = true;
     else if (a === '--deck') args.decks.push(next());
     else if (a === '--level') args.level = Number(next());
     else if (a === '--passives') args.passives = next().split(',').filter(Boolean);
     else if (a === '--set') args.overrides.push(next());
-    else if (a === '--stuff') args.stuffs = next().split(',');
+    else if (a === '--stuff') {
+      args.stuffs = next().split(',');
+      args.explicitRuns = true;
+    }
     else if (a === '--all-decks') args.allDecks = true;
     else if (a === '--beam') args.beam = Number(next());
     else if (a === '--quick') args.beam = 16;
@@ -122,6 +133,24 @@ async function main() {
     if (!dungeon) throw new Error(`Donjon inconnu : ${dungeonId}`);
     const decks = decksFor(dungeon.tranche, args);
     Object.assign(allDecks, decks);
+    if (args.check) {
+      for (const target of CHECK_TARGETS) {
+        const checkDecks = decksFor(dungeon.tranche, { ...args, level: target.level });
+        const equipment = fullSetBonus(dungeon.tranche, target.stuff);
+        for (const [deckName, deck] of Object.entries(checkDecks)) {
+          jobs.push({
+            config: { dungeonId, difficulty: target.difficulty, deck, equipment, level: target.level, passives: args.passives },
+            deckName,
+            stuffName: target.stuff,
+            noWalk: false,
+            options: { beamWidth: args.beam },
+            overrides: args.overrides,
+            checkId: target.id,
+          });
+        }
+      }
+      if (!args.explicitRuns) continue;
+    }
     for (const stuffName of args.stuffs) {
       const equipment = fullSetBonus(dungeon.tranche, stuffName);
       for (const [deckName, deck] of Object.entries(decks)) {
@@ -152,14 +181,21 @@ async function main() {
 
   mkdirSync(join(args.out, 'routes'), { recursive: true });
   const options = `faisceau ${args.beam}, ${args.level ? `niveau ${args.level}, ` : ''}${args.passives.length ? `passifs ${args.passives.join(',')}, ` : ''}difficultés ${args.difficulties.join(',')}, stuff ${args.stuffs.join(',')}${args.noWalk ? ', passe immobile' : ''}${args.overrides.length ? `, réglages : ${args.overrides.join(' ')}` : ''}`;
-  writeFileSync(join(args.out, 'equilibrage.md'), buildReport(results, { options, decks: allDecks }));
+  let report = buildReport(results, { options, decks: allDecks });
+  if (args.check) {
+    const outcomes = evaluateChecks(results);
+    const table = checkReport(outcomes, (id) => getDungeon(id).name);
+    report = report.replace('\n## Decks testés', `\n${table}\n## Decks testés`);
+    console.log(table);
+  }
+  writeFileSync(join(args.out, 'equilibrage.md'), report);
   writeFileSync(join(args.out, 'resultats.json'), JSON.stringify(results.map(({ actions, ...rest }) => rest), null, 2));
   // Une route rejouable (verifyRun) par donjon et difficulté : la meilleure trouvée.
   for (const dungeonId of args.dungeons) {
     for (const stuffName of args.stuffs) {
       for (const d of args.difficulties) {
         const best = results
-          .filter((r) => !r.noWalk && r.won && r.stuffName === stuffName && r.config.dungeonId === dungeonId && r.config.difficulty === d)
+          .filter((r) => !r.noWalk && !r.checkId && r.won && r.stuffName === stuffName && r.config.dungeonId === dungeonId && r.config.difficulty === d)
           .sort(byQuality)[0];
         if (best) {
           const file = join(args.out, 'routes', `${dungeonId}-${stuffName}-d${d}.json`);

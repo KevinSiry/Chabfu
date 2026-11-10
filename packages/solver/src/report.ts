@@ -7,6 +7,7 @@ export interface JobResult extends SolveResult {
   deckName: string;
   stuffName: string;
   noWalk: boolean;
+  checkId?: string;
 }
 
 /** Cibles du GDD : runs de 1 à 3 minutes une fois maîtrisés. */
@@ -48,7 +49,7 @@ export function buildReport(results: JobResult[], meta: { options: string; decks
   for (const [name, deck] of Object.entries(meta.decks)) out(`- **${name}** : ${deck.map(spellName).join(', ')}`);
   out();
 
-  const main = results.filter((r) => !r.noWalk);
+  const main = results.filter((r) => !r.noWalk && !r.checkId);
   const dungeons = [...new Set(main.map((r) => r.config.dungeonId))];
   for (const dungeonId of dungeons) {
     const dungeon = getDungeon(dungeonId);

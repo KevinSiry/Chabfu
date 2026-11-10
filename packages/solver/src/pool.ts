@@ -14,6 +14,8 @@ export interface Job {
   options: Partial<SolverOptions>;
   /** Réglages `--set` à appliquer avant le calcul (voir overrides.ts). */
   overrides: string[];
+  /** Identifiant de la cible vérifiée (mode --check). */
+  checkId?: string;
 }
 
 export function availableCpus(): number {
@@ -29,7 +31,7 @@ export function runJob(job: Job): JobResult {
     applyOverrides(job.overrides);
     appliedOverrides = key;
   } else if (appliedOverrides !== key) throw new Error('Réglages différents dans un même processus.');
-  return { ...solveBest(job.config, job.options), deckName: job.deckName, stuffName: job.stuffName, noWalk: job.noWalk };
+  return { ...solveBest(job.config, job.options), deckName: job.deckName, stuffName: job.stuffName, noWalk: job.noWalk, checkId: job.checkId };
 }
 
 export async function runJobs(jobs: Job[], parallel: number, onResult: (r: JobResult, done: number) => void): Promise<JobResult[]> {
