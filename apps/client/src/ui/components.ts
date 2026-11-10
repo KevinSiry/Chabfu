@@ -66,14 +66,16 @@ export function openSheet(o: SheetOptions): SheetHandle {
   const body = el.querySelector<HTMLElement>('.ui-sheet__body')!;
   const titleEl = el.querySelector<HTMLElement>('.ui-sheet__title')!;
   const setContent = (html: string, title?: string) => {
-    body.innerHTML = html;
+    body.innerHTML = `<div class="ui-sheet__content">${html}</div>`;
     if (title !== undefined) titleEl.textContent = title;
     titleEl.hidden = !titleEl.textContent;
     el.setAttribute('aria-label', titleEl.textContent || 'Fiche');
+    fitSheet(el);
   };
   setContent(o.html, o.title ?? '');
   if (o.modeless) scrim.style.opacity = '0';
   document.body.append(scrim, el);
+  fitSheet(el);
   const previous = document.activeElement as HTMLElement | null;
   requestAnimationFrame(() => {
     scrim.classList.add('is-open');
@@ -81,10 +83,13 @@ export function openSheet(o: SheetOptions): SheetHandle {
     if (!o.modeless) el.querySelector<HTMLElement>('[data-sheet-close]')?.focus({ preventScroll: true });
   });
 
+  const onResize = () => fitSheet(el);
+  window.addEventListener('resize', onResize);
   let closed = false;
   const close = () => {
     if (closed) return;
     closed = true;
+    window.removeEventListener('resize', onResize);
     el.classList.remove('is-open');
     scrim.classList.remove('is-open');
     document.removeEventListener('keydown', onKey, true);
@@ -141,6 +146,78 @@ export function openSheet(o: SheetOptions): SheetHandle {
 }
 
 export const currentSheet = () => openSheetHandle;
+
+/**
+ * Une fiche ne défile jamais : si son contenu dépasse, elle s'élargit et passe sur deux colonnes,
+ * puis resserre son texte si cela ne suffit toujours pas.
+ */
+export function fitSheet(el: HTMLElement): void {
+  const body = el.querySelector<HTMLElement>('.ui-sheet__body');
+  const content = el.querySelector<HTMLElement>('.ui-sheet__content');
+  if (body && content) fitBox(el, body, content);
+}
+
+/**
+ * Fait tenir `content` dans `scroller` sans défilement : classes is-wide (deux colonnes), is-xwide (trois), is-dense (plus petit)
+ * posées sur `box`, une à une, tant que le contenu dépasse.
+ */
+export function fitBox(box: HTMLElement, scroller: HTMLElement, content: HTMLElement): void {
+  const steps = ['is-wide', 'is-xwide', 'is-dense'];
+  box.classList.remove(...steps);
+  sheetColumns(content, 1);
+  const over = () => scroller.scrollHeight > scroller.clientHeight + 2 || content.scrollWidth > content.clientWidth + 2;
+  if (!scroller.clientHeight) return;
+  for (const step of steps) {
+    if (!over()) return;
+    box.classList.add(step);
+    const pad = parseFloat(getComputedStyle(scroller).paddingTop) + parseFloat(getComputedStyle(scroller).paddingBottom);
+    const inner = scroller === content ? 0 : parseFloat(getComputedStyle(content).paddingTop) + parseFloat(getComputedStyle(content).paddingBottom);
+    sheetColumns(content, box.classList.contains('is-xwide') ? 3 : 2, (scroller.clientHeight - pad) / (parseFloat(getComputedStyle(content).zoom) || 1) - inner);
+  }
+}
+
+/**
+ * Répartit les blocs d'une fiche en n colonnes, dans l'ordre, en passant à la colonne suivante dès qu'un bloc dépasse
+ * la hauteur disponible (`maxH`). Avec n = 1, remet la fiche dans son ordre d'origine.
+ * Les blocs pris en compte sont les enfants de la carte principale (.ss, .item-card, .monster-card) puis ceux du contenu.
+ */
+export function sheetColumns(content: HTMLElement, n: number, maxH = content.clientHeight): void {
+  // Remise à plat : chaque bloc revient à sa place d'origine, dans l'ordre.
+  const moved = [...content.querySelectorAll<HTMLElement>('[data-col-home]')];
+  const host0 = content.querySelector<HTMLElement>('[data-col-id="host"]');
+  moved
+    .sort((a, b) => Number(a.dataset.colOrder) - Number(b.dataset.colOrder))
+    .forEach((b) => {
+      (b.dataset.colHome === 'host' && host0 ? host0 : content).appendChild(b);
+      delete b.dataset.colHome;
+      delete b.dataset.colOrder;
+    });
+  content.querySelectorAll('.ui-sheet__cols').forEach((c) => c.remove());
+  content.querySelectorAll('.cols-path').forEach((c) => c.classList.remove('cols-path'));
+  content.classList.remove('has-cols');
+  if (n <= 1) return;
+  const host = content.querySelector<HTMLElement>('.ss, .item-card');
+  const blocks: { el: HTMLElement; home: string }[] = [];
+  if (host) {
+    host.dataset.colId = 'host';
+    blocks.push(...[...host.children].map((c) => ({ el: c as HTMLElement, home: 'host' })));
+    for (let p: HTMLElement | null = host; p && p !== content; p = p.parentElement) p.classList.add('cols-path');
+  }
+  blocks.push(...[...content.children].filter((c) => !host || (c !== host && !c.contains(host))).map((c) => ({ el: c as HTMLElement, home: 'content' })));
+  const cols = document.createElement('div');
+  cols.className = 'ui-sheet__cols';
+  cols.style.setProperty('--n', String(n));
+  const colEls = Array.from({ length: n }, () => cols.appendChild(document.createElement('div')));
+  content.classList.add('has-cols');
+  (host ?? content).appendChild(cols);
+  let ci = 0;
+  blocks.forEach((b, i) => {
+    b.el.dataset.colHome = b.home;
+    b.el.dataset.colOrder = String(i);
+    colEls[ci].appendChild(b.el);
+    if (ci < n - 1 && colEls[ci].children.length > 1 && colEls[ci].scrollHeight > maxH + 1) colEls[++ci].appendChild(b.el);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Fenêtre de confirmation
@@ -256,4 +333,74 @@ export function bindSegmented(root: HTMLElement, name: string, onChange: (value:
     seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     onChange(b.dataset.value!);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Grand panneau plein écran (fiche du personnage, tranches, paramètres) : jamais de défilement,
+// le contenu se répartit en onglets et en colonnes qui tiennent dans l'écran.
+// ---------------------------------------------------------------------------
+
+export interface PanelTab {
+  id: string;
+  label: string;
+  html: () => string;
+  /** Branche les boutons du volet après son affichage. */
+  bind?: (body: HTMLElement) => void;
+}
+
+export interface PanelHandle {
+  el: HTMLElement;
+  body: HTMLElement;
+  show(tabId: string): void;
+  close(): void;
+}
+
+export function openPanel(o: { title: string; tabs: PanelTab[]; tab?: string; cls?: string; onClose?: () => void }): PanelHandle {
+  openSheetHandle?.close();
+  const scrim = document.createElement('div');
+  scrim.className = 'ui-pmodal-scrim';
+  const multi = o.tabs.length > 1;
+  scrim.innerHTML = `
+    <section class="ui-pmodal${o.cls ? ` ${o.cls}` : ''}" role="dialog" aria-modal="true" aria-label="${o.title}">
+      <header class="ui-pmodal__head">
+        <h2 class="ui-pmodal__title">${o.title}</h2>
+        ${multi ? segmented('pmodal-tab', o.tabs.map((t) => ({ value: t.id, label: t.label })), o.tab ?? o.tabs[0].id) : ''}
+        <button class="ui-icon-btn ui-icon-btn--sm ui-pmodal__close" data-pmodal-close aria-label="Fermer">${icon('close')}</button>
+      </header>
+      <div class="ui-pmodal__body"></div>
+    </section>`;
+  const el = scrim.querySelector<HTMLElement>('.ui-pmodal')!;
+  const body = scrim.querySelector<HTMLElement>('.ui-pmodal__body')!;
+  const show = (id: string) => {
+    const t = o.tabs.find((x) => x.id === id) ?? o.tabs[0];
+    body.innerHTML = t.html();
+    body.dataset.tab = t.id;
+    scrim.querySelectorAll<HTMLButtonElement>('[data-seg="pmodal-tab"] button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === t.id)));
+    t.bind?.(body);
+  };
+  document.body.appendChild(scrim);
+  const previous = document.activeElement as HTMLElement | null;
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    document.removeEventListener('keydown', onKey, true);
+    scrim.classList.add('is-leaving');
+    setTimeout(() => scrim.remove(), 200);
+    previous?.focus?.({ preventScroll: true });
+    o.onClose?.();
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      close();
+    }
+  };
+  document.addEventListener('keydown', onKey, true);
+  scrim.addEventListener('click', (e) => e.target === scrim && close());
+  scrim.querySelector('[data-pmodal-close]')!.addEventListener('click', close);
+  if (multi) bindSegmented(scrim, 'pmodal-tab', show);
+  show(o.tab ?? o.tabs[0].id);
+  requestAnimationFrame(() => scrim.querySelector<HTMLElement>('[data-pmodal-close]')?.focus({ preventScroll: true }));
+  return { el, body, show, close };
 }

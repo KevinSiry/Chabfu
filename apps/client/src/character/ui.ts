@@ -19,6 +19,8 @@ import {
 import './character.css';
 import { assetUrl, spellIconImg } from '../ui/assets';
 import { icon } from '../ui/icons';
+import { confirmModal, openPanel } from '../ui/components';
+import { pageAll, pagerHtml } from '../ui/pager';
 import { registerRunEndSection, type RunEndContext } from './run-end';
 import { getInventory } from '../stuff/store';
 import { deleteCharacter, getCharacter, saveCharacter } from './store';
@@ -128,22 +130,30 @@ export function bindCharacterBanner(root: HTMLElement, onChange: () => void): vo
 
 function trancheRowsHtml(c: Character): string {
   const level = characterLevel(c);
-  return TRANCHES.map((t) => {
+  return `<div class="tr-grid">${TRANCHES.map((t) => {
     const unlocked = level >= t.minLevel;
     const current = t.id === c.trancheId;
     const dungeons = DUNGEONS.filter((d) => d.tranche === t.id).length;
     const eff = Math.min(level, t.redefinitionLevel);
     return `
-      <div class="tranche-row ${current ? 'current' : ''} ${unlocked ? '' : 'locked'}">
-        <div class="tranche-name">T${t.id}</div>
-        <div class="tranche-info">
-          <b>Niveaux ${t.minLevel}–${t.maxLevel}</b>
-          <div class="muted">Deck ${t.deckSize} sorts · ${t.passiveSlots} passif${t.passiveSlots > 1 ? 's' : ''} · ${dungeons ? `${dungeons} donjon${dungeons > 1 ? 's' : ''}` : 'aucun donjon pour l’instant'}</div>
-          <div class="muted">${unlocked ? `Vous y jouez au niveau ${eff}.` : `Débloquée au niveau ${t.minLevel}.`}</div>
-        </div>
-        <div>${current ? '<span class="tag">Actuelle</span>' : unlocked ? `<button class="primary small" data-tranche="${t.id}">Se redéfinir</button>` : '<span class="tag muted">🔒</span>'}</div>
+      <div class="tr-card ${current ? 'current' : ''} ${unlocked ? '' : 'locked'}">
+        <div class="tr-badge">T${t.id}</div>
+        <b class="tr-levels">Niv. ${t.minLevel}–${t.maxLevel}</b>
+        <ul class="tr-facts">
+          <li>${icon('grimoire')} Deck de ${t.deckSize} sorts</li>
+          <li>${icon('sparkle')} ${t.passiveSlots} passif${t.passiveSlots > 1 ? 's' : ''}</li>
+          <li>${icon('dungeons')} ${dungeons ? `${dungeons} donjon${dungeons > 1 ? 's' : ''}` : 'Aucun donjon'}</li>
+        </ul>
+        <small class="tr-note">${unlocked ? `Joué au niveau ${eff}` : `Débloquée au niveau ${t.minLevel}`}</small>
+        ${
+          current
+            ? `<span class="ui-btn ui-btn--sm ui-btn--block tr-current">${icon('check')} Actuelle</span>`
+            : unlocked
+              ? `<button class="ui-btn ui-btn--primary ui-btn--sm ui-btn--block" data-tranche="${t.id}">Se redéfinir</button>`
+              : `<span class="ui-btn ui-btn--sm ui-btn--block tr-locked">${icon('lock')} Verrouillée</span>`
+        }
       </div>`;
-  }).join('');
+  }).join('')}</div>`;
 }
 
 function bindTrancheButtons(root: HTMLElement, after: () => void): void {
@@ -157,38 +167,37 @@ function bindTrancheButtons(root: HTMLElement, after: () => void): void {
   );
 }
 
-function openOverlay(html: string, cls = ''): HTMLElement {
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay';
-  overlay.innerHTML = `<div class="card ${cls}">${html}</div>`;
-  overlay.addEventListener('click', (e) => e.target === overlay && overlay.remove());
-  document.body.appendChild(overlay);
-  overlay.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => overlay.remove()));
-  return overlay;
-}
+const TRANCHE_INTRO =
+  'Redéfinissez-vous à tout moment sur une tranche débloquée. Votre niveau et votre XP ne changent pas : seuls les sorts et passifs du niveau de redéfinition comptent, et chaque tranche garde son propre deck.';
 
 export function openTranchePicker(onChange: () => void): void {
   const c = getCharacter();
   if (!c) return;
-  const overlay = openOverlay(
-    `<h2>Choisir une tranche</h2>
-     <p class="muted">Vous pouvez vous redéfinir à tout moment sur une tranche débloquée. Votre niveau réel et votre XP ne changent pas :
-     seuls les sorts et passifs du niveau de redéfinition sont utilisables, et chaque tranche garde son propre deck.</p>
-     <div class="tranches">${trancheRowsHtml(c)}</div>
-     <div class="row"><button class="secondary" data-close>Fermer</button></div>`,
-    'sheet',
-  );
-  bindTrancheButtons(overlay, () => {
-    overlay.remove();
-    onChange();
+  const panel = openPanel({
+    title: 'Choisir une tranche',
+    cls: 'tr-panel',
+    tabs: [
+      {
+        id: 'tranches',
+        label: 'Tranches',
+        html: () => `<p class="tr-intro">${TRANCHE_INTRO}</p>${trancheRowsHtml(c)}`,
+        bind: (body) =>
+          bindTrancheButtons(body, () => {
+            panel.close();
+            onChange();
+          }),
+      },
+    ],
   });
 }
 
 // ---------------------------------------------------------------------------
-// Fiche du personnage
+// Fiche du personnage : quatre volets (profil, sorts, passifs, tranches), sans défilement.
 // ---------------------------------------------------------------------------
 
-export function openCharacterSheet(onChange: () => void): void {
+let sheetTab = 'profile';
+
+export function openCharacterSheet(onChange: () => void, tab = sheetTab): void {
   const c = getCharacter();
   if (!c) return;
   const level = characterLevel(c);
@@ -197,91 +206,109 @@ export function openCharacterSheet(onChange: () => void): void {
   const loadout = currentLoadout(c);
   const date = new Date(c.createdAt).toLocaleDateString('fr-FR');
   const eq = equipmentBonus(getInventory(), t.id);
+  const stateOf = (lvl: number) => (lvl > level ? 'locked' : lvl > eff ? 'capped' : 'unlocked');
+  const stateTag = (state: string, active: boolean, activeLabel: string) =>
+    state === 'locked' ? `<span class="ui-chip">${icon('lock')}</span>` : state === 'capped' ? '<span class="ui-chip cs-muted">Hors tranche</span>' : active ? `<span class="ui-chip cs-on">${activeLabel}</span>` : '';
 
-  const spellRows = SPELLS.map((s) => {
-    const state = s.level > level ? 'locked' : s.level > eff ? 'capped' : 'unlocked';
-    return `<tr class="${state}">
-      <td>${s.level}</td>
-      <td><span class="el el-${s.element}"></span>${s.name}</td>
-      <td>${s.pa} PA</td>
-      <td class="muted">${s.description}</td>
-      <td>${state === 'locked' ? '🔒' : state === 'capped' ? '<span class="muted">hors tranche</span>' : loadout.deck.includes(s.id) ? '<span class="tag">Deck</span>' : ''}</td>
-    </tr>`;
-  }).join('');
+  const profile = () => `
+    <div class="cs-profile">
+      <section class="cs-id ui-panel">
+        <div class="cs-id-head">
+          <div class="char-level big"><small>Niv.</small>${level}</div>
+          <div class="grow">
+            <h3>${escapeHtml(c.name)}</h3>
+            <div class="cs-sub">Archer · T${t.id}${eff < level ? ` · redéfini niv. ${eff}` : ''}</div>
+          </div>
+        </div>
+        ${xpBar(c.xp)}
+        <div class="cs-sub">Créé le ${date} · ${c.xp.toLocaleString('fr-FR')} XP au total${level >= MAX_LEVEL ? ' · niveau maximum' : ''}</div>
+        <div class="cs-kv">
+          <div><b>${c.stats.runs}</b><span>Runs</span></div>
+          <div><b>${c.stats.wins}</b><span>Victoires</span></div>
+          <div><b>${c.stats.kills}</b><span>Monstres</span></div>
+          <div><b>${c.stats.bossKills}</b><span>Boss</span></div>
+        </div>
+        <button class="ui-btn ui-btn--danger ui-btn--sm cs-delete" id="delete-char">${icon('close')} Supprimer le personnage</button>
+      </section>
+      <section class="cs-stats ui-panel">
+        <h3>Caractéristiques <small>T${t.id}, niveau ${eff}</small></h3>
+        ${characterStatsHtml(eq)}
+      </section>
+    </div>`;
 
-  const passiveRows = PASSIVES.map((p) => {
-    const state = p.level > level ? 'locked' : p.level > eff ? 'capped' : 'unlocked';
-    return `<tr class="${state}">
-      <td>${p.level}</td>
-      <td>${p.name}</td>
-      <td class="muted">${p.description}</td>
-      <td>${state === 'locked' ? '🔒' : state === 'capped' ? '<span class="muted">hors tranche</span>' : loadout.passives.includes(p.id) ? '<span class="tag">Équipé</span>' : ''}</td>
-    </tr>`;
-  }).join('');
+  const spells = () => `
+    <div class="cs-list-wrap" data-pager-scope>
+      <div class="cs-list-bar"><span>Deck de ${t.deckSize} sorts en T${t.id}</span>${pagerHtml('cs-spells')}</div>
+      <div class="cs-list" data-paged="cs-spells">${SPELLS.map((s) => {
+        const st = stateOf(s.level);
+        return `<div class="cs-item ${st}">
+          <span class="cs-icon el-theme-${s.element}">${spellIconImg(s.id)}</span>
+          <div class="cs-item-body">
+            <div class="cs-item-head"><b>${s.name}</b><span class="cs-lvl">Niv. ${s.level} · ${s.pa} PA</span>${stateTag(st, loadout.deck.includes(s.id), 'Deck')}</div>
+            <p>${s.description}</p>
+          </div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
 
-  const slots = Array.from({ length: t.passiveSlots }, (_, i) => {
-    const id = loadout.passives[i];
-    const p = id ? PASSIVES.find((x) => x.id === id) : undefined;
-    return `<div class="slot ${p ? 'filled' : ''}">${p ? p.name : 'Emplacement libre'}</div>`;
-  }).join('');
+  const passives = () => `
+    <div class="cs-list-wrap" data-pager-scope>
+      <div class="cs-list-bar"><span>${loadout.passives.length} / ${t.passiveSlots} emplacement${t.passiveSlots > 1 ? 's' : ''} en T${t.id}</span>${pagerHtml('cs-passives')}</div>
+      <div class="cs-list" data-paged="cs-passives">${PASSIVES.map((p) => {
+        const st = stateOf(p.level);
+        return `<div class="cs-item ${st}">
+          <span class="cs-icon cs-icon--passive">${icon('sparkle')}</span>
+          <div class="cs-item-body">
+            <div class="cs-item-head"><b>${p.name}</b><span class="cs-lvl">Niv. ${p.level}</span>${stateTag(st, loadout.passives.includes(p.id), 'Équipé')}</div>
+            <p>${p.description}</p>
+          </div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
 
-  const overlay = openOverlay(
-    `<div class="sheet-head">
-       <div class="char-level big"><small>Niv.</small>${level}</div>
-       <div class="grow">
-         <h2>${escapeHtml(c.name)}</h2>
-         <div class="muted">Archer · créé le ${date} · ${c.xp.toLocaleString('fr-FR')} XP au total${level >= MAX_LEVEL ? ' · niveau maximum' : ''}</div>
-         ${xpBar(c.xp)}
-       </div>
-     </div>
-
-     <div class="sheet-grid">
-       <section>
-         <h3>Caractéristiques <span class="muted">(T${t.id}, niveau ${eff})</span></h3>
-         ${characterStatsHtml(eq)}
-         <p class="muted">Base de l’Archer + équipement porté en T${t.id}.</p>
-       </section>
-       <section>
-         <h3>Statistiques</h3>
-         <div class="kv"><span>Runs joués</span><b>${c.stats.runs}</b></div>
-         <div class="kv"><span>Donjons terminés</span><b>${c.stats.wins}</b></div>
-         <div class="kv"><span>Monstres vaincus</span><b>${c.stats.kills}</b></div>
-         <div class="kv"><span>Boss vaincus</span><b>${c.stats.bossKills}</b></div>
-       </section>
-     </div>
-
-     <section>
-       <h3>Passifs <span class="muted">${loadout.passives.length} / ${t.passiveSlots} emplacement${t.passiveSlots > 1 ? 's' : ''} en T${t.id}</span></h3>
-       <div class="slots">${slots}</div>
-       <table class="sheet-table">${passiveRows}</table>
-     </section>
-
-     <section>
-       <h3>Sorts <span class="muted">deck de ${t.deckSize} en T${t.id}</span></h3>
-       <table class="sheet-table">${spellRows}</table>
-     </section>
-
-     <section>
-       <h3>Tranches et redéfinition</h3>
-       <div class="tranches">${trancheRowsHtml(c)}</div>
-     </section>
-
-     <div class="row">
-       <button class="primary" data-close>Fermer</button>
-       <button class="secondary danger" id="delete-char">Supprimer le personnage</button>
-     </div>`,
-    'sheet',
-  );
-  bindTrancheButtons(overlay, () => {
-    overlay.remove();
+  const refresh = (next: string) => {
+    panel.close();
     onChange();
-    openCharacterSheet(onChange);
+    openCharacterSheet(onChange, next);
+  };
+  const panel = openPanel({
+    title: 'Fiche du personnage',
+    cls: 'cs-panel',
+    tab,
+    onClose: () => undefined,
+    tabs: [
+      {
+        id: 'profile',
+        label: 'Profil',
+        html: profile,
+        bind: (body) =>
+          body.querySelector('#delete-char')!.addEventListener('click', async () => {
+            const ok = await confirmModal({
+              title: 'Supprimer le personnage ?',
+              text: `${c.name} (niveau ${level}) et toute sa progression seront définitivement perdus.`,
+              confirm: 'Supprimer',
+              danger: true,
+            });
+            if (!ok) return;
+            deleteCharacter();
+            panel.close();
+            onChange();
+          }),
+      },
+      { id: 'spells', label: 'Sorts', html: spells, bind: (body) => void pageAll(body) },
+      { id: 'passives', label: 'Passifs', html: passives, bind: (body) => void pageAll(body) },
+      {
+        id: 'tranches',
+        label: 'Tranches',
+        html: () => `<p class="tr-intro">${TRANCHE_INTRO}</p>${trancheRowsHtml(c)}`,
+        bind: (body) => bindTrancheButtons(body, () => refresh('tranches')),
+      },
+    ],
   });
-  overlay.querySelector('#delete-char')!.addEventListener('click', () => {
-    if (!confirm(`Supprimer définitivement ${c.name} (niveau ${level}) ? Toute sa progression sera perdue.`)) return;
-    deleteCharacter();
-    overlay.remove();
-    onChange();
+  // Mémorise le volet ouvert pour la prochaine ouverture.
+  panel.el.querySelector('[data-seg="pmodal-tab"]')?.addEventListener('click', (e) => {
+    const v = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-value]')?.dataset.value;
+    if (v) sheetTab = v;
   });
 }
 

@@ -19,12 +19,15 @@ import {
   type RunConfig,
   type RunScore,
   type RunState,
+  type RunSummary,
+  type ItemInstance,
+  dungeonResources,
 } from '@chabfu/engine';
 import { renderEquipmentScreen } from './stuff/equipment-screen';
 import { bindLootPanel, lootPanelHtml } from './stuff/loot-panel';
-import { withEquipment } from './stuff/store';
+import { getInventory, withEquipment } from './stuff/store';
 import { rewardsPanelHtml } from './craft/rewards-panel';
-import { grantRunRewards } from './craft/store';
+import { grantRunRewards, type RunRewards } from './craft/store';
 import { renderWorkshopScreen } from './craft/workshop-screen';
 import { formatTime, leaveRun, startRun as startCombat } from './combat';
 import { ELEMENT_LABEL, rangeLabel } from './info';
@@ -42,7 +45,9 @@ import './ui/skin-ng.css';
 import './ui/components.css';
 import { coachTour, type CoachStep } from './ui/coach';
 import './ui/onboarding.css';
-import { openSheet, trackInputMode } from './ui/components';
+import { bindSegmented, openSheet, segmented, trackInputMode } from './ui/components';
+import { pageAll, pagerHtml } from './ui/pager';
+import './ui/fit.css';
 import { sfx, unlockAudio } from './ui/sfx';
 import { applySettings } from './ui/settings';
 import { elementIcon, icon } from './ui/icons';
@@ -128,6 +133,8 @@ function goTab(t: HubTab): void {
 
 /** Onglet affiché, pour revenir au même écran après un changement de tranche ou de personnage. */
 let currentTab: HubTab = 'dungeons';
+/** Volet du grimoire : sorts ou passifs. */
+let grTab: 'spells' | 'passives' = 'spells';
 
 /**
  * Coquille commune des écrans hors combat : barre de navigation fixe et zone d'écran.
@@ -156,7 +163,7 @@ function hubTips(tab: HubTab): void {
     dungeons: [
       { target: '.lb-dungeon', title: 'Choisissez un donjon', text: 'Chaque donjon enchaîne plusieurs salles de monstres, puis un boss. Les flèches font défiler les donjons de votre tranche.' },
       { target: '.lb-steps', title: 'Difficulté', text: 'Plus la difficulté monte, plus les monstres sont résistants… et plus ils rapportent d’XP et de butin.' },
-      { target: '.lb-deck-panel', title: 'Votre deck', text: 'Les sorts que vous emportez au combat. Changez-les dans le Grimoire, votre stuff dans l’Équipement.' },
+      { target: '.lb-deck-panel', title: 'Votre deck', text: 'Les sorts que vous emportez au combat. Touchez-les pour les changer dans le Grimoire ; votre stuff se règle dans l’Équipement.' },
       { target: '#start', title: 'À l’attaque !', text: 'Lancez le run. Un petit guide vous attend dans le premier combat.' },
     ],
     grimoire: [{ target: '.gr-grid', title: 'Le Grimoire', text: 'Touchez un sort pour lire sa fiche et l’ajouter à votre deck ou l’en retirer. De nouveaux sorts arrivent avec les niveaux.' }],
@@ -247,7 +254,7 @@ function renderSetup(): void {
           <p class="lb-note" id="diff-mult">${multLabel(save.difficulty)}</p>
         </div>
         <div class="ui-panel lb-panel lb-deck-panel">
-          <div class="lb-deck">
+          <div class="lb-deck" id="lb-deck" role="button" tabindex="0" aria-label="Deck : ouvrir le Grimoire">
             ${Array.from({ length: tranche.deckSize }, (_, i) => {
               const sp = loadout.deck[i] ? SPELLS.find((x) => x.id === loadout.deck[i]) : undefined;
               return sp
@@ -255,10 +262,7 @@ function renderSetup(): void {
                 : `<div class="lb-card empty"></div>`;
             }).join('')}
           </div>
-          <div class="lb-deck-actions">
-            <button class="ui-btn ui-btn--blue ui-btn--sm" id="edit-deck">${icon('grimoire')} Grimoire</button>
-            <button class="ui-btn ui-btn--blue ui-btn--sm" id="open-equipment">${icon('equipment')} Équipement </button>
-          </div>
+          <button class="ui-icon-btn ui-icon-btn--sm lb-deck-edit" id="edit-deck" aria-label="Modifier le deck dans le Grimoire">${icon('grimoire')}</button>
         </div>
         <button class="ui-btn ui-btn--primary ui-btn--xl lb-go" id="start">Combattre</button>
         <p class="lb-error" id="deck-error"></p>
@@ -282,9 +286,15 @@ function renderSetup(): void {
         <button class="ui-btn ui-btn--primary ui-btn--lg gr-go" id="start">Combattre</button>
         <p class="lb-error" id="deck-error"></p>
       </section>
-      <section class="gr-section">
-        <div class="gr-title">Sorts <small>Touchez une carte pour la voir en détail et l’ajouter au deck.</small></div>
-        <div class="gr-grid">
+      <section class="gr-main">
+        <div class="gr-bar">
+          ${segmented('gr-tab', [{ value: 'spells', label: `${icon('grimoire')} Sorts` }, { value: 'passives', label: `${icon('sparkle')} Passifs <b id="passive-count"></b>` }], grTab)}
+          <small class="gr-hint">${grTab === 'spells' ? 'Touchez une carte pour sa fiche et l’ajouter au deck.' : `Touchez un passif pour l’équiper (${tranche.passiveSlots} emplacement${tranche.passiveSlots > 1 ? 's' : ''}).`}</small>
+          ${pagerHtml(`gr-${grTab}-${tranche.id}`)}
+        </div>
+        ${
+          grTab === 'spells'
+            ? `<div class="gr-grid" data-paged="gr-spells-${tranche.id}">
           ${spells
             .map((sp) => {
               const locked = sp.level > effLevel;
@@ -295,11 +305,8 @@ function renderSetup(): void {
             </button>`;
             })
             .join('')}
-        </div>
-      </section>
-      <section class="gr-section">
-        <div class="gr-title">Passifs <b id="passive-count"></b></div>
-        <div class="gr-passives">
+        </div>`
+            : `<div class="gr-passives" data-paged="gr-passives-${tranche.id}">
           ${passives
             .map((pa) => {
               const locked = pa.level > effLevel;
@@ -310,18 +317,21 @@ function renderSetup(): void {
             </button>`;
             })
             .join('')}
-        </div>
+        </div>`
+        }
       </section>
     </div>`;
 
-  const keepScroll = currentTab === tab && app.classList.contains('has-hub') ? window.scrollY : 0;
   const screen = hubShell(tab)!;
   const header =
     '';
   screen.innerHTML = `<div class="setup hub">${header}${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>
     <div class="spell-tip grimoire-tip" id="grimoire-tip" hidden></div>`;
-  // Le grimoire se redessine à chaque clic : on garde la position de défilement.
-  window.scrollTo(0, keepScroll);
+  pageAll(screen);
+  bindSegmented(screen, 'gr-tab', (v) => {
+    grTab = v as 'spells' | 'passives';
+    renderSetup();
+  });
   const deck = new Set(loadout.deck);
   const chosenPassives = new Set(loadout.passives);
   const persist = () => {
@@ -406,6 +416,7 @@ function renderSetup(): void {
     }),
   );
   app.querySelector('#edit-deck')?.addEventListener('click', () => goTab('grimoire'));
+  app.querySelector('#lb-deck')?.addEventListener('click', () => goTab('grimoire'));
   app.querySelector('#open-equipment')?.addEventListener('click', () => {
     keepDifficulty();
     openEquipment();
@@ -498,6 +509,41 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     saveCharacter(character);
     sections = renderRunEndSections({ config: v.config, state: v.state, summary, report, character, validated: !!check?.valid });
   }
+  showRunEnd({ config, state, timeMs, check, loot, rewards, sections });
+}
+
+// Aperçu de l'écran de fin (outils de développement uniquement) : window.__devRunEnd('won' | 'lost').
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__devRunEnd = (status: 'won' | 'lost' = 'won', drops = 3) => {
+    const c = getCharacter();
+    if (!c) return;
+    const dungeon = DUNGEONS.find((d) => d.tranche === c.trancheId)!;
+    const config = withEquipment(characterRunConfig(c, dungeon.id, 6));
+    const state = { ...createRun(config), status, turn: 14 } as RunState;
+    const loot = status === 'won' ? getInventory().items.filter((i) => !Object.values(getInventory().loadouts?.[c.trancheId] ?? {}).includes(i.uid)).slice(-drops) : [];
+    const summary = { ...summarizeRun(config, []), status, kills: [{ name: 'Ronceux', xp: 40 }, { name: 'Guêpe', xp: 30 }, { name: 'Gardien racineux', xp: 220 }] } as RunSummary;
+    const { character, report } = applyRunSummary(c, { ...summary, xpTotal: 900, xpFromKills: 290, xpVictoryBonus: 610 });
+    const sections = renderRunEndSections({ config, state, summary: { ...summary, xpVictoryBonus: 610 }, report: { ...report, xpGained: 900 }, character, validated: status === 'won' });
+    const rewards: RunRewards | null =
+      status === 'won' ? { kept: loot, autoRecycled: [{ uid: 'dev-r', itemId: loot[0]?.itemId ?? 'arc_racineux', rarity: 'common' }], shardsGained: { [c.trancheId]: 6 }, resources: Object.fromEntries(dungeonResources(dungeon.id).map((r, i) => [r.id, 3 - (i % 3)])), trancheId: c.trancheId } : null;
+    showRunEnd({ config, state, timeMs: 83000, check: status === 'won' ? { valid: true } as ReturnType<typeof verifyRun> : null, loot, rewards, sections });
+  };
+}
+
+/** Écran de fin de run, sur une seule page : titre et résumé en haut, blocs côte à côte, actions en bas. */
+function showRunEnd(o: {
+  config: RunConfig;
+  state: RunState;
+  timeMs: number;
+  check: ReturnType<typeof verifyRun> | null;
+  loot: ItemInstance[];
+  rewards: RunRewards | null;
+  sections: HTMLElement[];
+}): void {
+  const v = { config: o.config, state: o.state };
+  const { timeMs, check, loot, rewards, sections } = o;
+  const won = v.state.status === 'won';
+  const abandoned = v.state.status === 'playing';
   const overlay = document.createElement('div');
   overlay.className = `overlay end-ov ${won ? 'won' : 'lost'}`;
   const title = won ? 'Victoire !' : abandoned ? 'Run abandonné' : 'Défaite';
@@ -515,14 +561,16 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
         ${loot.length ? lootPanelHtml(loot, v.config) : ''}
         ${rewards ? rewardsPanelHtml(rewards) : ''}
       </div>
-      <div class="end-actions">
-        <button class="ui-btn ui-btn--blue ui-btn--lg" id="back">${icon('home')} Continuer</button>
-        <button class="ui-btn ui-btn--primary ui-btn--lg" id="again">${icon('replay')} Rejouer</button>
-      </div>
-      <div class="end-links">
-        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="equipment">${icon('equipment')} Équipement</button>
-        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="workshop">${icon('workshop')} Atelier</button>
-        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="copy">Copier le replay</button>
+      <div class="end-foot">
+        <div class="end-links">
+          <button class="ui-btn ui-btn--ghost ui-btn--sm" id="equipment" aria-label="Équipement">${icon('equipment')}<span>Équipement</span></button>
+          <button class="ui-btn ui-btn--ghost ui-btn--sm" id="workshop" aria-label="Atelier">${icon('workshop')}<span>Atelier</span></button>
+          <button class="ui-btn ui-btn--ghost ui-btn--sm" id="copy">Copier le replay</button>
+        </div>
+        <div class="end-actions">
+          <button class="ui-btn ui-btn--blue ui-btn--lg" id="back">${icon('home')} Continuer</button>
+          <button class="ui-btn ui-btn--primary ui-btn--lg" id="again">${icon('replay')} Rejouer</button>
+        </div>
       </div>
     </div>`;
   const body = overlay.querySelector('.end-body')!;
@@ -530,6 +578,7 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
   sections.reverse().forEach((el) => body.prepend(el));
   [...body.children].forEach((el, i) => (el as HTMLElement).style.setProperty('--i', String(i)));
   document.body.appendChild(overlay);
+  pageAll(overlay);
   if (won) loot.forEach((_, i) => setTimeout(() => sfx('coin'), 900 + i * 220));
   overlay.querySelector('#again')!.addEventListener('click', () => {
     overlay.remove();

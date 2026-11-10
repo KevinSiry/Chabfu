@@ -18,7 +18,8 @@ import { KIND_LABEL, bonusScore, itemCardHtml } from './item-view';
 import { characterStatsHtml, statRowsHtml } from './stat-view';
 import { getInventory, setInventory } from './store';
 import { assetUrl, itemIconImg } from '../ui/assets';
-import { openSheet } from '../ui/components';
+import { bindSegmented, openSheet, segmented } from '../ui/components';
+import { pageAll, pagerHtml } from '../ui/pager';
 import { icon } from '../ui/icons';
 import './stuff.css';
 
@@ -30,6 +31,8 @@ export interface EquipmentScreenOptions {
 }
 
 let filter: ItemKind | 'all' = 'all';
+/** Volet de droite : sac ou caractéristiques. */
+let view: 'bag' | 'stats' = 'bag';
 
 /** Écran d'équipement : loadout de la tranche (9 emplacements), sac, total des bonus et table de butin. */
 export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOptions): void {
@@ -49,33 +52,39 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
   const slotHtml = (s: (typeof SLOTS)[number]) => {
     const item = loadout[s.id] ? findItem(inv, loadout[s.id]!) : undefined;
     return item
-      ? `<div class="eq-slot">${tile(item.uid, item.itemId, item.rarity, s.kind, 'worn')}<span>${s.label}</span></div>`
-      : `<div class="eq-slot empty"><span class="eq-tile empty">${itemIconImg(s.kind)}</span><span>${s.label}</span></div>`;
+      ? `<div class="eq-slot" title="${s.label}">${tile(item.uid, item.itemId, item.rarity, s.kind, 'worn')}<span>${s.label}</span></div>`
+      : `<div class="eq-slot empty" title="${s.label}"><span class="eq-tile empty">${itemIconImg(s.kind)}</span><span>${s.label}</span></div>`;
   };
-  const half = Math.ceil(SLOTS.length / 2);
   const worn = Object.values(loadout).filter(Boolean).length;
+  const bagCount = inv.items.filter((i) => getItem(i.itemId).tranche === o.trancheId).length;
 
   app.innerHTML = `
-    <div class="setup stuff eq">
+    <div class="setup stuff eq" data-pager-scope>
       <section class="ui-panel eq-hero">
         <div class="eq-hero-head"><span>Porté</span> <b>${worn} / ${SLOTS.length}</b></div>
         <div class="eq-doll">
-          <div class="eq-col">${SLOTS.slice(0, half).map(slotHtml).join('')}</div>
+          <div class="eq-col">${SLOTS.slice(0, 3).map(slotHtml).join('')}</div>
           <div class="eq-archer"><img src="${assetUrl('units/archer.png')}" alt="" draggable="false"></div>
-          <div class="eq-col">${SLOTS.slice(half).map(slotHtml).join('')}</div>
+          <div class="eq-col">${SLOTS.slice(3, 6).map(slotHtml).join('')}</div>
+          <div class="eq-row">${SLOTS.slice(6).map(slotHtml).join('')}</div>
         </div>
-        <div class="eq-stats">${characterStatsHtml(totalBonus)}</div>
       </section>
       <section class="ui-panel eq-bag">
-        <div class="eq-hero-head"><span>Sac</span> <b>${bag.length}</b>
-          <button class="ui-btn ui-btn--gold ui-btn--sm eq-loot-btn" id="eq-loot">${icon('bag')} Butin du boss</button></div>
-        <div class="chips">
+        <div class="eq-bar">
+          ${segmented('eq-view', [{ value: 'bag', label: `${icon('bag')} Sac <b>${bagCount}</b>` }, { value: 'stats', label: `${icon('info')} Stats` }], view)}
+          <button class="ui-btn ui-btn--gold ui-btn--sm eq-loot-btn" id="eq-loot" aria-label="Butin du boss">${icon('trophy')}<span>Butin du boss</span></button>
+          ${view === 'bag' && bag.length ? pagerHtml(`eq-bag-${o.trancheId}-${filter}`) : ''}
+        </div>
+        ${
+          view === 'stats'
+            ? `<div class="eq-stats">${characterStatsHtml(totalBonus)}</div>`
+            : `<div class="chips eq-kinds">
           <button class="chip ${filter === 'all' ? 'on' : ''}" data-filter="all">Tout</button>
-          ${kinds.map((k) => `<button class="chip ${filter === k ? 'on' : ''}" data-filter="${k}">${KIND_LABEL[k]}</button>`).join('')}
+          ${kinds.map((k) => `<button class="chip ${filter === k ? 'on' : ''}" data-filter="${k}" title="${KIND_LABEL[k]}" aria-label="${KIND_LABEL[k]}">${itemIconImg(k)}<span>${KIND_LABEL[k]}</span></button>`).join('')}
         </div>
         ${
           bag.length
-            ? `<div class="eq-grid">${bag
+            ? `<div class="eq-grid" data-paged="eq-bag-${o.trancheId}-${filter}">${bag
                 .map((i) => {
                   const eq = Object.values(loadout).includes(i.uid);
                   const def = getItem(i.itemId);
@@ -84,9 +93,15 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
                 })
                 .join('')}</div>`
             : `<div class="ui-empty eq-empty">${icon('bag')}<b>Sac vide</b><p>Battez le boss d’un donjon pour obtenir du butin.</p></div>`
+        }`
         }
       </section>
     </div>`;
+  pageAll(app);
+  bindSegmented(app, 'eq-view', (v) => {
+    view = v as 'bag' | 'stats';
+    renderEquipmentScreen(app, o);
+  });
 
   const rerender = () => renderEquipmentScreen(app, o);
   app.querySelectorAll<HTMLElement>('[data-item]').forEach((el) =>

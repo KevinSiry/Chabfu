@@ -2,15 +2,16 @@ import { equipItem, getDungeon, type ItemInstance, type RunConfig } from '@chabf
 import { itemCardHtml } from './item-view';
 import { getInventory, setInventory } from './store';
 import './stuff.css';
+import { pageAll, pagerHtml } from '../ui/pager';
 
 /** Bloc « Butin » de l'écran de fin de run : les objets apparaissent un par un, avec la comparaison à l'équipé. */
 export function lootPanelHtml(loot: ItemInstance[], config: RunConfig): string {
   const trancheId = getDungeon(config.dungeonId).tranche;
   const inv = getInventory();
   return `
-    <div class="loot">
-      <h3>Butin du boss <span class="muted">${loot.length} objet${loot.length > 1 ? 's' : ''}</span></h3>
-      <div class="loot-list">
+    <div class="loot" data-pager-scope>
+      <h3>Butin du boss <span class="muted">${loot.length} objet${loot.length > 1 ? 's' : ''}</span>${pagerHtml('end-loot')}</h3>
+      <div class="loot-list" data-paged="end-loot">
         ${loot
           .map((item, i) =>
             itemCardHtml(item, {
@@ -37,6 +38,7 @@ export function bindLootPanel(root: HTMLElement, loot: ItemInstance[], config: R
       if (!holder) return;
       holder.outerHTML = lootPanelHtml(loot, config);
       root.querySelectorAll('.loot .reveal').forEach((el) => el.classList.remove('reveal'));
+      pageAll(root.querySelector('.loot')!);
       bindLootPanel(root, loot, config);
     }),
   );
