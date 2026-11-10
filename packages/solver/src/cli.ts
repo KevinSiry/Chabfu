@@ -12,14 +12,14 @@
  *   --stuff <liste>       Totaux de stats de référence : aucun, faible, moyen, fort (voir stuff.ts), ou panoplie
  *                         réelle des objets de la tranche : panoplie-commun … panoplie-legendaire (défaut : aucun).
  *   --set <réglage>       Essaie une valeur sans modifier le code (répétable), ex. monster.*.hp=x0.7,
- *                         spell.tir_concentre.concentrationCost=3. Voir overrides.ts.
+ *                         spell.tir_concentre.pa=1. Voir overrides.ts.
  *   --level <n>           Niveau du personnage (défaut : niveau de redéfinition de la tranche). Les decks
  *                         prédéfinis indisponibles à ce niveau sont remplacés par tous les sorts débloqués.
  *   --passives <liste>    Passifs équipés, ex. patience (défaut : aucun).
  *   --check               Vérifie les cibles d'équilibrage (voir check.ts) sur chaque donjon, en plus du reste.
  *                         Sans --difficulty ni --stuff explicites, ne lance que la vérification.
  *   --beam <n>            Largeur du faisceau (défaut 48). --quick équivaut à --beam 16.
- *   --no-walk             Ajoute une passe « Archer immobile » (sans marcher) pour mesurer la tension de la Concentration.
+ *   --no-walk             Ajoute une passe « Archer immobile » (sans marcher) pour mesurer le poids des déplacements.
  *   --jobs <n>            Calculs en parallèle (défaut : nombre de cœurs - 1).
  *   --out <dossier>       Dossier du rapport (défaut : reports). Écrit equilibrage.md, resultats.json et les routes.
  */
@@ -37,7 +37,7 @@ import { isMainThread } from 'node:worker_threads';
 export const PRESET_DECKS: Record<string, string[]> = {
   'feu-poussee': ['fleche_ardente', 'bond_arriere', 'fleche_fracassante', 'tir_concentre', 'coup_de_pied'],
   'multi-element': ['fleche_ardente', 'fleche_givree', 'fleche_du_vent', 'pluie_de_fleches', 'fleche_fracassante'],
-  concentration: ['fleche_ardente', 'tir_concentre', 'fleche_givree', 'fleche_du_vent', 'bond_arriere'],
+  'longue-portee': ['fleche_ardente', 'tir_concentre', 'fleche_givree', 'fleche_du_vent', 'bond_arriere'],
 };
 
 function parseArgs(argv: string[]) {

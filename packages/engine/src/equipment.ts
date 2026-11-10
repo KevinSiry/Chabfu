@@ -38,7 +38,7 @@ export interface LootDrop {
 
 /**
  * Bonus totaux de l'équipement, injectés dans `RunConfig.equipment`.
- * Les champs ajoutés après coup (resistances, damage, range, concentration) sont optionnels pour le combat :
+ * Les champs ajoutés après coup (resistances, damage, range) sont optionnels pour le combat :
  * un bonus écrit à la main sans eux reste valide et vaut 0.
  */
 export interface EquipmentBonus {
@@ -49,7 +49,6 @@ export interface EquipmentBonus {
   resistances: Record<Element, number>;
   damage: number;
   range: number;
-  concentration: number;
 }
 
 /** Bonus accepté par `RunConfig.equipment` : les stats ajoutées après coup peuvent manquer (elles valent 0). */
@@ -76,11 +75,11 @@ const STAT_ELEMENTS: Element[] = ['fire', 'water', 'earth', 'air', 'neutral'];
 const zeroElements = (): Record<Element, number> => ({ fire: 0, water: 0, earth: 0, air: 0, neutral: 0 });
 
 /** Stats scalaires de l'équipement, dans l'ordre d'affichage. */
-const SCALAR_KEYS = ['hp', 'pa', 'pm', 'damage', 'range', 'concentration'] as const;
+const SCALAR_KEYS = ['hp', 'pa', 'pm', 'damage', 'range'] as const;
 type ScalarKey = (typeof SCALAR_KEYS)[number];
 
 export function emptyBonus(): EquipmentBonus {
-  return { hp: 0, pa: 0, pm: 0, masteries: zeroElements(), resistances: zeroElements(), damage: 0, range: 0, concentration: 0 };
+  return { hp: 0, pa: 0, pm: 0, masteries: zeroElements(), resistances: zeroElements(), damage: 0, range: 0 };
 }
 
 /** Complète un bonus partiel (ancien format, bonus écrit à la main) avec des zéros. */
@@ -106,7 +105,6 @@ export function itemStats(itemId: string, rarity: Rarity): EquipmentBonus {
   b.pa = scaled(s.pa);
   b.pm = scaled(s.pm);
   b.range = scaled(s.range);
-  b.concentration = scaled(s.concentration);
   for (const e of STAT_ELEMENTS) {
     b.masteries[e] = scaled(s.masteries?.[e]);
     b.resistances[e] = scaled(s.resistances?.[e]);
@@ -154,7 +152,6 @@ const SCALAR_LABEL: Record<ScalarKey, string> = {
   pm: 'PM',
   damage: 'Dommages',
   range: 'Portée',
-  concentration: 'Concentration par salle',
 };
 
 /** Lignes non nulles d'un bonus, dans un ordre stable. */
@@ -171,7 +168,6 @@ export function statLines(bonus: EquipmentConfig, labels: Record<Element, string
     if (b.masteries[e]) out.push({ key: `mastery.${e}`, stat: 'mastery', element: e, value: b.masteries[e], label: `Maîtrise ${labels[e]}`, unit: ' %' });
   push('damage');
   push('range');
-  push('concentration');
   for (const e of STAT_ELEMENTS)
     if (b.resistances[e]) out.push({ key: `resistance.${e}`, stat: 'resistance', element: e, value: b.resistances[e], label: `Résistance ${labels[e]}`, unit: ' %' });
   return out;

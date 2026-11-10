@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  distanceBonus,
   applyAction,
   difficultyMultiplier,
   applyRunSummary,
@@ -61,24 +62,26 @@ describe('passifs', () => {
     expect(() => createRun({ ...base, passives: ['patience', 'sang_froid'] })).toThrow();
   });
 
-  it('Réception agile annule la perte de Concentration de Bond arrière', () => {
-    const prep = (passives: string[]) =>
-      edit(createRun({ ...base, passives }), (s) => {
-        s.player.concentration = 3;
-        getPlayer(s).pos = { x: 3, y: 3 };
-      });
+  it('Réception agile fait coûter 1 PA de moins à Bond arrière', () => {
+    const prep = (passives: string[]) => edit(createRun({ ...base, passives }), (s) => (getPlayer(s).pos = { x: 3, y: 3 }));
     const target = { x: 5, y: 3 };
-    expect(applyAction(prep([]), { type: 'cast', spellId: 'bond_arriere', target }).state.player.concentration).toBe(2);
-    expect(applyAction(prep(['reception_agile']), { type: 'cast', spellId: 'bond_arriere', target }).state.player.concentration).toBe(3);
+    const pa = getPlayer(prep([])).pa;
+    expect(getPlayer(applyAction(prep([]), { type: 'cast', spellId: 'bond_arriere', target }).state).pa).toBe(pa - 2);
+    expect(getPlayer(applyAction(prep(['reception_agile']), { type: 'cast', spellId: 'bond_arriere', target }).state).pa).toBe(pa - 1);
   });
 
-  it('Sang-froid réduit le coût de Tir concentré', () => {
-    const s = edit(createRun({ ...base, passives: ['sang_froid'] }), (st) => (st.player.concentration = 3));
-    expect(getCastError(s, 'tir_concentre')).toBeNull();
+  it('Sang-froid fait coûter 1 PA de moins à Tir concentré', () => {
+    const s = createRun({ ...base, passives: ['sang_froid'] });
     const after = applyAction(s, { type: 'cast', spellId: 'tir_concentre', target: getPlayer(s).pos }).state;
-    expect(after.player.concentration).toBe(0);
-    const without = edit(createRun(base), (st) => (st.player.concentration = 3));
-    expect(getCastError(without, 'tir_concentre')).toMatch(/Concentration/);
+    expect(getPlayer(after).pa).toBe(getPlayer(s).pa - 1);
+    expect(after.player.nextShotAimed).toBe(true);
+  });
+
+  it('Longue-vue augmente le bonus de distance', () => {
+    const prep = (passives: string[]) => edit(createRun({ ...base, passives }), (s) => (getPlayer(s).pos = { x: 1, y: 1 }));
+    expect(distanceBonus(prep([]), 8)).toBeCloseTo(0.3);
+    expect(distanceBonus(prep(['patience']), 8)).toBeCloseTo(0.4);
+    expect(distanceBonus(prep(['patience']), 5)).toBeCloseTo(0.16);
   });
 
   it('Œil perçant allonge la portée des tirs, pas celle de Bond arrière', () => {
@@ -87,7 +90,7 @@ describe('passifs', () => {
     expect(range(['oeil_percant'], 'bond_arriere')).toBe(2);
   });
 
-  it('Instinct du chasseur donne de la Concentration à chaque monstre achevé', () => {
+  it('Instinct du chasseur rend 1 PM à chaque monstre achevé', () => {
     const prep = (passives: string[]) =>
       edit(createRun({ ...base, passives }), (s) => {
         getPlayer(s).pos = { x: 4, y: 1 };
@@ -95,8 +98,8 @@ describe('passifs', () => {
         m.hp = 1;
       });
     const act: Action = { type: 'cast', spellId: 'fleche_ardente', target: { x: 8, y: 1 } };
-    const a = applyAction(prep([]), act).state.player.concentration;
-    const b = applyAction(prep(['instinct_du_chasseur']), act).state.player.concentration;
+    const a = getPlayer(applyAction(prep([]), act).state).pm;
+    const b = getPlayer(applyAction(prep(['instinct_du_chasseur']), act).state).pm;
     expect(b).toBe(a + 1);
   });
 

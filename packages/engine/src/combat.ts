@@ -5,18 +5,23 @@ import { getSpell, type SpellDef } from './data/spells.js';
 import { DIRS, distance, hasLineOfSight, isFree, isWall, key, reachable, samePos, unitAt } from './grid.js';
 import { MAX_DIFFICULTY, MIN_DIFFICULTY, difficultyMultiplier } from './loot.js';
 import { MAX_RESISTANCE } from './equipment.js';
-import { combinePassives, spellConcentrationCost, spellConcentrationLoss, spellMaxRange, validatePassives } from './passives.js';
+import { combinePassives, spellMaxRange, spellPaCost, validatePassives } from './passives.js';
 import { effectiveLevel, getTranche, validateDeck } from './progression.js';
 import type { Action, Element, GameEvent, Pos, RunConfig, RunState, Unit } from './types.js';
 
 export const PLAYER_ID = 'archer';
-export const MAX_CONCENTRATION = 10;
 export const BASE_PA = 6;
 export const BASE_PM = 3;
 export const PLAYER_HP = 150;
 export const WEAKNESS_BONUS = 1.3;
 export const RESISTANCE_MALUS = 0.8;
 export const COLLISION_DAMAGE_PER_CELL = 8;
+/** Portée = puissance : les dégâts directs des sorts de l'Archer montent avec la distance de tir. */
+export const DISTANCE_BONUS_FROM = 3;
+/** Bonus par case au-delà de DISTANCE_BONUS_FROM. */
+export const DISTANCE_BONUS_PER_CELL = 0.06;
+/** Nombre de cases comptées au maximum (plafond atteint à DISTANCE_BONUS_FROM + ce nombre). */
+export const DISTANCE_BONUS_MAX_CELLS = 5;
 
 /**
  * Copie profonde : l'état du run est du JSON pur, ce qui le rend aussi sérialisable pour le serveur.
@@ -78,10 +83,7 @@ export function createRun(config: RunConfig): RunState {
     room: { name: '', width: 0, height: 0, tiles: [] },
     units: [],
     player: {
-      concentration: 0,
-      nextShotDouble: false,
-      movedLastTurn: true, // pas de bonus de Concentration au tout premier tour
-      pmSpentThisTurn: 0,
+      nextShotAimed: false,
       spellUses: {},
       deck: [...config.deck],
       masteries,
@@ -145,8 +147,6 @@ function enterRoom(state: RunState, index: number, events: GameEvent[]): void {
     });
   });
   events.push({ type: 'roomEnter', roomIndex: index, name: tpl.name });
-  const roomConcentration = state.config.equipment?.concentration ?? 0;
-  if (roomConcentration) changeConcentration(state, roomConcentration, events);
   startPlayerTurn(state, events);
 }
 
@@ -198,12 +198,10 @@ export function getCastError(state: RunState, spellId: string, target?: Pos): st
   if (!state.player.deck.includes(spellId)) return 'Ce sort n’est pas dans le deck.';
   const spell = getSpell(spellId);
   const player = getPlayer(state);
-  if (player.pa < spell.pa) return 'Pas assez de PA.';
+  if (player.pa < spellPaCost(spell, state.player.passives)) return 'Pas assez de PA.';
   const uses = state.player.spellUses[spellId] ?? 0;
   if (spell.maxPerTurn !== undefined && uses >= spell.maxPerTurn) return 'Limite d’utilisations atteinte ce tour.';
-  const concCost = spellConcentrationCost(spell, state.player.passives);
-  if (concCost && state.player.concentration < concCost) return 'Pas assez de Concentration.';
-  if (spell.buffNextShot && state.player.nextShotDouble) return 'Le prochain tir est déjà concentré.';
+  if (spell.buffNextShot && state.player.nextShotAimed) return 'Le prochain tir est déjà concentré.';
   if (!target) return null;
   return getTargetError(state, spell, target);
 }
@@ -256,13 +254,30 @@ export function getSpellZone(state: RunState, spellId: string, target: Pos): Pos
 // Dégâts
 // ---------------------------------------------------------------------------
 
+/**
+ * Bonus de distance (fraction : 0,18 = +18 %) d'un sort de l'Archer tiré à `cells` cases.
+ * +6 % par case au-delà de 3, plafonné à 5 cases comptées (+30 % à 8 cases ou plus).
+ * Un tir visé (Tir concentré) double le bonus. Les passifs peuvent augmenter le bonus par case.
+ */
+export function distanceBonus(state: RunState, cells: number, aimed = false): number {
+  const counted = Math.max(0, Math.min(DISTANCE_BONUS_MAX_CELLS, cells - DISTANCE_BONUS_FROM));
+  const perCell = DISTANCE_BONUS_PER_CELL + combinePassives(state.player.passives).distanceBonusPerCell;
+  return Math.round(counted * perCell * (aimed ? 2 : 1) * 100) / 100;
+}
+
+/** Bonus de distance maximal possible (pour les fiches). */
+export function maxDistanceBonus(state: RunState, aimed = false): number {
+  return distanceBonus(state, DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS, aimed);
+}
+
 export function computeDamage(
   state: RunState,
   base: number,
   element: Element,
   attacker: Unit | null,
   target: Unit,
-  doubled = false,
+  /** Bonus multiplicatif en fraction (bonus de distance de l'Archer). */
+  bonus = 0,
 ): number {
   let dmg = base;
   if (attacker?.team === 'player') dmg *= 1 + (state.player.masteries[element] ?? 0) / 100;
@@ -270,7 +285,7 @@ export function computeDamage(
   if (target.team === 'player') dmg *= 1 - playerResistance(state, element) / 100;
   if (element !== 'neutral' && target.weakness === element) dmg *= WEAKNESS_BONUS;
   if (element !== 'neutral' && target.resistance === element) dmg *= RESISTANCE_MALUS;
-  if (doubled) dmg *= 2;
+  if (bonus) dmg *= 1 + bonus;
   return Math.max(0, Math.floor(dmg + 1e-9));
 }
 
@@ -281,17 +296,14 @@ function dealDamage(state: RunState, target: Unit, amount: number, element: Elem
   if (target.hp === 0) {
     events.push({ type: 'death', unitId: target.id });
     if (target.team === 'monster') {
-      const bonus = combinePassives(state.player.passives).killConcentration;
-      if (bonus) changeConcentration(state, bonus, events);
+      const pm = combinePassives(state.player.passives).killPm;
+      const player = getPlayer(state);
+      if (pm && player.hp > 0) {
+        player.pm += pm;
+        events.push({ type: 'status', unitId: PLAYER_ID, text: `+${pm} PM` });
+      }
     }
   }
-}
-
-function changeConcentration(state: RunState, delta: number, events: GameEvent[]): void {
-  const before = state.player.concentration;
-  const after = Math.max(0, Math.min(MAX_CONCENTRATION, before + delta));
-  state.player.concentration = after;
-  if (after !== before) events.push({ type: 'concentration', value: after, delta: after - before });
 }
 
 function pushUnit(state: RunState, target: Unit, from: Pos, cells: number, events: GameEvent[]): void {
@@ -326,8 +338,6 @@ function startPlayerTurn(state: RunState, events: GameEvent[]): void {
   player.pmMalus = 0;
   state.player.spellUses = {};
   events.push({ type: 'turnStart', unitId: PLAYER_ID, turn: state.turn });
-  if (!state.player.movedLastTurn) changeConcentration(state, 1 + combinePassives(state.player.passives).stillConcentrationBonus, events);
-  state.player.pmSpentThisTurn = 0;
   tickBurn(state, player, events);
   checkEnd(state, events);
 }
@@ -411,7 +421,6 @@ function checkRoomCleared(state: RunState, events: GameEvent[]): boolean {
     state.status = 'won';
     events.push({ type: 'won' });
   } else {
-    state.player.movedLastTurn = state.player.pmSpentThisTurn > 0;
     enterRoom(state, state.roomIndex + 1, events);
   }
   return true;
@@ -437,9 +446,7 @@ export function applyAction(input: RunState, action: Action): { state: RunState;
       if (!path) throw new InvalidActionError('Case inaccessible.');
       player.pos = { ...action.to };
       player.pm -= path.length;
-      state.player.pmSpentThisTurn += path.length;
       events.push({ type: 'move', unitId: PLAYER_ID, path: path.map((p) => ({ ...p })) });
-      changeConcentration(state, -path.length, events);
       break;
     }
     case 'cast': {
@@ -451,7 +458,6 @@ export function applyAction(input: RunState, action: Action): { state: RunState;
       break;
     }
     case 'endTurn': {
-      state.player.movedLastTurn = state.player.pmSpentThisTurn > 0;
       runMonsterTurns(state, events);
       // Le dernier monstre peut mourir pendant les tours monstres (brûlure, collision) : la salle est alors vidée.
       if (state.status === 'playing' && !checkRoomCleared(state, events)) startPlayerTurn(state, events);
@@ -467,14 +473,9 @@ export function applyAction(input: RunState, action: Action): { state: RunState;
 
 function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEvent[]): void {
   const player = getPlayer(state);
-  player.pa -= spell.pa;
+  player.pa -= spellPaCost(spell, state.player.passives);
   state.player.spellUses[spell.id] = (state.player.spellUses[spell.id] ?? 0) + 1;
   events.push({ type: 'cast', unitId: PLAYER_ID, spellId: spell.id, target: { ...target } });
-
-  const concCost = spellConcentrationCost(spell, state.player.passives);
-  const concLoss = spellConcentrationLoss(spell, state.player.passives);
-  if (concCost) changeConcentration(state, -concCost, events);
-  if (concLoss) changeConcentration(state, -concLoss, events);
 
   if (spell.jump) {
     const from = { ...player.pos };
@@ -483,18 +484,18 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
   }
 
   if (spell.buffNextShot) {
-    state.player.nextShotDouble = true;
-    events.push({ type: 'status', unitId: PLAYER_ID, text: 'Prochain tir doublé' });
+    state.player.nextShotAimed = true;
+    events.push({ type: 'status', unitId: PLAYER_ID, text: 'Prochain tir visé' });
   }
 
   if (spell.damage !== undefined) {
-    const doubled = state.player.nextShotDouble;
-    state.player.nextShotDouble = false;
+    const aimed = state.player.nextShotAimed;
+    state.player.nextShotAimed = false;
     const victims = getSpellZone(state, spell.id, target)
       .map((c) => unitAt(state.units, c))
       .filter((u): u is Unit => !!u && u.team === 'monster');
     for (const victim of victims) {
-      dealDamage(state, victim, computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, victim, doubled), spell.element, 'spell', events);
+      dealDamage(state, victim, computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, victim, distanceBonus(state, distance(player.pos, victim.pos), aimed)), spell.element, 'spell', events);
       if (victim.hp <= 0) continue;
       if (spell.burn) {
         const dmg = computeDamage(state, spell.burn.damage, spell.element, player, victim);
@@ -513,11 +514,6 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
   if (spell.gainPm) {
     player.pm += spell.gainPm;
     events.push({ type: 'status', unitId: PLAYER_ID, text: `+${spell.gainPm} PM` });
-  }
-
-  if (spell.concentrationGain) {
-    const ok = spell.concentrationGainMinDistance === undefined || distance(player.pos, target) >= spell.concentrationGainMinDistance;
-    if (ok) changeConcentration(state, spell.concentrationGain, events);
   }
 }
 

@@ -4,7 +4,7 @@
  * mêmes fonctions que le moteur. Les aperçus sont donc exacts (le combat est déterministe).
  */
 import { canUseAttack } from './ai.js';
-import { PLAYER_ID, applyAction, computeDamage, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
+import { PLAYER_ID, applyAction, computeDamage, distanceBonus, maxDistanceBonus, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
 import { getMonster, monsterBehavior } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
 import { distance, isWall, key, reachable, samePos } from './grid.js';
@@ -35,8 +35,6 @@ export interface ActionPreview {
   valid: boolean;
   error: string | null;
   outcomes: UnitOutcome[];
-  concentrationBefore: number;
-  concentrationAfter: number;
   /** La salle est vidée par cette action. */
   clearsRoom: boolean;
   events: GameEvent[];
@@ -55,7 +53,6 @@ function summarize(before: RunState, events: GameEvent[], stopAtRoomChange = tru
     }
     return o;
   };
-  let conc = before.player.concentration;
   let clearsRoom = false;
   for (const ev of events) {
     if (ev.type === 'roomCleared') {
@@ -88,17 +85,14 @@ function summarize(before: RunState, events: GameEvent[], stopAtRoomChange = tru
       case 'status':
         get(ev.unitId).statuses.push(ev.text);
         break;
-      case 'concentration':
-        conc = ev.value;
-        break;
       default:
         break;
     }
   }
-  return { outcomes: [...outcomes.values()], concentrationBefore: before.player.concentration, concentrationAfter: conc, clearsRoom };
+  return { outcomes: [...outcomes.values()], clearsRoom };
 }
 
-/** Aperçu exact d'une action du joueur : dégâts, morts, poussées, collisions, Concentration. */
+/** Aperçu exact d'une action du joueur : dégâts, morts, poussées, collisions. */
 export function previewAction(state: RunState, action: Action): ActionPreview {
   try {
     const { state: after, events } = applyAction(state, action);
@@ -109,8 +103,6 @@ export function previewAction(state: RunState, action: Action): ActionPreview {
       error: (e as Error).message,
       events: [],
       outcomes: [],
-      concentrationBefore: state.player.concentration,
-      concentrationAfter: state.player.concentration,
       clearsRoom: false,
     };
   }
@@ -118,10 +110,7 @@ export function previewAction(state: RunState, action: Action): ActionPreview {
 
 export function previewCast(state: RunState, spellId: string, target: Pos): ActionPreview {
   const err = getCastError(state, spellId, target);
-  if (err) {
-    const c = state.player.concentration;
-    return { valid: false, error: err, events: [], outcomes: [], concentrationBefore: c, concentrationAfter: c, clearsRoom: false };
-  }
+  if (err) return { valid: false, error: err, events: [], outcomes: [], clearsRoom: false };
   return previewAction(state, { type: 'cast', spellId, target });
 }
 
@@ -139,7 +128,12 @@ export interface DamageBreakdown {
   mastery: number;
   weakness: boolean;
   resistance: boolean;
-  doubled: boolean;
+  /** Distance lanceur → cible, en cases. */
+  distance: number;
+  /** Bonus de distance appliqué (fraction : 0,18 = +18 %), Tir concentré compris. */
+  distanceBonus: number;
+  /** Tir concentré actif : bonus de distance doublé. */
+  aimed: boolean;
   /** Dégâts de brûlure par tour, s'il y en a. */
   burn?: Burn;
 }
@@ -149,16 +143,20 @@ export function spellDamageOn(state: RunState, spellId: string, target: Unit): D
   const spell = getSpell(spellId);
   if (spell.damage === undefined) return null;
   const player = getPlayer(state);
-  const doubled = state.player.nextShotDouble;
+  const aimed = state.player.nextShotAimed;
+  const d = distance(player.pos, target.pos);
+  const bonus = distanceBonus(state, d, aimed);
   return {
-    amount: computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, target, doubled),
+    amount: computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, target, bonus),
     base: spell.damage,
     flat: equipmentFlatDamage(state),
     element: spell.element,
     mastery: state.player.masteries[spell.element] ?? 0,
     weakness: spell.element !== 'neutral' && target.weakness === spell.element,
     resistance: spell.element !== 'neutral' && target.resistance === spell.element,
-    doubled,
+    distance: d,
+    distanceBonus: bonus,
+    aimed,
     burn: spell.burn ? { damage: computeDamage(state, spell.burn.damage, spell.element, player, target), turns: spell.burn.turns } : undefined,
   };
 }
@@ -184,10 +182,14 @@ export interface SpellPower {
   flat: number;
   /** Maîtrise de l'élément du sort, en %. */
   mastery: number;
-  /** Dégâts directs avec les stats actuelles du personnage (tir concentré compris s'il est actif). */
+  /** Dégâts directs avec les stats actuelles du personnage, sans bonus de distance (tir à 3 cases ou moins). */
   damage: DamageSpread;
-  /** Le prochain tir est doublé (Tir concentré actif). */
-  doubled: boolean;
+  /** Dégâts directs avec le bonus de distance maximal (8 cases ou plus), Tir concentré compris s'il est actif. */
+  damageFar: DamageSpread;
+  /** Bonus de distance maximal (fraction), Tir concentré compris s'il est actif. */
+  maxDistanceBonus: number;
+  /** Tir concentré actif : le prochain tir double son bonus de distance. */
+  aimed: boolean;
   /** Brûlure par tour avec les stats actuelles, et nombre de tours (passifs compris). */
   burn?: { base: number; perTurn: DamageSpread; turns: number };
   /** Portée maximale réelle (passifs compris). */
@@ -216,29 +218,33 @@ function dummyTarget(state: RunState, weakness?: Element, resistance?: Element):
   };
 }
 
-function spread(state: RunState, base: number, element: Element, doubled: boolean): DamageSpread {
+function spread(state: RunState, base: number, element: Element, bonus = 0): DamageSpread {
   const player = getPlayer(state);
   const neutral = element === 'neutral';
   return {
-    normal: computeDamage(state, base, element, player, dummyTarget(state), doubled),
-    weak: computeDamage(state, base, element, player, dummyTarget(state, neutral ? undefined : element), doubled),
-    resist: computeDamage(state, base, element, player, dummyTarget(state, undefined, neutral ? undefined : element), doubled),
+    normal: computeDamage(state, base, element, player, dummyTarget(state), bonus),
+    weak: computeDamage(state, base, element, player, dummyTarget(state, neutral ? undefined : element), bonus),
+    resist: computeDamage(state, base, element, player, dummyTarget(state, undefined, neutral ? undefined : element), bonus),
   };
 }
 
 /** Chiffres réels d'un sort avec les stats du personnage : ce que la fiche de sort affiche. */
 export function spellPower(state: RunState, spellId: string): SpellPower {
   const spell = getSpell(spellId);
-  const doubled = spell.damage !== undefined && state.player.nextShotDouble;
+  const aimed = spell.damage !== undefined && state.player.nextShotAimed;
+  const far = spell.damage !== undefined ? maxDistanceBonus(state, aimed) : 0;
+  const none = { normal: 0, weak: 0, resist: 0 };
   return {
     element: spell.element,
     base: spell.damage ?? 0,
     flat: spell.damage !== undefined ? equipmentFlatDamage(state) : 0,
     mastery: state.player.masteries[spell.element] ?? 0,
-    damage: spell.damage !== undefined ? spread(state, spell.damage + equipmentFlatDamage(state), spell.element, doubled) : { normal: 0, weak: 0, resist: 0 },
-    doubled,
+    damage: spell.damage !== undefined ? spread(state, spell.damage + equipmentFlatDamage(state), spell.element) : none,
+    damageFar: spell.damage !== undefined ? spread(state, spell.damage + equipmentFlatDamage(state), spell.element, far) : none,
+    maxDistanceBonus: far,
+    aimed,
     burn: spell.burn
-      ? { base: spell.burn.damage, perTurn: spread(state, spell.burn.damage, spell.element, false), turns: spell.burn.turns + combinePassives(state.player.passives).burnExtraTurns }
+      ? { base: spell.burn.damage, perTurn: spread(state, spell.burn.damage, spell.element), turns: spell.burn.turns + combinePassives(state.player.passives).burnExtraTurns }
       : undefined,
     maxRange: spellMaxRange(spell, state.player.passives, equipmentRange(state)),
   };
@@ -289,10 +295,10 @@ export interface CastPreview extends ActionPreview {
   maxRange: number;
   /** Nouvelle case de l'Archer (saut). */
   playerMovedTo?: Pos;
-  /** Le gain de Concentration conditionnel du sort n'est pas obtenu (cible trop proche). */
-  concentrationGainMissed?: { distance: number; needed: number; gain: number };
-  /** Le sort consomme le Tir concentré (dégâts doublés). */
-  consumesDouble: boolean;
+  /** Bonus de distance sur la case visée (fraction), Tir concentré compris ; 0 pour un sort sans dégâts. */
+  distanceBonus: number;
+  /** Le sort consomme le Tir concentré (bonus de distance doublé). */
+  consumesAimed: boolean;
 }
 
 /** Aperçu complet d'un sort sur une case : tout ce que l'infobulle de visée affiche. */
@@ -310,11 +316,9 @@ export function previewCastDetailed(state: RunState, spellId: string, target: Po
     distance: d,
     minRange: spell.minRange,
     maxRange: spellMaxRange(spell, state.player.passives, equipmentRange(state)),
-    consumesDouble: spell.damage !== undefined && state.player.nextShotDouble,
+    distanceBonus: spell.damage !== undefined ? distanceBonus(state, d, state.player.nextShotAimed) : 0,
+    consumesAimed: spell.damage !== undefined && state.player.nextShotAimed,
   };
-  if (spell.concentrationGain && spell.concentrationGainMinDistance !== undefined && d < spell.concentrationGainMinDistance) {
-    out.concentrationGainMissed = { distance: d, needed: spell.concentrationGainMinDistance, gain: spell.concentrationGain };
-  }
   if (!base.valid) return out;
 
   const sameRoom = !!base.after && base.after.roomIndex === state.roomIndex;
@@ -437,8 +441,6 @@ export interface EnemyTurnPreview {
   playerDies: boolean;
   /** Dégâts de brûlure subis par l'Archer au début de son prochain tour. */
   playerBurnNextTurn: number;
-  /** Concentration au début du prochain tour du joueur. */
-  concentrationNextTurn: number;
 }
 
 /** Simule la fin du tour (depuis `state`, ou après un déplacement vers `moveTo`). */
@@ -453,7 +455,7 @@ export function previewEnemyTurn(state: RunState, moveTo?: Pos): EnemyTurnPrevie
     }
   }
   const before = getPlayer(s).hp;
-  const { state: after, events } = applyAction(s, { type: 'endTurn' });
+  const { events } = applyAction(s, { type: 'endTurn' });
   const intents = new Map<string, MonsterIntent>();
   for (const m of s.units) {
     if (m.team !== 'monster' || m.hp <= 0) continue;
@@ -504,7 +506,6 @@ export function previewEnemyTurn(state: RunState, moveTo?: Pos): EnemyTurnPrevie
     playerHpAfter: Math.max(0, before - total),
     playerDies: before - total <= 0,
     playerBurnNextTurn: playerBurn,
-    concentrationNextTurn: after.player.concentration,
   };
 }
 
@@ -576,7 +577,7 @@ export function combinedThreat(state: RunState): Map<string, { pos: Pos; count: 
 }
 
 // ---------------------------------------------------------------------------
-// Ordre des tours et Concentration
+// Ordre des tours et déplacements
 // ---------------------------------------------------------------------------
 
 /** Ordre de jeu d'un tour complet : l'Archer, puis les monstres dans l'ordre du moteur. */
@@ -587,17 +588,10 @@ export function turnOrder(state: RunState): Unit[] {
 export interface MovePreview {
   path: Pos[];
   pmCost: number;
-  concentrationAfter: number;
 }
 
 export function previewMove(state: RunState, to: Pos): MovePreview | null {
   const path = getReachableCells(state).get(key(to));
   if (!path) return null;
-  const p = previewAction(state, { type: 'move', to });
-  return { path, pmCost: path.length, concentrationAfter: p.concentrationAfter };
-}
-
-/** Le joueur gagnera-t-il +1 Concentration au début de son prochain tour (s'il ne bouge plus) ? */
-export function willGainConcentrationNextTurn(state: RunState): boolean {
-  return state.player.pmSpentThisTurn === 0;
+  return { path, pmCost: path.length };
 }

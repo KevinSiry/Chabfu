@@ -37,11 +37,8 @@ export interface Unit {
 }
 
 export interface PlayerState {
-  concentration: number;
-  nextShotDouble: boolean;
-  /** Le joueur a-t-il dépensé des PM pendant son tour précédent ? */
-  movedLastTurn: boolean;
-  pmSpentThisTurn: number;
+  /** Tir concentré actif : le prochain sort de dégâts double son bonus de distance. */
+  nextShotAimed: boolean;
   spellUses: Record<string, number>;
   deck: string[];
   masteries: Record<Element, number>;
@@ -78,7 +75,6 @@ export type GameEvent =
   | { type: 'attack'; unitId: string; attackId: string; targetId: string }
   | { type: 'damage'; unitId: string; amount: number; element: Element; source: 'spell' | 'burn' | 'collision' | 'attack' }
   | { type: 'status'; unitId: string; text: string }
-  | { type: 'concentration'; value: number; delta: number }
   | { type: 'death'; unitId: string }
   | { type: 'roomCleared'; roomIndex: number }
   | { type: 'roomEnter'; roomIndex: number; name: string }

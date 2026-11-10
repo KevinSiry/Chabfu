@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  distanceBonus,
   applyAction,
   difficultyMultiplier,
   availableTranches,
@@ -74,40 +75,45 @@ describe('combat', () => {
     const player = getPlayer(s);
     expect(computeDamage(s, 10, 'fire', player, ronceau)).toBe(13);
     expect(computeDamage(s, 10, 'earth', player, ronceau)).toBe(8);
-    expect(computeDamage(s, 10, 'fire', player, ronceau, true)).toBe(26);
+    expect(computeDamage(s, 10, 'fire', player, ronceau, 0.3)).toBe(16);
     const hard = createRun({ ...config, difficulty: 3 });
     expect(computeDamage(hard, 10, 'neutral', getMonsters(hard)[0], getPlayer(hard))).toBe(13);
     expect(getMonsters(hard)[0].maxHp).toBe(Math.round(24 * difficultyMultiplier(3))); // Ronceau : 24 PV
   });
 
-  it('le déplacement coûte 1 Concentration par PM', () => {
-    let s = withUnits(createRun(config), (st) => (st.player.concentration = 5));
-    s = applyAction(s, { type: 'move', to: { x: 1, y: 1 } }).state;
+  it('le déplacement ne coûte que des PM', () => {
+    const s = applyAction(createRun(config), { type: 'move', to: { x: 1, y: 1 } }).state;
     expect(getPlayer(s).pm).toBe(1);
-    expect(s.player.concentration).toBe(3);
   });
 
-  it('+1 Concentration au début du tour si le joueur n’a pas bougé', () => {
-    let s = createRun(config);
-    s = applyAction(s, { type: 'endTurn' }).state;
-    expect(s.player.concentration).toBe(1);
-    s = applyAction(s, { type: 'endTurn' }).state;
-    expect(s.player.concentration).toBe(2);
+  it('le bonus de distance vaut +6 % par case au-delà de 3, plafonné à 8 cases', () => {
+    const s = createRun(config);
+    expect([1, 3, 4, 5, 8, 12].map((d) => distanceBonus(s, d))).toEqual([0, 0, 0.06, 0.12, 0.3, 0.3]);
+    expect(distanceBonus(s, 8, true)).toBeCloseTo(0.6);
   });
 
-  it('Tir concentré double le prochain tir et consomme 4 Concentration', () => {
+  it('un tir lointain fait plus mal qu’un tir proche', () => {
+    const shot = (x: number) => {
+      const s = withUnits(createRun(config), (st) => (st.units[1].pos = { x, y: 3 }));
+      const dmg = applyAction(s, { type: 'cast', spellId: 'fleche_ardente', target: { x, y: 3 } }).events.find((e) => e.type === 'damage');
+      return dmg && dmg.type === 'damage' ? dmg.amount : 0;
+    };
+    expect(shot(4)).toBe(Math.floor(12 * 1.3)); // 3 cases : pas de bonus
+    expect(shot(6)).toBe(Math.floor(12 * 1.3 * 1.12)); // 5 cases : +12 %
+  });
+
+  it('Tir concentré double le bonus de distance du prochain tir', () => {
     let s = withUnits(createRun(config), (st) => {
-      st.player.concentration = 4;
       st.units[1].pos = { x: 6, y: 3 }; // ronceau à 5 cases, en ligne de vue
     });
     expect(getCastError(s, 'tir_concentre', getPlayer(s).pos)).toBeNull();
     s = applyAction(s, { type: 'cast', spellId: 'tir_concentre', target: getPlayer(s).pos }).state;
-    expect(s.player.concentration).toBe(0);
+    expect(s.player.nextShotAimed).toBe(true);
+    expect(getCastError(s, 'tir_concentre', getPlayer(s).pos)).not.toBeNull();
     const res = applyAction(s, { type: 'cast', spellId: 'fleche_ardente', target: { x: 6, y: 3 } });
     const dmg = res.events.find((e) => e.type === 'damage');
-    expect(dmg && dmg.type === 'damage' && dmg.amount).toBe(Math.floor(12 * 1.3 * 2));
-    expect(res.state.player.concentration).toBe(1); // tir à 5 cases
-    expect(res.state.player.nextShotDouble).toBe(false);
+    expect(dmg && dmg.type === 'damage' && dmg.amount).toBe(Math.floor(12 * 1.3 * 1.24));
+    expect(res.state.player.nextShotAimed).toBe(false);
   });
 
   it('Flèche fracassante pousse et inflige des dégâts de collision', () => {

@@ -5,7 +5,7 @@
  *   --set monster.*.hp=x0.7                multiplicateur (arrondi), sur tous les monstres
  *   --set monster.*.pm=+1                  ajout
  *   --set monster.gardien_racineux.attacks.etreinte.damage=12
- *   --set spell.tir_concentre.concentrationCost=3
+ *   --set spell.tir_concentre.pa=1
  *   --set item.*.stats.masteries.fire=x2   objets (data/items.ts)
  *   --set rarity.mythic.power=1.6          puissance des raretés (loot.ts)
  *
