@@ -1,6 +1,6 @@
 import { canUseAttack, planMonsterMove } from './ai.js';
 import { getDungeon } from './data/dungeons.js';
-import { getMonster } from './data/monsters.js';
+import { getMonster, type MonsterAttack } from './data/monsters.js';
 import { getSpell, type SpellDef } from './data/spells.js';
 import { DIRS, distance, hasLineOfSight, isFree, isWall, key, reachable, samePos, unitAt } from './grid.js';
 import { MAX_DIFFICULTY, MIN_DIFFICULTY, difficultyMultiplier } from './loot.js';
@@ -95,6 +95,7 @@ function enterRoom(state: RunState, index: number, events: GameEvent[]): void {
   const player = getPlayer(state);
   player.pos = { ...tpl.playerSpawn };
   player.burn = undefined;
+  player.pmMalus = 0;
   state.units = [player];
   tpl.monsters.forEach((m, i) => {
     const t = getMonster(m.templateId);
@@ -321,10 +322,26 @@ function runMonsterTurns(state: RunState, events: GameEvent[]): void {
         monster.attackUses[atk.id] = (monster.attackUses[atk.id] ?? 0) + 1;
         events.push({ type: 'attack', unitId: monster.id, attackId: atk.id, targetId: player.id });
         dealDamage(state, player, computeDamage(state, atk.damage, atk.element, monster, player), atk.element, 'attack', events);
+        applyAttackEffects(state, monster, player, atk, events);
         checkEnd(state, events);
       }
     }
   }
+}
+
+/** Effets secondaires d'une attaque de monstre sur le joueur : brûlure, retrait de PM, poussée. */
+function applyAttackEffects(state: RunState, monster: Unit, player: Unit, atk: MonsterAttack, events: GameEvent[]): void {
+  if (player.hp <= 0) return;
+  if (atk.burn) {
+    const dmg = computeDamage(state, atk.burn.damage, atk.element, monster, player);
+    player.burn = { damage: Math.max(dmg, player.burn?.damage ?? 0), turns: Math.max(atk.burn.turns, player.burn?.turns ?? 0) };
+    events.push({ type: 'status', unitId: player.id, text: `Brûlure ${atk.burn.turns} tours` });
+  }
+  if (atk.pmRemoval) {
+    player.pmMalus += atk.pmRemoval;
+    events.push({ type: 'status', unitId: player.id, text: `-${atk.pmRemoval} PM` });
+  }
+  if (atk.push) pushUnit(state, player, monster.pos, atk.push, events);
 }
 
 function checkEnd(state: RunState, events: GameEvent[]): void {
@@ -385,7 +402,8 @@ export function applyAction(input: RunState, action: Action): { state: RunState;
     case 'endTurn': {
       state.player.movedLastTurn = state.player.pmSpentThisTurn > 0;
       runMonsterTurns(state, events);
-      if (state.status === 'playing') startPlayerTurn(state, events);
+      // Le dernier monstre peut mourir pendant les tours monstres (brûlure, collision) : la salle est alors vidée.
+      if (state.status === 'playing' && !checkRoomCleared(state, events)) startPlayerTurn(state, events);
       break;
     }
     default:

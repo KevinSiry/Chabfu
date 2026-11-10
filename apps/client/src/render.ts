@@ -1,4 +1,8 @@
-import type { Element, Pos, RoomState } from '@chabfu/engine';
+import { MONSTERS, type Element, type Pos, type RoomState } from '@chabfu/engine';
+
+function monsterColor(templateId: string): string {
+  return MONSTERS.find((m) => m.id === templateId)?.color ?? '#999';
+}
 
 export const TILE_W = 64;
 export const TILE_H = 32;
@@ -192,7 +196,7 @@ function drawUnit(ctx: CanvasRenderingContext2D, c: Pos, u: DisplayUnit): void {
   ctx.fill();
   // Corps
   const body = c.y - r - 6;
-  ctx.fillStyle = UNIT_COLORS[u.templateId] ?? '#999';
+  ctx.fillStyle = UNIT_COLORS[u.templateId] ?? monsterColor(u.templateId);
   ctx.beginPath();
   ctx.ellipse(c.x, body, r, r * 1.25, 0, 0, Math.PI * 2);
   ctx.fill();
