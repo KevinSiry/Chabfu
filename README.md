@@ -37,6 +37,16 @@ pour que les routes soient reproductibles.
 Pas encore fait : stuff et raretés en jeu, passifs, runes, ressources et drops, serveur et comptes, autres donjons et tranches.
 Équilibrage entièrement provisoire.
 
+## Personnage et progression
+
+- Au premier lancement, on crée son Archer (sauvegarde locale `chabfu.character.v1`). Il démarre niveau 1 avec Flèche ardente et Bond arrière.
+- XP : chaque monstre vaincu rapporte la moitié de ses PV de base (×2 pour un boss), +15 % par palier de difficulté, et +50 % de bonus en cas de victoire.
+  Une défaite ou un abandon rapporte l'XP des monstres déjà vaincus. Le bilan est recalculé en rejouant le run (`summarizeRun`), donc vérifiable côté serveur.
+- Les sorts et les passifs se débloquent à leur niveau ; chaque tranche garde son deck et ses passifs. On peut se redéfinir sur toute tranche débloquée.
+- Moteur : `character.ts` (courbe d'XP, personnage, redéfinition), `passives.ts` et `data/passives.ts` (6 passifs T1, branchés dans le combat).
+- Client : `apps/client/src/character/` (création, fiche, choix de tranche, section XP de l'écran de fin). Les autres systèmes peuvent ajouter
+  leur propre bloc à l'écran de fin de run avec `registerRunEndSection`.
+
 ## Docker
 
 ```bash

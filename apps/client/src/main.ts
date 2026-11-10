@@ -1,10 +1,16 @@
 import {
   DUNGEONS,
-  dungeonsForTranche,
   MAX_CONCENTRATION,
+  PASSIVES,
+  SPELLS,
+  applyRunSummary,
+  characterEffectiveLevel,
+  characterRunConfig,
+  currentLoadout,
+  setLoadout,
+  summarizeRun,
   MAX_DIFFICULTY,
   applyAction,
-  availableSpells,
   compareScores,
   createRun,
   getCastError,
@@ -22,6 +28,7 @@ import {
   verifyRun,
   type Action,
   type Element,
+  type DungeonDef,
   type GameEvent,
   type MonsterAttack,
   type MonsterBehavior,
@@ -38,6 +45,9 @@ import { rewardsPanelHtml } from './craft/rewards-panel';
 import { grantRunRewards } from './craft/store';
 import { renderWorkshopScreen } from './craft/workshop-screen';
 import { CANVAS_H, CANVAS_W, ELEMENT_COLORS, draw, toCell, type DisplayUnit, type FloatingText, type Highlight } from './render';
+import { renderRunEndSections } from './character/run-end';
+import { getCharacter, saveCharacter } from './character/store';
+import { bindCharacterBanner, characterBannerHtml, renderCharacterCreation } from './character/ui';
 
 const app = document.getElementById('app')!;
 const ELEMENT_LABEL: Record<Element, string> = { fire: 'Feu', water: 'Eau', earth: 'Terre', air: 'Air', neutral: 'Neutre' };
@@ -52,9 +62,11 @@ interface SavedScore extends RunScore {
   deck: string[];
 }
 interface Save {
-  dungeonId: string;
+  /** Ancien deck unique, remplacé par le deck de chaque tranche du personnage. */
   deck: string[];
   difficulty: number;
+  /** Dernier donjon choisi. */
+  dungeonId?: string;
   scores: SavedScore[];
 }
 
@@ -76,58 +88,83 @@ function writeSave(save: Save): void {
 }
 
 let save = loadSave();
-const tranche = getTranche(DUNGEONS[0].tranche);
-const trancheDungeons = dungeonsForTranche(tranche.id);
-let dungeon = trancheDungeons.find((d) => d.id === save.dungeonId) ?? trancheDungeons[0];
 
-function dungeonListHtml(): string {
+function dungeonListHtml(dungeons: DungeonDef[], selected: DungeonDef): string {
   return `
-    <div class="card dungeon-picker">
-      <h3>Donjons de la tranche T${tranche.id}</h3>
-      <div class="dungeon-list">
-        ${trancheDungeons
-          .map((d) => {
-            const best = save.scores.filter((s) => s.dungeonId === d.id).sort(compareScores)[0];
-            const boss = d.rooms[d.rooms.length - 1].monsters.map((m) => getMonster(m.templateId)).find((m) => m.isBoss);
-            return `
-          <button class="dungeon-card${d.id === dungeon.id ? ' selected' : ''}" data-dungeon="${d.id}">
-            <div class="head"><span><span class="el el-${d.dominantElement}"></span>${d.name}</span></div>
-            <div class="meta">${ELEMENT_LABEL[d.dominantElement]} · craint ${ELEMENT_LABEL[d.weakElement]} <span class="el el-${d.weakElement}"></span></div>
-            <div class="meta">${d.rooms.length - 1} salle${d.rooms.length > 2 ? 's' : ''} + ${boss?.name ?? 'boss'}</div>
-            <div class="meta">${best ? `Record : diff. ${best.difficulty} · ${best.turns} tours` : 'Pas encore terminé'}</div>
-          </button>`;
-          })
-          .join('')}
-      </div>
+    <div class="dungeon-list">
+      ${dungeons
+        .map((d) => {
+          const best = save.scores.filter((s) => s.dungeonId === d.id).sort(compareScores)[0];
+          const boss = d.rooms[d.rooms.length - 1].monsters.map((m) => getMonster(m.templateId)).find((m) => m.isBoss);
+          return `
+        <button class="dungeon-card${d.id === selected.id ? ' selected' : ''}" data-dungeon="${d.id}">
+          <div class="head"><span class="el el-${d.dominantElement}"></span>${d.name}</div>
+          <div class="meta">${ELEMENT_LABEL[d.dominantElement]} · craint ${ELEMENT_LABEL[d.weakElement]} <span class="el el-${d.weakElement}"></span></div>
+          <div class="meta">${d.rooms.length - 1} salle${d.rooms.length > 2 ? 's' : ''} + ${boss?.name ?? 'boss'}</div>
+          <div class="meta">${best ? `Record : diff. ${best.difficulty} · ${best.turns} tours` : 'Pas encore terminé'}</div>
+        </button>`;
+        })
+        .join('')}
     </div>`;
 }
 
 // ---------------------------------------------------------------------------
-// Écran de préparation
+// Écran de préparation (personnage, tranche, donjon, deck, passifs)
 // ---------------------------------------------------------------------------
 
 function renderSetup(): void {
-  const spells = availableSpells(tranche.redefinitionLevel);
-  const best = save.scores.filter((s) => s.dungeonId === dungeon.id).sort(compareScores).slice(0, 8);
+  const character = getCharacter();
+  if (!character) {
+    renderCharacterCreation(app, renderSetup);
+    return;
+  }
+  const tranche = getTranche(character.trancheId);
+  const effLevel = characterEffectiveLevel(character);
+  const dungeons = DUNGEONS.filter((d) => d.tranche === tranche.id);
+  const dungeon = dungeons.find((d) => d.id === save.dungeonId) ?? dungeons[0];
+  const spells = SPELLS.filter((s) => s.level <= tranche.redefinitionLevel);
+  const passives = PASSIVES.filter((p) => p.level <= tranche.redefinitionLevel);
+  const loadout = currentLoadout(character);
+  const best = dungeon ? save.scores.filter((s) => s.dungeonId === dungeon.id).sort(compareScores).slice(0, 8) : [];
+
   app.innerHTML = `
     <div class="setup">
-      <header><h1>Chabfu</h1><p>Prototype · Tranche T${tranche.id} (niveau ${tranche.redefinitionLevel})</p></header>
-      ${dungeonListHtml()}
+      <header><h1>Chabfu</h1><p>Prototype · Tranche T${tranche.id} (niveaux ${tranche.minLevel}–${tranche.maxLevel})</p></header>
+      ${characterBannerHtml(character)}
       <div class="setup-grid">
         <div class="card">
-          <h2>${dungeon.name}</h2>
-          <p class="muted">${dungeon.description} ${dungeon.rooms.length - 1} salle${dungeon.rooms.length > 2 ? 's' : ''} + boss, toujours identiques.</p>
+          ${
+            dungeon
+              ? `${dungeons.length > 1 ? dungeonListHtml(dungeons, dungeon) : ''}
+                 <h2>${dungeon.name}</h2>
+                 <p class="muted">${dungeon.description} ${dungeon.rooms.length - 1} salle${dungeon.rooms.length > 2 ? 's' : ''} + boss, toujours identiques.</p>`
+              : `<h2>Aucun donjon</h2><p class="muted">La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p>`
+          }
           <h3 style="margin-top:16px">Deck <span class="muted" id="deck-count"></span></h3>
           <div class="spell-list">
             ${spells
-              .map(
-                (s) => `
-              <button class="spell-card" data-spell="${s.id}">
-                <div class="head"><span><span class="el el-${s.element}"></span>${s.name}</span><span>${s.pa} PA</span></div>
+              .map((s) => {
+                const locked = s.level > effLevel;
+                return `
+              <button class="spell-card ${locked ? 'locked' : ''}" data-spell="${s.id}" ${locked ? 'disabled' : ''}>
+                <div class="head"><span><span class="el el-${s.element}"></span>${s.name}</span><span>${locked ? `🔒 Niv. ${s.level}` : `${s.pa} PA`}</span></div>
                 <div class="meta">Niv. ${s.level} · ${ELEMENT_LABEL[s.element]} · ${rangeLabel(s.minRange, s.maxRange)}${s.maxPerTurn ? ` · ${s.maxPerTurn}/tour` : ''}</div>
                 <div class="desc">${s.description}</div>
-              </button>`,
-              )
+              </button>`;
+              })
+              .join('')}
+          </div>
+          <h3 style="margin-top:16px">Passifs <span class="muted" id="passive-count"></span></h3>
+          <div class="passive-list">
+            ${passives
+              .map((p) => {
+                const locked = p.level > effLevel;
+                return `
+              <button class="passive-card ${locked ? 'locked' : ''}" data-passive="${p.id}" ${locked ? 'disabled' : ''}>
+                <div class="head"><span>${p.name}</span><span class="muted">${locked ? '🔒 ' : ''}Niv. ${p.level}</span></div>
+                <div class="desc">${p.description}</div>
+              </button>`;
+              })
               .join('')}
           </div>
         </div>
@@ -135,7 +172,7 @@ function renderSetup(): void {
           <div class="card">
             <h3>Difficulté</h3>
             <div class="difficulty"><input type="range" min="1" max="${MAX_DIFFICULTY}" value="${save.difficulty}" id="diff" /><strong id="diff-v">${save.difficulty}</strong></div>
-            <p class="muted">+15 % de PV et de dégâts monstres par palier. Salles et placements identiques.</p>
+            <p class="muted">+15 % de PV, de dégâts et d’XP des monstres par palier. Salles et placements identiques.</p>
             <button class="primary" id="start" style="width:100%">Lancer le donjon</button>
             <p class="muted" id="deck-error"></p>
           </div>
@@ -163,33 +200,56 @@ function renderSetup(): void {
       </div>
     </div>`;
 
-  const deck = new Set(save.deck.filter((id) => spells.some((s) => s.id === id)));
+  bindCharacterBanner(app, renderSetup);
+  const deck = new Set(loadout.deck);
+  const chosenPassives = new Set(loadout.passives);
+  const persist = () => {
+    // Ordre du deck = ordre du catalogue, pour des raccourcis stables.
+    const c = getCharacter();
+    if (!c) return;
+    saveCharacter(
+      setLoadout(c, {
+        deck: spells.map((s) => s.id).filter((id) => deck.has(id)),
+        passives: passives.map((p) => p.id).filter((id) => chosenPassives.has(id)),
+      }),
+    );
+  };
   const refresh = () => {
     app.querySelectorAll<HTMLButtonElement>('.spell-card').forEach((b) => b.classList.toggle('selected', deck.has(b.dataset.spell!)));
+    app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) => b.classList.toggle('selected', chosenPassives.has(b.dataset.passive!)));
     app.querySelector('#deck-count')!.textContent = `${deck.size} / ${tranche.deckSize}`;
-    (app.querySelector('#start') as HTMLButtonElement).disabled = deck.size === 0;
+    app.querySelector('#passive-count')!.textContent = `${chosenPassives.size} / ${tranche.passiveSlots}`;
+    (app.querySelector('#start') as HTMLButtonElement).disabled = deck.size === 0 || !dungeon;
   };
   app.querySelectorAll<HTMLButtonElement>('.spell-card').forEach((b) =>
     b.addEventListener('click', () => {
       const id = b.dataset.spell!;
       if (deck.has(id)) deck.delete(id);
       else if (deck.size < tranche.deckSize) deck.add(id);
+      persist();
       refresh();
     }),
   );
-  const diff = app.querySelector('#diff') as HTMLInputElement;
-  app.querySelectorAll<HTMLButtonElement>('.dungeon-card').forEach((b) =>
+  app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) =>
     b.addEventListener('click', () => {
-      const next = trancheDungeons.find((d) => d.id === b.dataset.dungeon);
-      if (!next || next.id === dungeon.id) return;
-      dungeon = next;
-      save.dungeonId = next.id;
-      save.deck = spells.map((s) => s.id).filter((id) => deck.has(id));
-      save.difficulty = Number(diff.value);
+      const id = b.dataset.passive!;
+      if (chosenPassives.has(id)) chosenPassives.delete(id);
+      else if (tranche.passiveSlots === 1) {
+        chosenPassives.clear();
+        chosenPassives.add(id);
+      } else if (chosenPassives.size < tranche.passiveSlots) chosenPassives.add(id);
+      persist();
+      refresh();
+    }),
+  );
+  app.querySelectorAll<HTMLButtonElement>('[data-dungeon]').forEach((b) =>
+    b.addEventListener('click', () => {
+      save.dungeonId = b.dataset.dungeon;
       writeSave(save);
       renderSetup();
     }),
   );
+  const diff = app.querySelector('#diff') as HTMLInputElement;
   diff.addEventListener('input', () => (app.querySelector('#diff-v')!.textContent = diff.value));
   app.querySelector('#open-equipment')!.addEventListener('click', () => {
     save.difficulty = Number(diff.value);
@@ -202,11 +262,17 @@ function renderSetup(): void {
     openWorkshop();
   });
   app.querySelector('#start')!.addEventListener('click', () => {
-    // Ordre du deck = ordre du catalogue, pour des raccourcis stables.
-    save.deck = spells.map((s) => s.id).filter((id) => deck.has(id));
+    const c = getCharacter();
+    if (!c || !dungeon) return;
+    persist();
     save.difficulty = Number(diff.value);
+    save.dungeonId = dungeon.id;
     writeSave(save);
-    startRun({ dungeonId: dungeon.id, difficulty: save.difficulty, deck: save.deck });
+    try {
+      startRun(characterRunConfig(getCharacter()!, dungeon.id, save.difficulty));
+    } catch (e) {
+      app.querySelector('#deck-error')!.textContent = (e as Error).message;
+    }
   });
   refresh();
 }
@@ -266,11 +332,17 @@ function buildDisplay(state: RunState): Map<string, DisplayUnit> {
 }
 
 function openEquipment(): void {
-  renderEquipmentScreen(app, { trancheId: tranche.id, dungeonId: dungeon.id, difficulty: save.difficulty, onBack: renderSetup });
+  const trancheId = getCharacter()?.trancheId ?? 1;
+  const dungeons = DUNGEONS.filter((d) => d.tranche === trancheId);
+  const dungeon = dungeons.find((d) => d.id === save.dungeonId) ?? dungeons[0] ?? DUNGEONS[0];
+  renderEquipmentScreen(app, { trancheId, dungeonId: dungeon.id, difficulty: save.difficulty, onBack: renderSetup });
 }
 
 function openWorkshop(): void {
-  renderWorkshopScreen(app, { trancheId: tranche.id, dungeonId: dungeon.id, onBack: renderSetup });
+  const trancheId = getCharacter()?.trancheId ?? 1;
+  const dungeons = DUNGEONS.filter((d) => d.tranche === trancheId);
+  const dungeon = dungeons.find((d) => d.id === save.dungeonId) ?? dungeons[0] ?? DUNGEONS[0];
+  renderWorkshopScreen(app, { trancheId, dungeonId: dungeon.id, onBack: renderSetup });
 }
 
 function startRun(baseConfig: RunConfig): void {
@@ -331,8 +403,14 @@ function startRun(baseConfig: RunConfig): void {
   });
   app.querySelector('#end-turn')!.addEventListener('click', () => act({ type: 'endTurn' }));
   app.querySelector('#abandon')!.addEventListener('click', () => {
-    view = null;
-    renderSetup();
+    if (!view || view.busy) return;
+    // Abandonner rapporte quand même l'XP des monstres déjà vaincus.
+    if (view.state.actionLog.length === 0) {
+      view = null;
+      renderSetup();
+      return;
+    }
+    finishRun(view);
   });
 
   renderHud();
@@ -617,9 +695,11 @@ function renderTarget(): void {
 // ---------------------------------------------------------------------------
 
 function finishRun(v: RunView): void {
+  v.busy = true; // plus aucune action possible sous l'écran de fin (abandon compris)
   v.endedAt = performance.now();
   updateClock();
   const won = v.state.status === 'won';
+  const abandoned = v.state.status === 'playing';
   const timeMs = Math.round(v.endedAt - v.startedAt);
   // Même vérification que celle que fera le serveur : on rejoue la suite d'actions.
   const check = won ? verifyRun(v.config, v.state.actionLog, v.state.turn) : null;
@@ -632,11 +712,20 @@ function finishRun(v: RunView): void {
   // Recyclage automatique et ressources du donjon : voir craft/store.ts.
   const rewards = won && check?.valid ? grantRunRewards(v.config, v.state.actionLog) : null;
   const loot = rewards?.kept ?? [];
+  // XP et montée de niveau : recalculées en rejouant le run, comme le fera le serveur.
+  const summary = summarizeRun(v.config, v.state.actionLog);
+  const before = getCharacter();
+  let sections: HTMLElement[] = [];
+  if (before) {
+    const { character, report } = applyRunSummary(before, summary);
+    saveCharacter(character);
+    sections = renderRunEndSections({ config: v.config, state: v.state, summary, report, character, validated: !!check?.valid });
+  }
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.innerHTML = `
     <div class="card${rewards ? ' with-loot' : ''}">
-      <h2 class="${won ? 'ok' : 'ko'}">${won ? 'Donjon terminé !' : 'Défaite'}</h2>
+      <h2 class="${won ? 'ok' : 'ko'}">${won ? 'Donjon terminé !' : abandoned ? 'Run abandonné' : 'Défaite'}</h2>
       <p>Difficulté ${v.config.difficulty} · ${v.state.turn} tours · ${formatTime(timeMs)}</p>
       ${check ? `<p class="${check.valid ? 'ok' : 'ko'}">${check.valid ? '✓ Replay validé (même moteur que le serveur)' : `✗ Replay invalide : ${check.reason}`}</p>` : `<p class="muted">Salle ${v.state.roomIndex + 1} atteinte.</p>`}
       ${loot.length ? lootPanelHtml(loot, v.config) : ''}
@@ -645,14 +734,21 @@ function finishRun(v: RunView): void {
         <button class="primary" id="again">Rejouer</button>
         <button class="secondary" id="equipment">Équipement</button>
         <button class="secondary" id="workshop">Atelier</button>
-        <button class="secondary" id="back">Changer de deck</button>
+        <button class="secondary" id="back">Préparation</button>
         <button class="secondary" id="copy">Copier le replay</button>
       </div>
     </div>`;
+  const sectionsEl = document.createElement('div');
+  sectionsEl.className = 'end-sections';
+  sections.forEach((el) => sectionsEl.appendChild(el));
+  // XP d'abord, puis le butin du boss.
+  overlay.querySelector('.card')!.insertBefore(sectionsEl, overlay.querySelector('.loot') ?? overlay.querySelector('.rewards') ?? overlay.querySelector('.row'));
   document.body.appendChild(overlay);
   overlay.querySelector('#again')!.addEventListener('click', () => {
     overlay.remove();
-    startRun(v.config);
+    // Le personnage a pu gagner des niveaux : on reprend sa configuration à jour (même deck, même donjon).
+    const c = getCharacter();
+    startRun(c ? characterRunConfig(c, v.config.dungeonId, v.config.difficulty) : v.config);
   });
   bindLootPanel(overlay, loot, v.config);
   overlay.querySelector('#equipment')!.addEventListener('click', () => {
