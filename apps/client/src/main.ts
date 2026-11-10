@@ -479,28 +479,38 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     sections = renderRunEndSections({ config: v.config, state: v.state, summary, report, character, validated: !!check?.valid });
   }
   const overlay = document.createElement('div');
-  overlay.className = 'overlay';
+  overlay.className = `overlay end-ov ${won ? 'won' : 'lost'}`;
+  const title = won ? 'Victoire !' : abandoned ? 'Run abandonné' : 'Défaite';
   overlay.innerHTML = `
-    <div class="card${rewards ? ' with-loot' : ''}">
-      <div class="end-banner ${won ? 'ok' : 'ko'}"><h2>${won ? 'Victoire !' : abandoned ? 'Run abandonné' : 'Défaite'}</h2></div>
-      <div class="end-stats"><span>Difficulté ${v.config.difficulty}</span><span>${v.state.turn} tours</span><span>${icon('clock')} ${formatTime(timeMs)}</span></div>
-      ${check ? `<p class="${check.valid ? 'ok' : 'ko'}">${check.valid ? `${icon('check')} Score vérifié` : `${icon('cross')} Score non vérifié : ${check.reason}`}</p>` : `<p class="muted">Salle ${v.state.roomIndex + 1} atteinte.</p>`}
-      ${loot.length ? lootPanelHtml(loot, v.config) : ''}
-      ${rewards ? rewardsPanelHtml(rewards) : ''}
-      <div class="row">
-        <button class="primary" id="again">Rejouer</button>
-        <button class="secondary" id="equipment">Équipement</button>
-        <button class="secondary" id="workshop">Atelier</button>
-        <button class="secondary" id="back">Préparation</button>
-        <button class="secondary" id="copy">Copier le replay</button>
+    <div class="end-rays" aria-hidden="true"></div>
+    <div class="end-wrap">
+      <div class="end-title"><span>${title}</span></div>
+      <div class="end-chips">
+        <span class="ui-chip">${icon('skull')} Difficulté ${v.config.difficulty}</span>
+        <span class="ui-chip">${icon('turns')} ${v.state.turn} tours</span>
+        <span class="ui-chip">${icon('clock')} ${formatTime(timeMs)}</span>
+        ${check ? `<span class="ui-chip ${check.valid ? 'end-ok' : 'end-ko'}">${check.valid ? `${icon('check')} Score vérifié` : `${icon('cross')} Non vérifié : ${check.reason}`}</span>` : `<span class="ui-chip">Salle ${v.state.roomIndex + 1} atteinte</span>`}
+      </div>
+      <div class="end-body">
+        ${loot.length ? lootPanelHtml(loot, v.config) : ''}
+        ${rewards ? rewardsPanelHtml(rewards) : ''}
+      </div>
+      <div class="end-actions">
+        <button class="ui-btn ui-btn--blue ui-btn--lg" id="back">${icon('home')} Continuer</button>
+        <button class="ui-btn ui-btn--primary ui-btn--lg" id="again">${icon('replay')} Rejouer</button>
+      </div>
+      <div class="end-links">
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="equipment">${icon('equipment')} Équipement</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="workshop">${icon('workshop')} Atelier</button>
+        <button class="ui-btn ui-btn--ghost ui-btn--sm" id="copy">Copier le replay</button>
       </div>
     </div>`;
-  const sectionsEl = document.createElement('div');
-  sectionsEl.className = 'end-sections';
-  sections.forEach((el) => sectionsEl.appendChild(el));
-  // XP d'abord, puis le butin du boss.
-  overlay.querySelector('.card')!.insertBefore(sectionsEl, overlay.querySelector('.loot') ?? overlay.querySelector('.rewards') ?? overlay.querySelector('.row'));
+  const body = overlay.querySelector('.end-body')!;
+  // XP d'abord, puis le butin du boss et les ressources ; chaque bloc apparaît à son tour.
+  sections.reverse().forEach((el) => body.prepend(el));
+  [...body.children].forEach((el, i) => (el as HTMLElement).style.setProperty('--i', String(i)));
   document.body.appendChild(overlay);
+  if (won) loot.forEach((_, i) => setTimeout(() => sfx('coin'), 900 + i * 220));
   overlay.querySelector('#again')!.addEventListener('click', () => {
     overlay.remove();
     // Le personnage a pu gagner des niveaux : on reprend sa configuration à jour (même deck, même donjon).
