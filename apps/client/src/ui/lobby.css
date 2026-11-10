@@ -1,0 +1,174 @@
+/*
+ * Coquille du hub et écran Donjons, DA « Arène ».
+ * Même mise en page sur téléphone, tablette et ordinateur : sur grand écran tout est simplement agrandi (zoom).
+ */
+#app.has-hub {
+  --hub-zoom: 1;
+  --top-h: 58px;
+  --tabs-h: 74px;
+  min-height: 100dvh;
+  padding: calc(var(--top-h) * var(--hub-zoom) + var(--safe-t)) 0 calc(var(--tabs-h) * var(--hub-zoom) + var(--safe-b));
+  background: radial-gradient(ellipse 120% 70% at 50% 0%, var(--c-bg-glow), var(--c-bg) 70%) fixed;
+}
+@media (min-height: 600px) and (min-width: 900px) { #app.has-hub { --hub-zoom: 1.15; } }
+@media (min-height: 800px) and (min-width: 1300px) { #app.has-hub { --hub-zoom: 1.35; } }
+@media (min-height: 1000px) and (min-width: 1700px) { #app.has-hub { --hub-zoom: 1.55; } }
+@media (min-height: 1300px) and (min-width: 2300px) { #app.has-hub { --hub-zoom: 2; } }
+#app.has-hub .hb-top, #app.has-hub .hb-tabs, #app.has-hub .hub-screen { zoom: var(--hub-zoom); }
+
+/* ---------- Barre du haut ---------- */
+#app .hb-top {
+  position: fixed; z-index: var(--z-nav); top: 0; left: 0; right: 0;
+  height: calc(var(--top-h) + var(--safe-t)); padding: var(--safe-t) calc(12px + var(--safe-r)) 0 calc(12px + var(--safe-l));
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+  background: linear-gradient(180deg, #2a1f6e, #1d1552);
+  box-shadow: 0 3px 0 var(--c-ink), 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+#app .hb-title { font: 24px/1 var(--font-display); color: #fff; text-shadow: var(--stroke); letter-spacing: 0.01em; }
+#app .hb-logo { justify-self: end; font: 22px/1 var(--font-display); color: var(--c-gold-a); text-shadow: var(--stroke-sm); }
+#app .hb-top .char-plate { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0; background: none; border: 0; box-shadow: none; }
+#app .hb-top .char-level { position: relative; flex: none; width: 46px; height: 46px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 12px; font: 22px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); background: linear-gradient(180deg, var(--c-blue-a), var(--c-blue-b)); box-shadow: var(--outline-3), inset 0 3px 0 rgba(255, 255, 255, 0.45), 0 4px 0 2px var(--c-ink); transform: rotate(-4deg); cursor: pointer; }
+#app .hb-top .char-level small { position: absolute; top: auto; bottom: -8px; left: 50%; transform: translateX(-50%) rotate(4deg); padding: 0 5px; border-radius: 6px; font: 10px/14px var(--font-display); background: var(--c-ink); color: var(--c-gold-a); text-shadow: none; }
+#app .hb-top .char-plate-info { min-width: 0; flex: 1; max-width: 220px; }
+#app .hb-top .char-plate-name { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
+#app .hb-top .char-plate-name b { font: 17px/1.1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+#app .hb-top .char-plate-name .muted { font-size: 12px; font-weight: 800; color: var(--c-text-2); }
+#app .hb-top .xp-bar, #app .hb-top .xpbar { margin-top: 4px; }
+#app .hb-top .tranche-btn { flex: none; height: 34px; padding: 0 10px; border: 0; border-radius: 10px; font: 16px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); background: linear-gradient(180deg, var(--c-gold-a), var(--c-gold-b)); box-shadow: var(--outline-2), inset 0 2px 0 rgba(255, 255, 255, 0.5), 0 3px 0 2px var(--c-gold-lip); cursor: pointer; }
+#app .hb-top .tranche-btn small { margin-left: 2px; font-size: 11px; }
+
+/* ---------- Onglets du bas ---------- */
+#app .hb-tabs {
+  position: fixed; z-index: var(--z-nav); left: 0; right: 0; bottom: 0;
+  height: calc(var(--tabs-h) + var(--safe-b)); padding: 8px calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l));
+  display: grid; grid-template-columns: repeat(4, minmax(0, 150px)); justify-content: center; gap: 6px;
+  background: linear-gradient(180deg, #2a1f6e, #1a1249);
+  box-shadow: 0 -3px 0 var(--c-ink), 0 -8px 20px rgba(0, 0, 0, 0.3);
+  width: auto; max-width: none; margin: 0; justify-self: stretch; border: 0; border-radius: 0; backdrop-filter: none;
+}
+#app .hb-tabs .hub-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; height: 100%; padding: 0; border: 0; border-radius: 16px; background: none; color: var(--c-text-2); cursor: pointer; transition: transform var(--d-fast) var(--ease-spring); box-shadow: none; }
+#app .hb-tabs .hub-tab-icon { display: grid; place-items: center; background: none; box-shadow: none; width: auto; height: auto; }
+#app .hb-tabs .hub-tab .ico { width: 30px; height: 30px; filter: drop-shadow(0 3px 0 var(--c-ink)); }
+#app .hb-tabs .hub-tab-label { font: 14px/1 var(--font-display); color: inherit; text-shadow: var(--stroke-sm); }
+#app .hb-tabs .hub-tab.on { color: #fff; background: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b)); box-shadow: var(--outline-3), inset 0 2px 0 var(--c-panel-hi); transform: translateY(-12px) scale(1.06); }
+#app .hb-tabs .hub-tab.on .ico { color: var(--c-gold-a); }
+#app .hb-tabs .hub-tab:active { transform: scale(0.95); }
+
+/* ---------- Zone d'écran ---------- */
+#app.has-hub .hub-screen { max-width: 1100px; margin: 0 auto; min-height: calc(100dvh / var(--hub-zoom) - var(--top-h) - var(--tabs-h) - var(--safe-t) - var(--safe-b)); display: flex; flex-direction: column; justify-content: center; padding: 14px calc(14px + var(--safe-r)) 18px calc(14px + var(--safe-l)); }
+#app.has-hub .hub-screen.entering { animation: lb-in var(--d-base) var(--ease-out); }
+@keyframes lb-in { from { opacity: 0; transform: translateY(8px); } }
+#app.has-hub .setup.hub { max-width: none; padding: 0; margin: 0; }
+
+/* ---------- Écran Donjons ---------- */
+#app .lobby { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+#app .lb-stage { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+#app .lb-dungeon { position: relative; border-radius: var(--r-lg); background: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b)); box-shadow: var(--outline-3), inset 0 2px 0 var(--c-panel-hi), 0 6px 0 3px rgba(0, 0, 0, 0.3); }
+#app .lb-art { position: relative; height: 190px; margin: 6px 6px 0; border-radius: 15px 15px 6px 6px; overflow: hidden; box-shadow: 0 0 0 2px var(--c-ink); }
+#app .lb-art > img:first-child { width: 100%; height: 100%; object-fit: cover; display: block; }
+#app .lb-boss { position: absolute; right: 8px; bottom: -8px; height: 165px; filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35)); pointer-events: none; }
+#app .lb-ribbon { position: absolute; left: 0; top: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 18px 5px 12px; font: 15px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); background: linear-gradient(180deg, var(--c-red-a), var(--c-red-b)); clip-path: polygon(0 0, 100% 0, 93% 50%, 100% 100%, 0 100%); }
+#app .lb-ribbon .ico { width: 16px; height: 16px; }
+#app .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); }
+#app .lb-nav.prev { left: 8px; }
+#app .lb-nav.next { right: 8px; }
+#app .lb-body { padding: 10px 16px 16px; }
+#app .lb-name { margin: 0; font: 28px/1.05 var(--font-display); color: #fff; text-shadow: var(--stroke); }
+#app .lb-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+#app .lb-weak { color: var(--c-gold-a); }
+#app .lb-rooms { display: flex; align-items: center; margin-top: 14px; }
+#app .lb-rooms i { flex: 1; max-width: 90px; height: 6px; margin: 0 -2px; background: var(--c-ink); }
+#app .lb-room { position: relative; z-index: 1; flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; font: 20px/1 var(--font-display); color: var(--c-ink); background: linear-gradient(180deg, #fff, #cfe6ff); box-shadow: 0 0 0 3px var(--c-ink); }
+#app .lb-room.boss { color: #fff; background: linear-gradient(180deg, var(--c-red-a), var(--c-red-b)); }
+#app .lb-room .ico { width: 22px; height: 22px; }
+#app .lb-rooms small { margin-left: 14px; font: 15px/1.1 var(--font-display); color: var(--c-text-2); text-shadow: var(--stroke-sm); }
+#app .lb-dots { display: flex; justify-content: center; gap: 8px; }
+#app .lb-dots button { width: 12px; height: 12px; padding: 0; border: 0; border-radius: 50%; background: var(--c-well); box-shadow: 0 0 0 2px var(--c-ink); cursor: pointer; }
+#app .lb-dots button.on { width: 28px; border-radius: 6px; background: var(--c-gold-a); }
+
+#app .lb-side { display: flex; flex-direction: column; gap: 12px; }
+#app .lb-panel { padding: 12px 14px; }
+#app .lb-panel-head { font: 20px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+#app .lb-panel-head b { color: var(--c-gold-a); }
+#app .lb-steps { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 10px; }
+#app .lb-steps button { height: 34px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 9px; font: 16px/1 var(--font-display); color: rgba(255, 255, 255, 0.6); background: var(--c-well); box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.25); cursor: pointer; transition: transform var(--d-fast) var(--ease-spring); }
+#app .lb-steps button.done { color: #fff; text-shadow: var(--stroke-sm); background: #2fc4a8; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), 0 0 0 2px var(--c-ink); }
+#app .lb-steps button.on { color: #fff; text-shadow: var(--stroke-sm); background: linear-gradient(180deg, var(--c-cta-a), var(--c-cta-b)); box-shadow: 0 0 0 3px var(--c-ink), inset 0 2px 0 rgba(255, 255, 255, 0.6); transform: scale(1.14); }
+#app .lb-note { margin: 10px 0 0; font-size: 13px; font-weight: 800; color: var(--c-text-2); }
+#app .lb-deck { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+#app .lb-card { position: relative; aspect-ratio: 1; border-radius: 14px; background: var(--c-well); box-shadow: 0 0 0 3px var(--c-ink), 0 4px 0 3px rgba(0, 0, 0, 0.35); }
+#app .lb-card img { width: 100%; height: 100%; display: block; border-radius: 12px; object-fit: cover; }
+#app .lb-card.empty { background: rgba(20, 12, 56, 0.35); box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.18); }
+#app .lb-cost { position: absolute; right: -6px; bottom: -6px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; font: 14px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); background: radial-gradient(circle at 35% 30%, #8fd0ff, #2f86ea); box-shadow: var(--outline-2); }
+#app .lb-deck-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+#app .lb-go { width: 100%; }
+#app .lb-error { margin: 0; min-height: 0; text-align: center; font-weight: 800; color: #ff8f86; }
+#app .lb-error:empty { display: none; }
+
+/* Téléphone en paysage : l'écran tient sans défilement. */
+@media (max-height: 520px) and (orientation: landscape) {
+  #app.has-hub { --top-h: 50px; --tabs-h: 62px; }
+  #app .hb-tabs .hub-tab .ico { width: 24px; height: 24px; }
+  #app .hb-tabs .hub-tab.on { transform: translateY(-6px) scale(1.04); }
+  #app.has-hub .hub-screen { padding-top: 10px; padding-bottom: 8px; }
+  #app .lobby { gap: 12px; }
+  #app .lb-art { height: 118px; }
+  #app .lb-boss { height: 112px; }
+  #app .lb-body { padding: 8px 12px 10px; }
+  #app .lb-name { font-size: 22px; }
+  #app .lb-tags { margin-top: 6px; }
+  #app .lb-rooms { margin-top: 8px; }
+  #app .lb-room { width: 30px; height: 30px; font-size: 16px; }
+  #app .lb-side { gap: 8px; }
+  #app .lb-panel { padding: 8px 12px; }
+  #app .lb-steps { margin-top: 6px; }
+  #app .lb-steps button { height: 28px; font-size: 14px; }
+  #app .lb-note { margin-top: 6px; font-size: 12px; }
+  #app .lb-deck { gap: 8px; }
+  #app .lb-card { width: auto; }
+  #app .lb-deck-panel { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+  #app .lb-deck { grid-template-columns: repeat(5, 40px); }
+  #app .lb-deck-actions { grid-template-columns: 1fr; gap: 6px; margin-top: 0; }
+  #app .lb-go { min-height: 54px; font-size: 24px; }
+}
+
+/* Téléphone en portrait : une seule colonne. */
+@media (max-width: 640px) and (orientation: portrait) {
+  #app .lobby { grid-template-columns: 1fr; }
+  #app .hb-title { display: none; }
+  #app .hb-top { grid-template-columns: 1fr auto; }
+  #app .hb-tabs .hub-tab-label { font-size: 12px; }
+  #app .lb-art { height: 150px; }
+  #app .lb-boss { height: 140px; }
+  #app .lb-side { gap: 10px; }
+}
+
+/* Écrans hérités (grimoire, équipement, atelier) : jamais de débordement horizontal, titre déjà dans la barre du haut. */
+#app.has-hub .hub-screen { overflow-x: clip; }
+#app.has-hub .hub-screen > * { min-width: 0; max-width: 100%; }
+#app.has-hub .setup > header h1 { display: none; }
+#app .stuff-grid { grid-template-columns: minmax(0, 300px) minmax(0, 1fr) minmax(0, 260px); }
+#app .craft-grid { grid-template-columns: minmax(0, 270px) minmax(0, 1fr) minmax(0, 300px); }
+#app .bag, #app .recipe-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); }
+@media (max-width: 1000px) { #app .stuff-grid, #app .craft-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Boutons hérités (primary / secondary) : même bouton bombé que le reste du jeu. */
+#app.has-hub button.primary, #app.has-hub button.secondary, #app .ui-sheet button.primary, #app .ui-sheet button.secondary {
+  --b-a: var(--c-blue-a); --b-b: var(--c-blue-b); --b-lip: var(--c-blue-lip);
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 42px; margin-bottom: 5px; padding: 0 16px; border: 0; border-radius: 12px;
+  font: calc(17px * var(--text-scale)) / 1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm);
+  background: linear-gradient(180deg, var(--b-a) 0 48%, var(--b-b) 52%);
+  box-shadow: var(--outline-3), inset 0 3px 0 rgba(255, 255, 255, 0.45), 0 4px 0 3px var(--b-lip), 0 4px 0 6px var(--c-ink);
+  cursor: pointer; transition: transform var(--d-instant) var(--ease-out);
+}
+#app.has-hub button.primary, #app .ui-sheet button.primary { --b-a: var(--c-cta-a); --b-b: var(--c-cta-b); --b-lip: var(--c-cta-lip); }
+#app.has-hub button.primary:active:not(:disabled), #app.has-hub button.secondary:active:not(:disabled) { transform: translateY(3px); }
+#app.has-hub button.primary:disabled, #app.has-hub button.secondary:disabled { filter: grayscale(0.85) brightness(0.7); cursor: not-allowed; }
+/* Filtres en pastilles */
+#app.has-hub .chips .chip { height: 32px; padding: 0 12px; border: 0; border-radius: 10px; font: 15px/32px var(--font-display); color: var(--c-text-2); text-shadow: var(--stroke-sm); background: var(--c-well); box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.25); cursor: pointer; }
+#app.has-hub .chips .chip.on, #app.has-hub .chips .chip.active, #app.has-hub .chips .chip[aria-pressed='true'] { color: #fff; background: linear-gradient(180deg, var(--c-cta-a), var(--c-cta-b)); box-shadow: 0 0 0 2px var(--c-ink), inset 0 2px 0 rgba(255, 255, 255, 0.5); }
+/* Cartes héritées : panneau Arène */
+#app.has-hub .card { border: 0; border-radius: var(--r-lg); background: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b) 320px); box-shadow: var(--outline-3), inset 0 2px 0 var(--c-panel-hi), 0 6px 0 3px rgba(0, 0, 0, 0.3); }
+#app.has-hub .panel-title, #app.has-hub .card > h3 { font: 18px/1.1 var(--font-display); letter-spacing: 0.01em; text-transform: none; color: #fff; text-shadow: var(--stroke-sm); }
+#app.has-hub #stuff-back, #app.has-hub #craft-back { display: none; }

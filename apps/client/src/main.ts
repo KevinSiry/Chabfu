@@ -20,7 +20,7 @@ import {
   type RunScore,
   type RunState,
 } from '@chabfu/engine';
-import { equipmentSummaryHtml, renderEquipmentScreen } from './stuff/equipment-screen';
+import { renderEquipmentScreen } from './stuff/equipment-screen';
 import { bindLootPanel, lootPanelHtml } from './stuff/loot-panel';
 import { withEquipment } from './stuff/store';
 import { rewardsPanelHtml } from './craft/rewards-panel';
@@ -30,7 +30,8 @@ import { formatTime, leaveRun, startRun as startCombat } from './combat';
 import { ELEMENT_LABEL, rangeLabel } from './info';
 import { spellSheet } from './spell-info';
 import { slotKeyLabel, slotKeysRange } from './keys';
-import { dungeonBannerImg, spellIconImg } from './ui/assets';
+import { assetUrl, dungeonBannerImg, spellIconImg } from './ui/assets';
+import './ui/lobby.css';
 import { bindHubTabs, hubBarHtml, type HubTab } from './ui/hub';
 import { renderRunEndSections } from './character/run-end';
 import { getCharacter, saveCharacter } from './character/store';
@@ -179,59 +180,70 @@ function renderSetup(): void {
       }).join('')}
     </div>`;
 
-  const dungeonsTab = `
-    <div class="hub-grid">
-      <div class="hub-main">
-        <section class="card">
-          <div class="panel-title">Choix du donjon</div>
-          ${dungeons.length ? dungeonListHtml(dungeons, dungeon) : `<p class="muted">La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p>`}
-        </section>
-        ${
-          dungeon
-            ? `<section class="card dungeon-detail el-theme-${dungeon.dominantElement}">
-                <div class="dungeon-detail-head">
-                  <span class="dungeon-sigil big">${ELEMENT_SIGIL[dungeon.dominantElement]}${dungeonBannerImg(dungeon.id)}</span>
-                  <div><h2>${dungeon.name}</h2>
-                  <p class="muted">${dungeon.description}</p></div>
-                </div>
-                <div class="room-path">
-                  ${dungeon.rooms
-                    .map((r, i) => {
-                      const isBoss = i === dungeon.rooms.length - 1;
-                      return `<div class="room-step ${isBoss ? 'boss' : ''}"><b>${isBoss ? icon('skull') : i + 1}</b><span>${r.name}</span><small>${r.monsters.length} monstre${r.monsters.length > 1 ? 's' : ''}</small></div>`;
-                    })
-                    .join('<span class="room-link"></span>')}
-                </div>
-                <p class="muted small">Salles et placements toujours identiques. Boss : <b>${boss?.name ?? '—'}</b>.</p>
-              </section>`
-            : ''
-        }
-      </div>
-      <aside class="side">
-        <section class="card expedition">
-          <div class="panel-title">Expédition</div>
-          <h3>${dungeon?.name ?? 'Aucun donjon'}</h3>
-          <label class="muted small" for="diff">Difficulté</label>
-          <div class="difficulty"><input type="range" min="1" max="${MAX_DIFFICULTY}" value="${save.difficulty}" id="diff" /><strong id="diff-v">${save.difficulty}</strong></div>
-          <p class="muted small" id="diff-mult">PV, dégâts et XP des monstres : ×${difficultyMultiplier(save.difficulty).toFixed(2).replace('.', ',')} à cette difficulté (D5 ×1,70, D10 ×2,84).</p>
-          ${deckStrip}
-          <button class="ghost small-link" id="edit-deck">Modifier le grimoire ›</button>
-          <button class="primary launch" id="start">Lancer le donjon</button>
-          <p class="muted" id="deck-error"></p>
-        </section>
-        ${equipmentSummaryHtml(tranche.id)}
-        <section class="card">
-          <div class="panel-title">Meilleurs runs</div>
-          ${
-            best.length
-              ? `<table class="scores"><tr><th>Diff.</th><th>Tours</th><th>Chrono</th></tr>${best
-                  .map((s) => `<tr><td>${s.difficulty}</td><td>${s.turns}</td><td>${formatTime(s.timeMs)}</td></tr>`)
-                  .join('')}</table>`
-              : '<p class="muted">Aucun run terminé pour l’instant.</p>'
-          }
-        </section>
-      </aside>
-    </div>`;
+  const di = dungeon ? dungeons.indexOf(dungeon) : -1;
+  const prev = di > 0 ? dungeons[di - 1] : undefined;
+  const next = di >= 0 && di < dungeons.length - 1 ? dungeons[di + 1] : undefined;
+  const record = dungeon ? best[0] : undefined;
+  const multLabel = (d: number) => `Monstres : PV, dégâts et XP ×${difficultyMultiplier(d).toFixed(2).replace('.', ',')}`;
+  const dungeonsTab = dungeon
+    ? `
+    <div class="lobby">
+      <section class="lb-stage">
+        <article class="lb-dungeon el-theme-${dungeon.dominantElement}">
+          <div class="lb-art">${dungeonBannerImg(dungeon.id)}
+            ${boss ? `<img class="lb-boss" src="${assetUrl(`units/${boss.id}.png`)}" alt="" draggable="false">` : ''}
+            <span class="lb-ribbon">${record ? `${icon('trophy')} Record : diff. ${record.difficulty} · ${record.turns} tours` : 'Pas encore terminé'}</span>
+            ${prev ? `<button class="ui-icon-btn lb-nav prev" data-dungeon="${prev.id}" aria-label="Donjon précédent : ${prev.name}">${icon('back')}</button>` : ''}
+            ${next ? `<button class="ui-icon-btn lb-nav next" data-dungeon="${next.id}" aria-label="Donjon suivant : ${next.name}">${icon('chevronRight')}</button>` : ''}
+          </div>
+          <div class="lb-body">
+            <h2 class="lb-name">${dungeon.name}</h2>
+            <div class="lb-tags">
+              <span class="ui-chip">${elementIcon(dungeon.dominantElement)} ${ELEMENT_LABEL[dungeon.dominantElement]}</span>
+              <span class="ui-chip lb-weak">Craint ${elementIcon(dungeon.weakElement)} ${ELEMENT_LABEL[dungeon.weakElement]}</span>
+            </div>
+            <div class="lb-rooms">
+              ${dungeon.rooms
+                .map((r, i) => {
+                  const isBoss = i === dungeon.rooms.length - 1;
+                  return `<span class="lb-room ${isBoss ? 'boss' : ''}" title="${r.name} · ${r.monsters.length} monstre${r.monsters.length > 1 ? 's' : ''}">${isBoss ? icon('skull') : i + 1}</span>`;
+                })
+                .join('<i></i>')}
+              <small>${boss ? `Boss : ${boss.name}` : ''}</small>
+            </div>
+          </div>
+        </article>
+        <div class="lb-dots">${dungeons.map((d) => `<button class="${d.id === dungeon.id ? 'on' : ''}" data-dungeon="${d.id}" aria-label="${d.name}"></button>`).join('')}</div>
+      </section>
+      <section class="lb-side">
+        <div class="ui-panel lb-panel">
+          <div class="lb-panel-head">Difficulté <b id="diff-v">${save.difficulty}</b></div>
+          <div class="lb-steps" role="radiogroup" aria-label="Difficulté">
+            ${Array.from({ length: MAX_DIFFICULTY }, (_, i) => i + 1)
+              .map((d) => `<button role="radio" aria-checked="${d === save.difficulty}" class="${d === save.difficulty ? 'on' : ''} ${record && d <= record.difficulty ? 'done' : ''}" data-diff="${d}">${d}</button>`)
+              .join('')}
+          </div>
+          <p class="lb-note" id="diff-mult">${multLabel(save.difficulty)}</p>
+        </div>
+        <div class="ui-panel lb-panel lb-deck-panel">
+          <div class="lb-deck">
+            ${Array.from({ length: tranche.deckSize }, (_, i) => {
+              const sp = loadout.deck[i] ? SPELLS.find((x) => x.id === loadout.deck[i]) : undefined;
+              return sp
+                ? `<div class="lb-card" title="${sp.name}">${spellIconImg(sp.id)}<span class="lb-cost">${sp.pa}</span></div>`
+                : `<div class="lb-card empty"></div>`;
+            }).join('')}
+          </div>
+          <div class="lb-deck-actions">
+            <button class="ui-btn ui-btn--blue ui-btn--sm" id="edit-deck">${icon('grimoire')} Grimoire</button>
+            <button class="ui-btn ui-btn--blue ui-btn--sm" id="open-equipment">${icon('equipment')} Équipement </button>
+          </div>
+        </div>
+        <button class="ui-btn ui-btn--primary ui-btn--xl lb-go" id="start">Combattre</button>
+        <p class="lb-error" id="deck-error"></p>
+      </section>
+    </div>`
+    : `<div class="ui-empty"><b>Aucun donjon</b><p>La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p></div>`;
 
   const grimoireTab = `
     <div class="hub-grid">
@@ -288,9 +300,7 @@ function renderSetup(): void {
   const keepScroll = currentTab === tab && app.classList.contains('has-hub') ? window.scrollY : 0;
   const screen = hubShell(tab)!;
   const header =
-    tab === 'dungeons'
-      ? `<header><h1>Donjons</h1><p>Tranche T${tranche.id} · choisissez un donjon, sa difficulté, puis lancez l’expédition</p></header>`
-      : `<header><h1>Grimoire</h1><p>Tranche T${tranche.id} · sorts et passifs emportés en donjon</p></header>`;
+    tab === 'dungeons' ? '' : `<header><h1>Grimoire</h1><p>Tranche T${tranche.id} · sorts et passifs emportés en donjon</p></header>`;
   screen.innerHTML = `<div class="setup hub">${header}${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>
     <div class="spell-tip grimoire-tip" id="grimoire-tip" hidden></div>`;
   if (tab === 'grimoire' && dungeon) bindGrimoireSheets(characterRunConfig(character, dungeon.id, save.difficulty), loadout.deck);
@@ -348,18 +358,21 @@ function renderSetup(): void {
       renderSetup();
     }),
   );
-  const diff = app.querySelector('#diff') as HTMLInputElement | null;
-  const keepDifficulty = () => {
-    if (!diff) return;
-    save.difficulty = Number(diff.value);
-    writeSave(save);
-  };
-  diff?.addEventListener('input', () => {
-    app.querySelector('#diff-v')!.textContent = diff.value;
-    const mult = app.querySelector('#diff-mult');
-    if (mult) mult.textContent = `PV, dégâts et XP des monstres : ×${difficultyMultiplier(Number(diff.value)).toFixed(2).replace('.', ',')} à cette difficulté (D5 ×1,70, D10 ×2,84).`;
-    keepDifficulty();
-  });
+  const keepDifficulty = () => writeSave(save);
+  app.querySelectorAll<HTMLButtonElement>('[data-diff]').forEach((b) =>
+    b.addEventListener('click', () => {
+      save.difficulty = Number(b.dataset.diff);
+      keepDifficulty();
+      app.querySelectorAll<HTMLButtonElement>('[data-diff]').forEach((x) => {
+        const on = x === b;
+        x.classList.toggle('on', on);
+        x.setAttribute('aria-checked', String(on));
+      });
+      app.querySelector('#diff-v')!.textContent = String(save.difficulty);
+      const mult = app.querySelector('#diff-mult');
+      if (mult) mult.textContent = multLabel(save.difficulty);
+    }),
+  );
   app.querySelector('#edit-deck')?.addEventListener('click', () => goTab('grimoire'));
   app.querySelector('#open-equipment')?.addEventListener('click', () => {
     keepDifficulty();
