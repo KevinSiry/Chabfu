@@ -103,10 +103,10 @@ export function itemStats(itemId: string, rarity: Rarity): EquipmentBonus {
   const b = emptyBonus();
   b.hp = scaled(s.hp);
   b.damage = scaled(s.damage);
-  b.pa = s.pa ?? 0;
-  b.pm = s.pm ?? 0;
-  b.range = s.range ?? 0;
-  b.concentration = s.concentration ?? 0;
+  b.pa = scaled(s.pa);
+  b.pm = scaled(s.pm);
+  b.range = scaled(s.range);
+  b.concentration = scaled(s.concentration);
   for (const e of STAT_ELEMENTS) {
     b.masteries[e] = scaled(s.masteries?.[e]);
     b.resistances[e] = scaled(s.resistances?.[e]);

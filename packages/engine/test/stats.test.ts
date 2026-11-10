@@ -30,15 +30,17 @@ function run(eq: Partial<EquipmentBonus>): ReturnType<typeof createRun> {
 
 describe('stats des objets', () => {
   it('chaque objet porte au moins 2 stats', () => {
-    for (const it of ITEMS) expect(statLines(itemStats(it.id, 'common'), LABELS).length, it.id).toBeGreaterThanOrEqual(2);
+    for (const it of ITEMS) expect(statLines(itemStats(it.id, 'mythic'), LABELS).length, it.id).toBeGreaterThanOrEqual(2);
   });
 
-  it('la rareté multiplie PV, maîtrises, résistances et dommages, pas PA/PM/portée/Concentration', () => {
+  it('la rareté multiplie toutes les stats ; les +1 n’apparaissent qu’à partir d’Inhabituelle', () => {
     const c = itemStats('amulette_braise', 'common');
     const l = itemStats('amulette_braise', 'legendary');
     expect(l.resistances.fire).toBeGreaterThan(c.resistances.fire);
-    expect(l.masteries.fire).toBeGreaterThan(c.masteries.fire);
-    expect(l.concentration).toBe(c.concentration);
+    expect(l.masteries.fire).toBeGreaterThan(c.masteries.fire * 2);
+    expect(c.concentration).toBe(0);
+    expect(itemStats('amulette_braise', 'uncommon').concentration).toBe(1);
+    expect(l.concentration).toBe(1);
     expect(itemStats('arc_racineux', 'legendary').damage).toBeGreaterThan(itemStats('arc_racineux', 'common').damage);
     expect(itemStats('arc_roseau', 'legendary').range).toBe(1);
     expect(itemStats('bottes_batracien', 'legendary').pm).toBe(1);
@@ -52,7 +54,7 @@ describe('stats des objets', () => {
   });
 
   it('décrit les stats dans un ordre stable', () => {
-    const lines = describeBonus(itemStats('amulette_braise', 'common'), LABELS);
+    const lines = describeBonus(itemStats('amulette_braise', 'mythic'), LABELS);
     expect(lines[0]).toMatch(/PV$/);
     expect(lines.findIndex((l) => l.includes('Maîtrise'))).toBeLessThan(lines.findIndex((l) => l.includes('Concentration')));
     expect(lines.at(-1)).toContain('Résistance Feu');

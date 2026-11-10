@@ -32,10 +32,12 @@ describe('objets et raretés', () => {
   });
 
   it('applique la puissance de la rareté aux caractéristiques', () => {
-    expect(itemStats('plastron_ecorce', 'common').hp).toBe(25);
-    expect(itemStats('plastron_ecorce', 'rare').hp).toBe(30);
-    expect(itemStats('plastron_ecorce', 'legendary').hp).toBe(38); // 37,5 arrondi
-    expect(itemStats('arc_racineux', 'mythic').masteries.fire).toBe(12); // 9 × 1,35 = 12,15
+    // Valeurs données en Mythique : Commune 40 %, Rare 70 %, Légendaire 120 %.
+    expect(itemStats('plastron_ecorce', 'mythic').hp).toBe(40);
+    expect(itemStats('plastron_ecorce', 'common').hp).toBe(16);
+    expect(itemStats('plastron_ecorce', 'rare').hp).toBe(28);
+    expect(itemStats('plastron_ecorce', 'legendary').hp).toBe(48);
+    expect(itemStats('arc_racineux', 'common').masteries.fire).toBe(6); // 14 × 0,4 = 5,6
   });
 
   it('chaque objet des tables de drop existe', () => {
@@ -111,7 +113,7 @@ describe('inventaire et loadout', () => {
 
   it('additionne les bonus, compare et nettoie au retrait', () => {
     let inv = equipItem(base, 1, 'i4');
-    expect(equipmentBonus(inv, 1).hp).toBe(34);
+    expect(equipmentBonus(inv, 1).hp).toBe(40);
     expect(compareWithEquipped(inv, 1, 'i2').masteries.fire).toBe(6);
     inv = unequipSlot(inv, 1, 'plastron');
     expect(equipmentBonus(inv, 1).hp).toBe(0);
@@ -128,7 +130,7 @@ describe('équipement en combat', () => {
     const config: RunConfig = { dungeonId: 'bosquet_des_ronces', difficulty: 1, deck: DECK, equipment };
     const run = createRun(config);
     const p = getPlayer(run);
-    expect(p.maxHp).toBe(150 + 34 + 5);
+    expect(p.maxHp).toBe(150 + 40 + 4);
     expect(run.player.masteries.fire).toBe(6);
     const after = replayRun(config, [{ type: 'endTurn' }]);
     expect(after.turn).toBeGreaterThan(run.turn);
