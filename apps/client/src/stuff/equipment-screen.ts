@@ -17,7 +17,7 @@ import {
 import { KIND_LABEL, bonusScore, itemCardHtml } from './item-view';
 import { characterStatsHtml, statRowsHtml } from './stat-view';
 import { getInventory, setInventory } from './store';
-import { assetUrl, itemIconImg } from '../ui/assets';
+import { assetUrl, itemIconImg, kindIconImg } from '../ui/assets';
 import { bindSegmented, openSheet, segmented } from '../ui/components';
 import { pageAll, pagerHtml } from '../ui/pager';
 import { icon } from '../ui/icons';
@@ -48,12 +48,12 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
   const pct = (v: number) => (v === 0 ? '—' : v < 0.01 ? `${(v * 100).toFixed(2)} %` : `${Math.round(v * 100)} %`);
 
   const tile = (uid: string, itemId: string, rarity: string, kind: string, extra = '') =>
-    `<button class="eq-tile rarity-${rarity} ${extra}" data-item="${uid}" aria-label="${getItem(itemId).name}">${itemIconImg(kind)}</button>`;
+    `<button class="eq-tile rarity-${rarity} ${extra}" data-item="${uid}" aria-label="${getItem(itemId).name}">${itemIconImg(itemId)}</button>`;
   const slotHtml = (s: (typeof SLOTS)[number]) => {
     const item = loadout[s.id] ? findItem(inv, loadout[s.id]!) : undefined;
     return item
       ? `<div class="eq-slot" title="${s.label}">${tile(item.uid, item.itemId, item.rarity, s.kind, 'worn')}<span>${s.label}</span></div>`
-      : `<div class="eq-slot empty" title="${s.label}"><span class="eq-tile empty">${itemIconImg(s.kind)}</span><span>${s.label}</span></div>`;
+      : `<div class="eq-slot empty" title="${s.label}"><span class="eq-tile empty">${kindIconImg(s.kind)}</span><span>${s.label}</span></div>`;
   };
   const worn = Object.values(loadout).filter(Boolean).length;
   const bagCount = inv.items.filter((i) => getItem(i.itemId).tranche === o.trancheId).length;
@@ -80,7 +80,7 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
             ? `<div class="eq-stats">${characterStatsHtml(totalBonus)}</div>`
             : `<div class="chips eq-kinds">
           <button class="chip ${filter === 'all' ? 'on' : ''}" data-filter="all">Tout</button>
-          ${kinds.map((k) => `<button class="chip ${filter === k ? 'on' : ''}" data-filter="${k}" title="${KIND_LABEL[k]}" aria-label="${KIND_LABEL[k]}">${itemIconImg(k)}<span>${KIND_LABEL[k]}</span></button>`).join('')}
+          ${kinds.map((k) => `<button class="chip ${filter === k ? 'on' : ''}" data-filter="${k}" title="${KIND_LABEL[k]}" aria-label="${KIND_LABEL[k]}">${kindIconImg(k)}<span>${KIND_LABEL[k]}</span></button>`).join('')}
         </div>
         ${
           bag.length
@@ -130,7 +130,7 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
     openSheet({
       title: `Butin du boss · difficulté ${o.difficulty}`,
       html: `
-        <table class="scores">${rates.map((r) => `<tr><td>${r.item.name}</td><td>${pct(r.rate)}</td></tr>`).join('')}</table>
+        <table class="scores">${rates.map((r) => `<tr><td><span class="drop-name">${itemIconImg(r.item.id, 'asset-res')}${r.item.name}</span></td><td>${pct(r.rate)}</td></tr>`).join('')}</table>
         <h3 class="ui-section-title">Rareté de chaque drop</h3>
         <table class="scores">${RARITY_ORDER.map((r) => `<tr><td class="rarity-${r}"><span class="rarity-label">${RARITIES[r].label}</span></td><td>${pct(chances[r])}</td></tr>`).join('')}</table>
         <p class="muted">Au moins un objet par victoire. Plus la difficulté est haute, plus il y a de drops et de raretés hautes. Légendaire à partir de la difficulté 6.</p>`,

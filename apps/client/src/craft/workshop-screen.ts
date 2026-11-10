@@ -28,7 +28,7 @@ import {
 import { getInventory, setInventory } from '../stuff/store';
 import '../stuff/stuff.css';
 import './craft.css';
-import { itemIconImg } from '../ui/assets';
+import { itemIconImg, resourceIconImg, shardIconImg } from '../ui/assets';
 import { getCrafting, setCrafting } from './store';
 import { icon } from '../ui/icons';
 import { bindSegmented, openSheet, segmented, toast } from '../ui/components';
@@ -71,7 +71,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
 
   const res = dungeonResources(dungeonId);
   const di = dungeons.findIndex((d) => d.id === dungeonId);
-  const shardsHtml = `<span class="ws-shards">${icon('shard')}<b>${shards}</b><small>Éclats T${o.trancheId}</small></span>`;
+  const shardsHtml = `<span class="ws-shards">${shardIconImg()}<b>${shards}</b><small>Éclats T${o.trancheId}</small></span>`;
   const craftSide = `
       <div class="ws-dungeon">
         <button class="ui-icon-btn ui-icon-btn--sm" data-dstep="-1" aria-label="Donjon précédent">${icon('back')}</button>
@@ -83,7 +83,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
         ${res
           .map((r) => {
             const n = st.resources[r.id] ?? 0;
-            return `<span class="ws-pill tier-${r.tier}${n ? '' : ' none'}" title="${RESOURCE_TIERS[r.tier].label} · dès difficulté ${r.refDifficulty}"><b>${n}</b><span>${r.name}</span></span>`;
+            return `<span class="ws-pill tier-${r.tier}${n ? '' : ' none'}" title="${RESOURCE_TIERS[r.tier].label} · dès difficulté ${r.refDifficulty}">${resourceIconImg(r.id)}<b>${n}</b><span>${r.name}</span></span>`;
           })
           .join('')}
       </div>
@@ -102,16 +102,16 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
             const def = getItem(r.itemId);
             const pv = previewInventory(inv, r.itemId, r.rarity);
             const upgrade = bonusScore(compareWithEquipped(pv.inv, o.trancheId, PREVIEW_UID)) > 0;
-            const ing = (name: string, have: number, need: number, missing: boolean) =>
-              `<div class="ws-ing${missing ? ' miss' : ''}" title="${name}"><span>${name}</span><b>${have}/${need}</b><i style="width:${Math.min(100, (100 * have) / need)}%"></i></div>`;
+            const ing = (name: string, have: number, need: number, missing: boolean, img: string) =>
+              `<div class="ws-ing${missing ? ' miss' : ''}" title="${name}">${img}<span>${name}</span><b>${have}/${need}</b><i style="width:${Math.min(100, (100 * have) / need)}%"></i></div>`;
             return `<div class="ws-recipe rarity-${r.rarity}">
-              <button type="button" class="ws-recipe-head" data-rdetail="${r.id}" aria-label="Voir les stats de ${def.name}"><span class="eq-tile rarity-${r.rarity}">${itemIconImg(def.kind)}</span><div><b>${def.name}</b><span class="rarity-label">${RARITIES[r.rarity].label}</span>${upgrade ? '<span class="tag tag-up">▲ Mieux</span>' : ''}</div></button>
+              <button type="button" class="ws-recipe-head" data-rdetail="${r.id}" aria-label="Voir les stats de ${def.name}"><span class="eq-tile rarity-${r.rarity}">${itemIconImg(def.id)}</span><div><b>${def.name}</b><span class="rarity-label">${RARITIES[r.rarity].label}</span>${upgrade ? '<span class="tag tag-up">▲ Mieux</span>' : ''}</div></button>
               ${statRowsHtml(itemStats(r.itemId, r.rarity), { compact: true })}
               <div class="ws-ings">
               ${Object.entries(r.resources)
-                .map(([id, n]) => ing(getResource(id).name, st.resources[id] ?? 0, n, !!miss.resources[id]))
+                .map(([id, n]) => ing(getResource(id).name, st.resources[id] ?? 0, n, !!miss.resources[id], resourceIconImg(id)))
                 .join('')}
-              ${r.shards ? ing(`Éclats T${r.tranche}`, shards, r.shards, !!miss.shards) : ''}
+              ${r.shards ? ing(`Éclats T${r.tranche}`, shards, r.shards, !!miss.shards, shardIconImg()) : ''}
               </div>
               <button class="ui-btn ${ok ? 'ui-btn--primary' : ''} ui-btn--sm ui-btn--block" data-craft="${r.id}" ${ok ? '' : 'disabled'}>${icon('hammer')} Fabriquer</button>
             </div>`;
@@ -142,7 +142,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
        <div class="eq-grid ws-bag" data-paged="ws-bag-${o.trancheId}">${bag
          .map((it) => {
            const eq = isEquipped(inv, it.uid);
-           return `<button class="eq-tile rarity-${it.rarity} ${eq ? 'worn' : ''}" data-ritem="${it.uid}" aria-label="${getItem(it.itemId).name}">${itemIconImg(getItem(it.itemId).kind)}</button>`;
+           return `<button class="eq-tile rarity-${it.rarity} ${eq ? 'worn' : ''}" data-ritem="${it.uid}" aria-label="${getItem(it.itemId).name}">${itemIconImg(it.itemId)}</button>`;
          })
          .join('')}</div>`
     : `<div class="ui-empty eq-empty">${icon('bag')}<b>Sac vide</b><p>Le butin des boss arrive ici.</p></div>`;
