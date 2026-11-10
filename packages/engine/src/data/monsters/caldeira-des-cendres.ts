@@ -12,9 +12,9 @@ export const CALDEIRA_DES_CENDRES_MONSTERS: MonsterTemplate[] = [
     resistance: 'fire',
     behavior: 'sentinel',
     color: '#c4501f',
-    description: 'Immobile. Lance des braises en cloche (par-dessus les rochers) de 2 à 8 cases et brûle.',
+    description: 'Immobile. Lance des braises en cloche (par-dessus les rochers) de 2 à 10 cases et brûle.',
     attacks: [
-      { id: 'braises', name: 'Braises', element: 'fire', damage: 10, pa: 4, minRange: 2, maxRange: 8, los: false, maxPerTurn: 1, burn: { damage: 3, turns: 2 } },
+      { id: 'braises', name: 'Braises', element: 'fire', damage: 8, pa: 4, minRange: 2, maxRange: 10, los: false, maxPerTurn: 1, burn: { damage: 3, turns: 2 } },
     ],
   },
   {
@@ -28,7 +28,7 @@ export const CALDEIRA_DES_CENDRES_MONSTERS: MonsterTemplate[] = [
     color: '#e0782c',
     description: 'Rapide, mord au contact et brûle. Une Flèche givrée la ralentit.',
     attacks: [
-      { id: 'morsure_ardente', name: 'Morsure ardente', element: 'fire', damage: 13, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1, burn: { damage: 3, turns: 2 } },
+      { id: 'morsure_ardente', name: 'Morsure ardente', element: 'fire', damage: 10, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1, burn: { damage: 3, turns: 2 } },
     ],
   },
   {
@@ -40,9 +40,9 @@ export const CALDEIRA_DES_CENDRES_MONSTERS: MonsterTemplate[] = [
     weakness: 'water',
     resistance: 'earth',
     color: '#5a5048',
-    description: 'Lent et robuste, cogne fort. Bon bouclier : il bloque la ligne de vue des braseros.',
+    description: 'Robuste, cogne fort. Bon bouclier : il bloque la ligne de vue des braseros.',
     attacks: [
-      { id: 'coup_de_scorie', name: 'Coup de scorie', element: 'earth', damage: 20, pa: 5, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1 },
+      { id: 'coup_de_scorie', name: 'Coup de scorie', element: 'earth', damage: 15, pa: 5, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1 },
     ],
   },
   {
@@ -55,10 +55,10 @@ export const CALDEIRA_DES_CENDRES_MONSTERS: MonsterTemplate[] = [
     resistance: 'fire',
     isBoss: true,
     color: '#8e1f0f',
-    description: 'Boss lent : poing de lave au contact, bombes en cloche jusqu’à 5 cases. Tout brûle.',
+    description: 'Boss : poing de lave au contact, bombes en cloche jusqu’à 5 cases. Tout brûle.',
     attacks: [
-      { id: 'poing_de_lave', name: 'Poing de lave', element: 'fire', damage: 21, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1, burn: { damage: 4, turns: 2 } },
-      { id: 'bombe_de_magma', name: 'Bombe de magma', element: 'fire', damage: 13, pa: 4, minRange: 2, maxRange: 5, los: false, maxPerTurn: 1 },
+      { id: 'poing_de_lave', name: 'Poing de lave', element: 'fire', damage: 16, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1, burn: { damage: 4, turns: 2 } },
+      { id: 'bombe_de_magma', name: 'Bombe de magma', element: 'fire', damage: 10, pa: 4, minRange: 2, maxRange: 5, los: false, maxPerTurn: 1 },
     ],
   },
 ];

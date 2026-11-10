@@ -69,6 +69,7 @@ function setValue(obj: Record<string, unknown>, field: string, raw: string, spec
   const n = Number(raw);
   if (raw === 'true' || raw === 'false') obj[field] = raw === 'true';
   else if (!Number.isNaN(n)) obj[field] = n;
+  else if (/^[a-z_]+$/.test(raw) && typeof obj[field] === 'string') obj[field] = raw; // ex. weakness=earth
   else throw new Error(`Valeur invalide dans ${spec}`);
   return true;
 }

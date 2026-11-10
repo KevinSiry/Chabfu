@@ -11,7 +11,7 @@ export const BOSQUET_DES_RONCES_MONSTERS: MonsterTemplate[] = [
     weakness: 'fire',
     resistance: 'earth',
     color: '#8a5a2b',
-    description: 'Fonce au corps à corps. Lent : gardez vos distances.',
+    description: 'Fonce au corps à corps et vous rattrape vite : ne comptez pas seulement sur la fuite.',
     attacks: [
       { id: 'griffe', name: 'Griffe épineuse', element: 'earth', damage: 11, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1 },
     ],
@@ -40,7 +40,7 @@ export const BOSQUET_DES_RONCES_MONSTERS: MonsterTemplate[] = [
     resistance: 'water',
     isBoss: true,
     color: '#7a2f2f',
-    description: 'Boss lent : frappe fort au contact et crache de la sève jusqu’à 5 cases.',
+    description: 'Boss : frappe fort au contact et crache de la sève jusqu’à 5 cases.',
     attacks: [
       { id: 'etreinte', name: 'Étreinte des racines', element: 'earth', damage: 15, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1 },
       { id: 'crachat', name: 'Crachat de sève', element: 'water', damage: 9, pa: 3, minRange: 2, maxRange: 5, los: true, maxPerTurn: 1 },

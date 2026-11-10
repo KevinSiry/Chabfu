@@ -26,7 +26,7 @@ export const TOURBIERE_DES_NOYES_MONSTERS: MonsterTemplate[] = [
     weakness: 'air',
     resistance: 'water',
     color: '#4a3b52',
-    description: 'Fonce au corps à corps et mord fort. Lente : repoussez-la ou fuyez.',
+    description: 'Fonce au corps à corps et mord fort. Repoussez-la ou ralentissez-la.',
     attacks: [
       { id: 'succion', name: 'Succion', element: 'water', damage: 11, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1 },
     ],

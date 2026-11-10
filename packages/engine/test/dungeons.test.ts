@@ -145,8 +145,8 @@ describe('monstres : comportements', () => {
     let s = duel('caldeira_des_cendres', 'brasero_vivant', { x: 2, y: 4 }, { x: 2, y: 0 }, tiles);
     s = applyAction(s, { type: 'endTurn' }).state;
     const p = getPlayer(s);
-    // 10 dégâts de braises, puis la brûlure (3) tombe au début du tour du joueur.
-    expect(p.hp).toBe(150 - 10 - 3);
+    // 8 dégâts de braises, puis la brûlure (3) tombe au début du tour du joueur.
+    expect(p.hp).toBe(150 - 8 - 3);
     expect(p.burn).toEqual({ damage: 3, turns: 1 });
   });
 
