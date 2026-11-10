@@ -40,7 +40,7 @@ import { bindCharacterBanner, renderCharacterCreation } from './character/ui';
 import './ui/legacy.css';
 import './ui/skin-ng.css';
 import './ui/components.css';
-import { trackInputMode } from './ui/components';
+import { openSheet, trackInputMode } from './ui/components';
 import { applySettings } from './ui/settings';
 import { elementIcon, icon } from './ui/icons';
 
@@ -245,65 +245,60 @@ function renderSetup(): void {
     </div>`
     : `<div class="ui-empty"><b>Aucun donjon</b><p>La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p></div>`;
 
+  const inDeck = new Set(loadout.deck);
   const grimoireTab = `
-    <div class="hub-grid">
-      <div class="hub-main">
-        <section class="card">
-          <div class="panel-title">Sorts <span class="muted" id="deck-count"></span></div>
-          <p class="muted small">Choisissez jusqu’à ${tranche.deckSize} sorts. L’ordre du deck suit celui du grimoire et donne les raccourcis (${slotKeysRange(tranche.deckSize)}).</p>
-          <div class="spell-list">
-            ${spells
-              .map((s) => {
-                const locked = s.level > effLevel;
-                return `
-              <button class="spell-card el-theme-${s.element} ${locked ? 'locked' : ''}" data-spell="${s.id}" ${locked ? 'disabled' : ''}>
-                <span class="spell-card-icon">${spellIconImg(s.id)}</span>
-                <div class="head"><span><span class="el el-${s.element}"></span>${s.name}</span><span class="cost">${locked ? `${icon('lock')} Niv. ${s.level}` : `${s.pa} PA`}</span></div>
-                <div class="meta">Niv. ${s.level} · ${ELEMENT_LABEL[s.element]} · ${rangeLabel(s.minRange, s.maxRange)}${s.maxPerTurn ? ` · ${s.maxPerTurn}/tour` : ''}</div>
-                <div class="desc">${s.description}</div>
-              </button>`;
-              })
-              .join('')}
-          </div>
-        </section>
-        <section class="card">
-          <div class="panel-title">Passifs <span class="muted" id="passive-count"></span></div>
-          <div class="passive-list">
-            ${passives
-              .map((p) => {
-                const locked = p.level > effLevel;
-                return `
-              <button class="passive-card ${locked ? 'locked' : ''}" data-passive="${p.id}" ${locked ? 'disabled' : ''}>
-                <div class="head"><span>${p.name}</span><span class="muted">${locked ? icon('lock') + ' ' : ''}Niv. ${p.level}</span></div>
-                <div class="desc">${p.description}</div>
-              </button>`;
-              })
-              .join('')}
-          </div>
-        </section>
-      </div>
-      <aside class="side">
-        <section class="card">
-          <div class="panel-title">Barre de sorts</div>
-          ${deckStrip}
-          <button class="primary launch" id="start">Lancer le donjon</button>
-          <p class="muted" id="deck-error"></p>
-        </section>
-        <section class="card hint">
-          <div class="panel-title">Commandes</div>
-          Clic : se déplacer · ${slotKeysRange(tranche.deckSize)} (ou pavé numérique) : choisir un sort · Espace : fin du tour · T : zones de menace · Échap / clic droit : annuler.
-          La Concentration monte de 1 si vous n’avez pas bougé au tour précédent, et baisse de 1 par PM dépensé.
-        </section>
-      </aside>
+    <div class="gr">
+      <section class="ui-panel gr-deck-panel">
+        <div class="gr-head"><span>Deck</span> <b id="deck-count"></b></div>
+        <div class="gr-deck">
+          ${Array.from({ length: tranche.deckSize }, (_, i) => {
+            const sp = loadout.deck[i] ? SPELLS.find((x) => x.id === loadout.deck[i]) : undefined;
+            return sp
+              ? `<button class="lb-card gr-slot" data-open="${sp.id}" aria-label="${sp.name}">${spellIconImg(sp.id)}<span class="lb-cost">${sp.pa}</span></button>`
+              : `<div class="lb-card empty"></div>`;
+          }).join('')}
+        </div>
+        <button class="ui-btn ui-btn--primary ui-btn--lg gr-go" id="start">Combattre</button>
+        <p class="lb-error" id="deck-error"></p>
+      </section>
+      <section class="gr-section">
+        <div class="gr-title">Sorts <small>Touchez une carte pour la voir en détail et l’ajouter au deck.</small></div>
+        <div class="gr-grid">
+          ${spells
+            .map((sp) => {
+              const locked = sp.level > effLevel;
+              return `
+            <button class="gr-card el-theme-${sp.element} ${locked ? 'locked' : ''} ${inDeck.has(sp.id) ? 'in' : ''}" data-open="${sp.id}">
+              <span class="gr-art">${spellIconImg(sp.id)}${locked ? `<span class="gr-lock">${icon('lock')}<b>Niv. ${sp.level}</b></span>` : `<span class="lb-cost">${sp.pa}</span>`}${inDeck.has(sp.id) ? `<span class="gr-check">${icon('check')}</span>` : ''}</span>
+              <span class="gr-name">${sp.name}</span>
+            </button>`;
+            })
+            .join('')}
+        </div>
+      </section>
+      <section class="gr-section">
+        <div class="gr-title">Passifs <b id="passive-count"></b></div>
+        <div class="gr-passives">
+          ${passives
+            .map((pa) => {
+              const locked = pa.level > effLevel;
+              return `
+            <button class="passive-card gr-passive ${locked ? 'locked' : ''}" data-passive="${pa.id}" ${locked ? 'disabled' : ''}>
+              <span class="gr-passive-head"><b>${pa.name}</b><span class="ui-chip">${locked ? icon('lock') + ' ' : ''}Niv. ${pa.level}</span></span>
+              <span class="gr-passive-desc">${pa.description}</span>
+            </button>`;
+            })
+            .join('')}
+        </div>
+      </section>
     </div>`;
 
   const keepScroll = currentTab === tab && app.classList.contains('has-hub') ? window.scrollY : 0;
   const screen = hubShell(tab)!;
   const header =
-    tab === 'dungeons' ? '' : `<header><h1>Grimoire</h1><p>Tranche T${tranche.id} · sorts et passifs emportés en donjon</p></header>`;
+    '';
   screen.innerHTML = `<div class="setup hub">${header}${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>
     <div class="spell-tip grimoire-tip" id="grimoire-tip" hidden></div>`;
-  if (tab === 'grimoire' && dungeon) bindGrimoireSheets(characterRunConfig(character, dungeon.id, save.difficulty), loadout.deck);
   // Le grimoire se redessine à chaque clic : on garde la position de défilement.
   window.scrollTo(0, keepScroll);
   const deck = new Set(loadout.deck);
@@ -320,7 +315,6 @@ function renderSetup(): void {
     );
   };
   const refresh = () => {
-    app.querySelectorAll<HTMLButtonElement>('.spell-card').forEach((b) => b.classList.toggle('selected', deck.has(b.dataset.spell!)));
     app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) => b.classList.toggle('selected', chosenPassives.has(b.dataset.passive!)));
     const dc = app.querySelector('#deck-count');
     if (dc) dc.textContent = `${deck.size} / ${tranche.deckSize}`;
@@ -330,13 +324,30 @@ function renderSetup(): void {
   };
   // Le grimoire redessine l'écran pour mettre à jour la barre de sorts.
   const rerender = () => renderSetup();
-  app.querySelectorAll<HTMLButtonElement>('.spell-card').forEach((b) =>
+  app.querySelectorAll<HTMLButtonElement>('[data-open]').forEach((b) =>
     b.addEventListener('click', () => {
-      const id = b.dataset.spell!;
-      if (deck.has(id)) deck.delete(id);
-      else if (deck.size < tranche.deckSize) deck.add(id);
-      persist();
-      rerender();
+      const id = b.dataset.open!;
+      const sp = SPELLS.find((x) => x.id === id)!;
+      const locked = sp.level > effLevel;
+      const has = deck.has(id);
+      const full = deck.size >= tranche.deckSize;
+      const st = dungeon ? grimoireState(characterRunConfig(character, dungeon.id, save.difficulty), loadout.deck) : null;
+      const action = locked
+        ? `<button class="ui-btn ui-btn--block" disabled>${icon('lock')} Débloqué au niveau ${sp.level}</button>`
+        : has
+          ? `<button class="ui-btn ui-btn--danger ui-btn--block" id="gr-toggle">Retirer du deck</button>`
+          : `<button class="ui-btn ui-btn--primary ui-btn--block" id="gr-toggle" ${full ? 'disabled' : ''}>${full ? `Deck plein (${tranche.deckSize} sorts)` : 'Ajouter au deck'}</button>`;
+      const sheet = openSheet({
+        title: 'Fiche du sort',
+        html: `<div class="gr-sheet">${st ? spellSheet(st, id, { outOfCombat: true }) : `<p>${sp.description}</p>`}</div><div class="gr-sheet-action">${action}</div>`,
+      });
+      sheet.el.querySelector('#gr-toggle')?.addEventListener('click', () => {
+        if (deck.has(id)) deck.delete(id);
+        else if (deck.size < tranche.deckSize) deck.add(id);
+        persist();
+        sheet.close();
+        rerender();
+      });
     }),
   );
   app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) =>
@@ -398,31 +409,16 @@ function renderSetup(): void {
 // Run
 // ---------------------------------------------------------------------------
 
-/**
- * Fiche complète au survol des sorts du grimoire, avec les chiffres réels du personnage
- * (maîtrises de l'équipement porté, passifs choisis) calculés sur un run fictif du donjon choisi.
- */
-function bindGrimoireSheets(baseConfig: RunConfig, deck: string[]): void {
-  let state: RunState;
+/** Run fictif du donjon choisi, pour afficher les chiffres réels des sorts (équipement, passifs) hors combat. */
+function grimoireState(baseConfig: RunConfig, deck: string[]): RunState | null {
   try {
     const config = withEquipment(baseConfig);
-    state = createRun(config.deck.length ? config : { ...config, deck: [SPELLS[0].id] });
+    const state = createRun(config.deck.length ? config : { ...config, deck: [SPELLS[0].id] });
+    state.player.deck = [...deck];
+    return state;
   } catch {
-    return;
+    return null;
   }
-  state.player.deck = [...deck];
-  const tip = app.querySelector('#grimoire-tip') as HTMLElement;
-  app.querySelectorAll<HTMLElement>('.spell-card').forEach((card) => {
-    card.addEventListener('mouseenter', () => {
-      tip.innerHTML = spellSheet(state, card.dataset.spell!, { outOfCombat: true });
-      tip.hidden = false;
-      const r = card.getBoundingClientRect();
-      const left = r.right + 12 + tip.offsetWidth < window.innerWidth ? r.right + 12 : r.left - tip.offsetWidth - 12;
-      tip.style.left = `${Math.max(8, left)}px`;
-      tip.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - tip.offsetHeight - 8))}px`;
-    });
-    card.addEventListener('mouseleave', () => (tip.hidden = true));
-  });
 }
 
 function openEquipment(): void {

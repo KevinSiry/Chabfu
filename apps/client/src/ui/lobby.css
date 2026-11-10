@@ -172,3 +172,49 @@
 #app.has-hub .card { border: 0; border-radius: var(--r-lg); background: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b) 320px); box-shadow: var(--outline-3), inset 0 2px 0 var(--c-panel-hi), 0 6px 0 3px rgba(0, 0, 0, 0.3); }
 #app.has-hub .panel-title, #app.has-hub .card > h3 { font: 18px/1.1 var(--font-display); letter-spacing: 0.01em; text-transform: none; color: #fff; text-shadow: var(--stroke-sm); }
 #app.has-hub #stuff-back, #app.has-hub #craft-back { display: none; }
+
+/* ---------- Grimoire : collection de cartes ---------- */
+#app .gr { display: grid; grid-template-columns: 280px minmax(0, 1fr); grid-template-areas: 'deck spells' 'deck passives'; gap: 16px; align-items: start; }
+#app .gr-deck-panel { grid-area: deck; position: sticky; top: 0; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+#app .gr-section:nth-of-type(2) { grid-area: spells; }
+#app .gr-section:nth-of-type(3) { grid-area: passives; }
+#app .gr-head, #app .gr-title { font: 22px/1.1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+#app .gr-head b, #app .gr-title b { color: var(--c-gold-a); }
+#app .gr-title small { display: block; margin-top: 4px; font: 800 13px/1.3 var(--font-ui); color: var(--c-text-2); text-shadow: none; }
+#app .gr-deck { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+#app .gr-slot { padding: 0; border: 0; cursor: pointer; }
+#app .gr-go { width: 100%; }
+#app .gr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 16px 12px; margin-top: 12px; }
+#app .gr-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: #fff; cursor: pointer; transition: transform var(--d-fast) var(--ease-spring); }
+#app .gr-card:active { transform: scale(0.95); }
+#app .gr-art { position: relative; width: 100%; aspect-ratio: 1; border-radius: 18px; background: var(--c-well); box-shadow: var(--outline-3), 0 5px 0 3px rgba(0, 0, 0, 0.35); }
+#app .gr-art > img { width: 100%; height: 100%; display: block; border-radius: 16px; object-fit: cover; }
+#app .gr-card.in .gr-art { box-shadow: var(--outline-3), 0 0 0 6px var(--c-cta-a), 0 0 0 8px var(--c-ink), 0 9px 0 3px rgba(0, 0, 0, 0.3); }
+#app .gr-card.locked .gr-art > img { filter: grayscale(1) brightness(0.45); }
+#app .gr-art .lb-cost { width: 30px; height: 30px; font-size: 17px; right: -8px; bottom: -8px; }
+#app .gr-check { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: linear-gradient(180deg, var(--c-cta-a), var(--c-cta-b)); box-shadow: var(--outline-2); }
+#app .gr-check .ico { width: 18px; height: 18px; stroke-width: 3; }
+#app .gr-lock { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #fff; }
+#app .gr-lock .ico { width: 26px; height: 26px; filter: drop-shadow(0 2px 0 var(--c-ink)); }
+#app .gr-lock b { font: 15px/1 var(--font-display); text-shadow: var(--stroke-sm); }
+#app .gr-name { font: 14px/1.1 var(--font-display); text-align: center; text-shadow: var(--stroke-sm); }
+#app .gr-card.locked .gr-name { color: var(--c-text-3); }
+#app .gr-passives { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+#app .gr-passive { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; text-align: left; border: 0; border-radius: 16px; color: #fff; background: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b)); box-shadow: var(--outline-3), inset 0 2px 0 var(--c-panel-hi), 0 5px 0 3px rgba(0, 0, 0, 0.3); cursor: pointer; }
+#app .gr-passive.selected { box-shadow: var(--outline-3), 0 0 0 6px var(--c-cta-a), 0 0 0 8px var(--c-ink); }
+#app .gr-passive.locked { opacity: 0.55; cursor: not-allowed; }
+#app .gr-passive-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#app .gr-passive-head b { font: 17px/1.1 var(--font-display); text-shadow: var(--stroke-sm); }
+#app .gr-passive-desc { font-size: 13px; font-weight: 700; line-height: 1.35; color: var(--c-text-2); }
+.gr-sheet-action { position: sticky; bottom: 0; padding-top: 12px; background: linear-gradient(180deg, transparent, var(--c-panel-b) 30%); }
+
+@media (max-height: 520px) and (orientation: landscape) {
+  #app .gr { grid-template-columns: 220px minmax(0, 1fr); gap: 12px; }
+  #app .gr-deck { gap: 6px; }
+  #app .gr-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  #app .gr { grid-template-columns: 1fr; grid-template-areas: 'deck' 'spells' 'passives'; }
+  #app .gr-deck-panel { position: static; }
+  #app .gr-grid { grid-template-columns: repeat(3, 1fr); }
+}
