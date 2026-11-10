@@ -37,10 +37,10 @@ export interface Recipe {
  * [palier, rang de la ressource dans le palier, quantité].
  */
 const COSTS: Record<CraftRarity, { parts: [ResourceTier, number, number][]; shards: number }> = {
-  common: { parts: [['common', 0, 5]], shards: 0 },
-  uncommon: { parts: [['common', 0, 8], ['common', 1, 4]], shards: 3 },
-  rare: { parts: [['common', 0, 6], ['common', 1, 6], ['rare', 0, 4]], shards: 10 },
-  mythic: { parts: [['rare', 0, 6], ['mythic', 0, 4]], shards: 30 },
+  common: { parts: [['common', 0, 8]], shards: 0 },
+  uncommon: { parts: [['common', 0, 12], ['common', 1, 6]], shards: 10 },
+  rare: { parts: [['common', 0, 10], ['common', 1, 10], ['rare', 0, 8]], shards: 40 },
+  mythic: { parts: [['rare', 0, 12], ['mythic', 0, 10]], shards: 120 },
 };
 
 function pick(res: ResourceDef[], tier: ResourceTier, rank: number): ResourceDef | undefined {

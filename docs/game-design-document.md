@@ -195,6 +195,8 @@ La Légendaire est volontairement la plus dure à obtenir : c'est l'aboutissemen
 - **Drop** : chaque boss a sa table d'objets. À chaque drop, la rareté est tirée au sort. La difficulté choisie augmente les chances de rareté élevée, et la Légendaire n'est possible qu'à partir d'un certain niveau de difficulté (ex. 6+).
 - **Craft** : chaque recette produit un objet d'une rareté fixe, de Commune à Mythique. Les recettes de haute rareté demandent les ressources des paliers de difficulté correspondants (voir section 7).
 - **Pas d'amélioration de rareté** : la rareté d'un objet est fixée à son obtention, par craft ou par drop. Un objet ne monte jamais en rareté.
+
+**Rythme d'obtention (cibles du farm, révision du 2026-11-10).** Chabfu est un jeu de farm : une panoplie complète doit se mériter sur des dizaines, puis des centaines de runs. Le boss donne en général un seul objet (de 1,1 objet par run en D1 à 1,7 en D10), surtout en Commune et Inhabituelle. Cibles, drops et atelier compris, pour une panoplie complète de 9 emplacements farmée sur un seul donjon : Inhabituelle ≈ 20 runs (D3–D5), Rare ≈ 70 runs (D5), Mythique ≈ 180 runs (D8) ou ≈ 155 runs (D10), Légendaire hors d'atteinte en panoplie (environ une pièce tous les 150 à 250 runs en D10). L'outil `npm run economy` recalcule ce tableau après chaque changement de taux, de recette ou de recyclage.
 - **Runes** : obtenues dans les donjons, elles se sertissent dans les emplacements et permettent d'affiner le build (maîtrise élémentaire, portée, Concentration, PA/PM).
 
 ### Utilité du surplus de farm

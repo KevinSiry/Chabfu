@@ -8,7 +8,8 @@
   "scripts": {
     "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=dist/cli.mjs --log-level=warning",
     "solve": "npm run build && node dist/cli.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "economy": "esbuild src/economy-cli.ts --bundle --platform=node --format=esm --outfile=dist/economy.mjs --log-level=warning && node dist/economy.mjs"
   },
   "dependencies": {
     "@chabfu/engine": "0.1.0"
