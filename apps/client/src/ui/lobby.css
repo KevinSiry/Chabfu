@@ -265,3 +265,39 @@
 #app .eq-tile.rarity-rare { --r: var(--c-r-rare); }
 #app .eq-tile.rarity-mythic { --r: var(--c-r-mythic); }
 #app .eq-tile.rarity-legendary { --r: var(--c-r-legendary); }
+
+/* ---------- Atelier : Fabriquer / Recycler ---------- */
+#app .ws { display: flex; flex-direction: column; gap: 12px; }
+#app .ws > .ui-seg { align-self: center; min-width: min(420px, 100%); }
+#app .ws-pane { padding: 14px; }
+#app .ws .craft-flash:empty { display: none; }
+#app .ws .craft-flash { margin: 0; text-align: center; font: 16px/1.2 var(--font-display); color: var(--c-cta-a); text-shadow: var(--stroke-sm); }
+#app .ws-res, #app .ws-recycle-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#app .ws-shards { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px 0 8px; border-radius: 20px; background: var(--c-ink); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12); }
+#app .ws-shards .ico { width: 26px; height: 26px; color: #8fe3ff; filter: drop-shadow(0 2px 0 #000); }
+#app .ws-shards b { font: 22px/1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+#app .ws-shards small { font: 800 12px/1 var(--font-ui); color: var(--c-text-2); }
+#app .ws-pill { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 4px; border-radius: 16px; font: 800 13px/1 var(--font-ui); color: #fff; background: var(--c-well); }
+#app .ws-pill b { min-width: 24px; height: 24px; display: grid; place-items: center; padding: 0 6px; border-radius: 12px; font: 14px/1 var(--font-display); background: var(--c-blue-b); box-shadow: var(--outline-2); }
+#app .ws-pill.none { opacity: 0.6; }
+#app .ws-pill.none b { background: var(--c-ink); }
+#app .ws .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+#app .ws-recipes { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; margin-top: 14px; }
+#app .ws-recipe { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 16px; background: var(--c-well); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08); }
+#app .ws-recipe-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+#app .ws-recipe-head b { display: block; font: 16px/1.1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+#app .ws-recipe-head .rarity-label { font-size: 13px; font-weight: 900; }
+#app .ws-recipe-head .eq-tile { flex: none; cursor: default; }
+#app .ws-ing { position: relative; display: flex; justify-content: space-between; gap: 8px; height: 26px; padding: 0 10px; align-items: center; border-radius: 13px; overflow: hidden; font: 800 13px/1 var(--font-ui); color: #fff; background: var(--c-ink); }
+#app .ws-ing > * { position: relative; z-index: 1; }
+#app .ws-ing i { position: absolute; inset: 0 auto 0 0; background: rgba(87, 224, 106, 0.35); }
+#app .ws-ing.miss b { color: #ff8f86; }
+#app .ws-ing.miss i { background: rgba(255, 90, 82, 0.25); }
+#app .ws-recipe .ui-btn { margin-top: 6px; }
+#app .ws-field { display: inline-flex; align-items: center; gap: 8px; font: 800 13px/1.2 var(--font-ui); color: var(--c-text-2); }
+#app .ws select { height: 36px; padding: 0 10px; border: 0; border-radius: 10px; font: 800 14px var(--font-ui); color: #fff; background: var(--c-ink); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15); }
+#app .ws-bag { margin-top: 14px; }
+#app .ws-sub { margin: 18px 0 8px; font: 18px/1.1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); }
+#app .ws > .ui-seg { display: grid; grid-template-columns: 1fr 1fr; }
+#app .ws-recipe .ui-btn { margin-top: auto; }
+#app .ws-recipe .ws-ing:last-of-type { margin-bottom: 6px; }
