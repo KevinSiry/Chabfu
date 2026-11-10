@@ -3,7 +3,6 @@ import {
   RARITY_ORDER,
   SLOTS,
   bossDropRates,
-  describeBonus,
   equipItem,
   equipmentBonus,
   findItem,
@@ -14,7 +13,8 @@ import {
   unequipSlot,
   type ItemKind,
 } from '@chabfu/engine';
-import { ELEMENT_LABEL, KIND_LABEL, itemCardHtml } from './item-view';
+import { KIND_LABEL, itemCardHtml } from './item-view';
+import { characterStatsHtml, statRowsHtml } from './stat-view';
 import { getInventory, setInventory } from './store';
 import { itemIconImg } from '../ui/assets';
 import './stuff.css';
@@ -32,7 +32,7 @@ let filter: ItemKind | 'all' = 'all';
 export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOptions): void {
   const inv = getInventory();
   const loadout = getLoadout(inv, o.trancheId);
-  const total = describeBonus(equipmentBonus(inv, o.trancheId), ELEMENT_LABEL);
+  const totalBonus = equipmentBonus(inv, o.trancheId);
   const bag = sortItems(inv.items.filter((i) => getItem(i.itemId).tranche === o.trancheId)).filter(
     (i) => filter === 'all' || getItem(i.itemId).kind === filter,
   );
@@ -52,7 +52,8 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
             ${SLOTS.map((s) => {
               const item = loadout[s.id] ? findItem(inv, loadout[s.id]!) : undefined;
               if (!item) return `<div class="slot empty"><span class="item-icon kind-${s.kind}">${itemIconImg(s.kind)}</span><span class="slot-label">${s.label}</span><span class="muted">vide</span></div>`;
-              return `<div class="slot rarity-${item.rarity}" data-slot="${s.id}" title="Cliquer pour retirer">
+              return `<div class="slot rarity-${item.rarity}" data-slot="${s.id}" tabindex="0" aria-label="${getItem(item.itemId).name}, cliquer pour retirer">
+                  <div class="item-tip">${itemCardHtml(item, { inv, trancheId: o.trancheId })}</div>
                   <span class="item-icon kind-${s.kind}">${itemIconImg(s.kind)}</span>
                   <span class="slot-label">${s.label}</span>
                   <span class="item-name">${getItem(item.itemId).name}</span>
@@ -60,9 +61,9 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
                 </div>`;
             }).join('')}
           </div>
-          <h3 style="margin-top:16px">Total</h3>
-          <div class="item-stats total">${total.length ? total.map((s) => `<span>${s}</span>`).join('') : '<span class="muted">Aucun bonus : rien d’équipé.</span>'}</div>
-          <p class="muted">Ces bonus s’appliquent à chaque run de la tranche T${o.trancheId}.</p>
+          <h3 style="margin-top:16px">Stats du personnage</h3>
+          ${characterStatsHtml(totalBonus)}
+          <p class="muted">Base de l’Archer + objets portés. Elles s’appliquent à chaque run de la tranche T${o.trancheId}.</p>
         </div>
         <div class="card">
           <h3>Sac</h3>
@@ -123,11 +124,11 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
 export function equipmentSummaryHtml(trancheId: number): string {
   const inv = getInventory();
   const worn = Object.values(getLoadout(inv, trancheId)).filter(Boolean).length;
-  const total = describeBonus(equipmentBonus(inv, trancheId), ELEMENT_LABEL);
+  const bonus = equipmentBonus(inv, trancheId);
   return `
     <div class="card">
       <h3>Équipement <span class="muted">${worn} / ${SLOTS.length}</span></h3>
-      <div class="item-stats total">${total.length ? total.map((s) => `<span>${s}</span>`).join('') : '<span class="muted">Rien d’équipé.</span>'}</div>
+      ${worn ? statRowsHtml(bonus, { compact: true }) : '<p class="muted">Rien d’équipé.</p>'}
       <button class="secondary" id="open-equipment" style="width:100%;margin-top:8px">Inventaire et équipement</button>
     </div>`;
 }

@@ -78,7 +78,7 @@ export function monsterCard(state: RunState, u: Unit, intent: MonsterIntent | un
     <ul class="atk-list">${attacks
       .map(
         (a) =>
-          `<li><span>${el(a.element)} <b>${a.name}</b></span><span class="neg"><b>${a.damage}</b> dégâts</span><span class="muted">${a.pa} PA · ${rangeLabel(a.minRange, a.maxRange)}${a.los ? '' : ' · en cloche (sans ligne de vue)'}${a.maxPerTurn > 1 ? ` · ${a.maxPerTurn}/tour` : ''}${a.burn ? ` · <span class="neg">brûlure ${a.burn.damage} × ${a.burn.turns}</span>` : ''}${a.pmRemoval ? ` · <span class="neg">−${a.pmRemoval} PM</span>` : ''}${a.push ? ` · <span class="neg">pousse de ${a.push}</span>` : ''}</span></li>`,
+          `<li><span>${el(a.element)} <b>${a.name}</b></span><span class="neg"><b>${a.damage}</b> dégâts${a.resisted ? ` <span class="muted">(−${a.resisted} % résistance)</span>` : ''}</span><span class="muted">${a.pa} PA · ${rangeLabel(a.minRange, a.maxRange)}${a.los ? '' : ' · en cloche (sans ligne de vue)'}${a.maxPerTurn > 1 ? ` · ${a.maxPerTurn}/tour` : ''}${a.burn ? ` · <span class="neg">brûlure ${a.burn.damage} × ${a.burn.turns}</span>` : ''}${a.pmRemoval ? ` · <span class="neg">−${a.pmRemoval} PM</span>` : ''}${a.push ? ` · <span class="neg">pousse de ${a.push}</span>` : ''}</span></li>`,
       )
       .join('')}</ul>
     ${t.description ? `<p class="desc-line">${esc(t.description)}</p>` : ''}

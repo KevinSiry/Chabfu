@@ -1,7 +1,6 @@
 import {
   RARITIES,
   compareWithEquipped,
-  describeBonus,
   equippedSlotOf,
   getItem,
   itemStats,
@@ -11,6 +10,7 @@ import {
   type ItemInstance,
 } from '@chabfu/engine';
 import { itemIconImg } from '../ui/assets';
+import { statDeltaHtml, statRowsHtml } from './stat-view';
 
 export const ELEMENT_LABEL: Record<Element, string> = { fire: 'Feu', water: 'Eau', earth: 'Terre', air: 'Air', neutral: 'Neutre' };
 
@@ -25,17 +25,15 @@ export const KIND_LABEL: Record<string, string> = {
   anneau: 'Anneau',
 };
 
-/** Somme pondérée grossière, juste pour signaler une amélioration (1 PV ≈ 0,5 % de maîtrise). */
+/**
+ * Somme pondérée grossière, juste pour signaler une amélioration « ▲ Mieux ».
+ * Repères : 1 PV ≈ 0,5 % de maîtrise, 1 Dommage ≈ 8 %, 1 % de résistance ≈ 0,8 %.
+ */
 export function bonusScore(b: EquipmentBonus): number {
-  return b.hp * 0.5 + b.pa * 30 + b.pm * 20 + Object.values(b.masteries).reduce((s, v) => s + v, 0);
-}
-
-function deltaHtml(delta: EquipmentBonus): string {
-  const lines = describeBonus(delta, ELEMENT_LABEL);
-  if (!lines.length) return '<div class="delta same">Identique à l’équipé</div>';
-  return `<div class="delta">${lines
-    .map((l) => `<span class="${l.startsWith('-') ? 'down' : 'up'}">${l}</span>`)
-    .join('')}</div>`;
+  const sum = (r: Record<string, number> | undefined) => Object.values(r ?? {}).reduce((s, v) => s + v, 0);
+  return (
+    b.hp * 0.5 + b.pa * 30 + b.pm * 20 + sum(b.masteries) + (b.damage ?? 0) * 8 + (b.range ?? 0) * 15 + (b.concentration ?? 0) * 15 + sum(b.resistances) * 0.8
+  );
 }
 
 export interface ItemCardOptions {
@@ -52,7 +50,7 @@ export interface ItemCardOptions {
 export function itemCardHtml(item: ItemInstance, o: ItemCardOptions): string {
   const def = getItem(item.itemId);
   const r = RARITIES[item.rarity];
-  const stats = describeBonus(itemStats(item.itemId, item.rarity), ELEMENT_LABEL);
+  const stats = itemStats(item.itemId, item.rarity);
   const equipped = equippedSlotOf(o.inv, o.trancheId, item.uid);
   const delta = o.compare && !equipped && def.tranche === o.trancheId ? compareWithEquipped(o.inv, o.trancheId, item.uid) : null;
   const upgrade = delta && bonusScore(delta) > 0;
@@ -64,8 +62,8 @@ export function itemCardHtml(item: ItemInstance, o: ItemCardOptions): string {
         ${equipped ? '<span class="tag tag-eq">Équipé</span>' : upgrade ? '<span class="tag tag-up">▲ Mieux</span>' : ''}
       </div>
       <div class="item-meta"><span class="rarity-label">${r.label}</span> · ${KIND_LABEL[def.kind]} · T${def.tranche}${r.runeSlots ? ` · ${'◇'.repeat(r.runeSlots)} rune${r.runeSlots > 1 ? 's' : ''}` : ''}</div>
-      <div class="item-stats">${stats.map((s) => `<span>${s}</span>`).join('')}</div>
-      ${delta ? deltaHtml(delta) : ''}
+      ${statRowsHtml(stats)}
+      ${delta ? statDeltaHtml(delta) : ''}
       ${o.action && !equipped ? `<button class="secondary item-btn" data-action="${o.action.name}" data-uid="${item.uid}">${o.action.label}</button>` : ''}
     </div>`;
 }
