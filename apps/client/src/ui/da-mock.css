@@ -1,0 +1,141 @@
+/* Maquettes DA casual mobile (deux variantes). */
+:root[data-da] {
+  --ink: #0d1b3d;
+  --font-fun: 'Lilita One', 'Nunito', system-ui, sans-serif;
+  --font-round: 'Nunito', system-ui, sans-serif;
+}
+:root[data-da='azur'] {
+  --bg-a: #67c3ff; --bg-b: #2a72de;
+  --p-a: #4ea7ff; --p-b: #2468d8; --p-line: #0e2a63; --p-hi: rgba(255, 255, 255, 0.5); --p-in: #1a4fa8;
+  --cta-a: #ffe866; --cta-b: #ffb41f; --cta-lip: #b86a00;
+  --tab-a: #1b3f86; --tab-b: #102a5e;
+  --ink: #0e2350;
+}
+:root[data-da='arene'] {
+  --bg-a: #3a2c86; --bg-b: #140d34;
+  --p-a: #5844b5; --p-b: #2f2275; --p-line: #140c38; --p-hi: rgba(255, 255, 255, 0.35); --p-in: #22185a;
+  --cta-a: #9af35e; --cta-b: #3fb823; --cta-lip: #1f6d0e;
+  --tab-a: #2a1f66; --tab-b: #170f40;
+  --ink: #150c35;
+}
+:root[data-da] body { margin: 0; background: var(--bg-b); font-family: var(--font-round); color: #fff; }
+:root[data-da] #app::before, :root[data-da] #app::after { content: none; }
+.da-stroke {
+  font-family: var(--font-fun); color: #fff; letter-spacing: 0.01em;
+  text-shadow: 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink), 1.5px 1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px -1.5px 0 var(--ink), 0 4px 0 var(--ink);
+}
+
+/* Panneaux : contour sombre épais, liseré clair intérieur, dégradé franc */
+.da-panel, .da-dungeon {
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--p-a), var(--p-b));
+  box-shadow: 0 0 0 3px var(--p-line), inset 0 2px 0 var(--p-hi), inset 0 -4px 0 rgba(0, 0, 0, 0.18), 0 6px 0 3px rgba(0, 0, 0, 0.25);
+}
+
+/* Boutons bombés à lèvre */
+.da-btn {
+  position: relative; border: 0; cursor: pointer;
+  border-radius: 18px; padding: 0 22px; min-height: 56px;
+  font-size: 22px;
+  background: linear-gradient(180deg, var(--cta-a) 0 45%, var(--cta-b) 55%);
+  box-shadow: 0 0 0 3px var(--ink), inset 0 3px 0 rgba(255, 255, 255, 0.6), inset 0 -5px 0 rgba(0, 0, 0, 0.18), 0 6px 0 3px var(--cta-lip), 0 6px 0 6px var(--ink);
+  transition: transform 80ms, box-shadow 80ms;
+}
+.da-btn:active { transform: translateY(4px); box-shadow: 0 0 0 3px var(--ink), inset 0 3px 0 rgba(255, 255, 255, 0.6), 0 2px 0 3px var(--cta-lip), 0 2px 0 6px var(--ink); }
+.da-btn--xl { position: sticky; bottom: 92px; z-index: 2; display: block; width: calc(100% - 32px); margin: 18px 16px 0; min-height: 68px; font-size: 30px; }
+.da-round {
+  display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 14px; color: #fff; cursor: pointer;
+  background: linear-gradient(180deg, var(--p-a), var(--p-b));
+  box-shadow: 0 0 0 3px var(--p-line), inset 0 2px 0 var(--p-hi), 0 4px 0 3px rgba(0, 0, 0, 0.3);
+}
+.da-round .ico { width: 24px; height: 24px; filter: drop-shadow(0 2px 0 var(--ink)); }
+.da-round.sm { width: 38px; height: 38px; border-radius: 12px; }
+
+/* ---------- Hub ---------- */
+.da-hub { min-height: 100vh; padding: 10px 0 96px; background: radial-gradient(ellipse at 50% 0%, var(--bg-a), var(--bg-b) 75%); position: relative; overflow: hidden; }
+.da-hub::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0 18px, transparent 18px 36px); pointer-events: none; }
+.da-hub > * { position: relative; }
+.da-topbar { display: flex; align-items: center; gap: 10px; padding: 0 12px; }
+.da-player { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.da-lvl { flex: none; width: 50px; height: 50px; display: grid; place-items: center; transform: rotate(45deg); border-radius: 12px; background: linear-gradient(180deg, #7fd0ff, #2a86e8); box-shadow: 0 0 0 3px var(--ink), inset 0 2px 0 rgba(255, 255, 255, 0.6); }
+.da-lvl span { transform: rotate(-45deg); font: 24px var(--font-fun); text-shadow: 0 2px 0 var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 -2px 0 var(--ink); }
+.da-player-txt { flex: 1; min-width: 0; margin-left: 4px; }
+.da-player-txt b { font-size: 18px; display: block; margin-bottom: 3px; }
+.da-xp { position: relative; height: 18px; border-radius: 9px; background: var(--ink); box-shadow: 0 0 0 2px var(--ink); overflow: hidden; }
+.da-xp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #ffe866 0 50%, #ffb41f 50%); border-radius: 9px; }
+.da-xp span { position: relative; display: block; text-align: center; font: 900 12px/18px var(--font-round); text-shadow: 0 1px 0 var(--ink); }
+.da-res { display: flex; align-items: center; gap: 4px; height: 32px; padding: 0 2px 0 4px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); box-shadow: 0 0 0 2px var(--ink); }
+.da-res b { font-size: 16px; padding: 0 2px; }
+.da-res-ico { color: #c9a2ff; filter: drop-shadow(0 2px 0 var(--ink)); }
+.da-res-ico .ico { width: 22px; height: 22px; }
+.da-plus { width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 8px; color: #fff; background: linear-gradient(180deg, #9af35e, #3fb823); box-shadow: 0 0 0 2px var(--ink), inset 0 2px 0 rgba(255, 255, 255, 0.5); }
+.da-plus .ico { width: 16px; height: 16px; stroke-width: 3; }
+.da-title { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin: 18px 0 12px; }
+.da-title span { font-size: 34px; }
+.da-title small { font: 800 14px var(--font-round); opacity: 0.85; }
+.da-dungeon { margin: 0 16px; overflow: hidden; }
+.da-dungeon-art { position: relative; height: 170px; margin: 6px 6px 0; border-radius: 15px 15px 6px 6px; overflow: hidden; box-shadow: 0 0 0 2px var(--p-line); }
+.da-dungeon-art > img:first-child { width: 100%; height: 100%; object-fit: cover; }
+.da-boss { position: absolute; right: -6px; bottom: -18px; height: 150px; filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35)); }
+.da-ribbon { position: absolute; left: 0; top: 12px; padding: 4px 14px 4px 10px; font-size: 15px; background: linear-gradient(180deg, #ff6b6b, #d6363b); clip-path: polygon(0 0, 100% 0, 92% 50%, 100% 100%, 0 100%); }
+.da-dungeon-body { padding: 10px 14px 14px; }
+.da-dname { margin: 0 0 8px; font-size: 26px; }
+.da-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.da-tag { color: #fff; display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 10px; font: 900 14px var(--font-round); background: rgba(0, 0, 0, 0.3); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.2); }
+.da-tag .ico { width: 18px; height: 18px; filter: drop-shadow(0 1px 0 var(--ink)); }
+.da-tag.weak { background: rgba(0, 0, 0, 0.3); box-shadow: inset 0 0 0 2px rgba(255, 120, 80, 0.7); }
+.da-rooms { display: flex; align-items: center; margin-top: 12px; }
+.da-rooms i { flex: 1; height: 6px; margin: 0 -2px; background: var(--ink); }
+.da-room { position: relative; z-index: 1; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; font: 20px var(--font-fun); background: linear-gradient(180deg, #ffffff, #cfe6ff); color: var(--ink); box-shadow: 0 0 0 3px var(--ink); }
+.da-room.boss { background: linear-gradient(180deg, #ff7b6b, #d6363b); color: #fff; }
+.da-room .ico { width: 22px; height: 22px; }
+.da-dots { display: flex; justify-content: center; gap: 8px; margin: 14px 0; }
+.da-dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(0, 0, 0, 0.35); box-shadow: 0 0 0 2px var(--ink); }
+.da-dots i.on { background: #fff; }
+.da-panel { margin: 0 16px 14px; padding: 12px; }
+.da-panel-head { font-size: 20px; margin-bottom: 8px; }
+.da-panel-head b { color: #ffe866; font-weight: 400; }
+.da-steps { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.da-steps span { height: 34px; display: grid; place-items: center; border-radius: 9px; font: 16px var(--font-fun); background: var(--p-in); box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.25); color: rgba(255, 255, 255, 0.6); }
+.da-steps span.done { background: #2fc4a8; color: #fff; text-shadow: 0 2px 0 var(--ink); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), 0 0 0 2px var(--ink); }
+.da-steps span.on { background: linear-gradient(180deg, var(--cta-a), var(--cta-b)); color: #fff; text-shadow: 0 2px 0 var(--ink), 1px 0 0 var(--ink), -1px 0 0 var(--ink); box-shadow: 0 0 0 3px var(--ink), inset 0 2px 0 rgba(255, 255, 255, 0.6); transform: scale(1.12); }
+.da-note { margin: 10px 0 0; font: 800 14px var(--font-round); opacity: 0.9; text-align: center; }
+.da-deck { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.da-card { position: relative; aspect-ratio: 1; padding: 0; border: 0; border-radius: 14px; overflow: visible; background: var(--p-in); box-shadow: 0 0 0 3px var(--ink), 0 4px 0 3px rgba(0, 0, 0, 0.35); }
+.da-card img { width: 100%; height: 100%; border-radius: 12px; display: block; }
+.da-cost { position: absolute; right: -6px; bottom: -6px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font: 16px var(--font-fun); background: radial-gradient(circle at 35% 30%, #8fd0ff, #2f86ea); box-shadow: 0 0 0 2.5px var(--ink); text-shadow: 0 2px 0 var(--ink), 1px 0 0 var(--ink), -1px 0 0 var(--ink); }
+.da-tabs { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--tab-a), var(--tab-b)); box-shadow: 0 -3px 0 var(--ink), 0 -8px 20px rgba(0, 0, 0, 0.3); }
+.da-tabs button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border: 0; border-radius: 14px; background: none; color: rgba(255, 255, 255, 0.75); }
+.da-tabs button .ico { width: 30px; height: 30px; filter: drop-shadow(0 3px 0 var(--ink)); }
+.da-tabs button span { font-size: 13px; }
+.da-tabs button.on { color: #fff; background: linear-gradient(180deg, var(--p-a), var(--p-b)); box-shadow: 0 0 0 3px var(--ink), inset 0 2px 0 var(--p-hi); transform: translateY(-10px) scale(1.08); }
+.da-badge { position: absolute; top: 2px; right: 18%; min-width: 20px; height: 20px; display: grid; place-items: center; border-radius: 10px; font: 13px var(--font-fun); font-style: normal; color: #fff; background: #ff3b3b; box-shadow: 0 0 0 2px var(--ink); }
+
+/* ---------- Combat (paysage) ---------- */
+.da-combat { position: fixed; inset: 0; background: #000 center / cover no-repeat; }
+.da-ctop { position: absolute; top: 8px; left: 10px; right: 10px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.da-cinfo { display: flex; gap: 6px; align-items: center; }
+.da-pill { height: 30px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 10px; font-size: 16px; background: rgba(0, 0, 0, 0.45); box-shadow: 0 0 0 2px var(--ink); }
+.da-order { display: flex; gap: 6px; padding: 5px 8px; border-radius: 14px; background: linear-gradient(180deg, var(--p-a), var(--p-b)); box-shadow: 0 0 0 3px var(--p-line), inset 0 2px 0 var(--p-hi); }
+.da-oc { position: relative; width: 40px; height: 40px; border-radius: 10px; overflow: hidden; background: var(--p-in); box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 3px #ff5a52; }
+.da-oc img { width: 100%; height: 160%; object-fit: cover; object-position: 50% 8%; }
+.da-oc.me { box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 3px #57e06a; outline: 3px solid #ffe866; outline-offset: 1px; transform: scale(1.1); }
+.da-oc i { position: absolute; left: 3px; bottom: 3px; height: 5px; border-radius: 3px; background: #57e06a; box-shadow: 0 0 0 1px var(--ink); }
+.da-threat { position: absolute; left: 10px; bottom: 96px; }
+.da-cdock { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; align-items: flex-end; gap: 12px; }
+.da-me { width: 200px; padding: 8px; border-radius: 16px; background: linear-gradient(180deg, var(--p-a), var(--p-b)); box-shadow: 0 0 0 3px var(--p-line), inset 0 2px 0 var(--p-hi), 0 4px 0 3px rgba(0, 0, 0, 0.3); }
+.da-hp { position: relative; height: 24px; border-radius: 12px; background: var(--ink); overflow: hidden; box-shadow: 0 0 0 2px var(--ink); }
+.da-hp i { position: absolute; inset: 0 auto 0 0; border-radius: 12px; background: linear-gradient(180deg, #8ff07a 0 50%, #36c046 50%); }
+.da-hp b { position: relative; display: block; text-align: center; font-size: 16px; line-height: 24px; font-weight: 400; }
+.da-res3 { display: flex; gap: 6px; margin-top: 7px; }
+.da-gem { flex: 1; display: flex; align-items: center; justify-content: center; gap: 2px; height: 30px; border-radius: 10px; box-shadow: 0 0 0 2px var(--ink), inset 0 2px 0 rgba(255, 255, 255, 0.45); }
+.da-gem .ico { width: 18px; height: 18px; filter: drop-shadow(0 2px 0 var(--ink)); }
+.da-gem b { font-size: 18px; font-weight: 400; }
+.da-gem.pa { background: linear-gradient(180deg, #6cc0ff, #2a7be0); }
+.da-gem.pm { background: linear-gradient(180deg, #8ff07a, #36b046); }
+.da-gem.conc { background: linear-gradient(180deg, #d59cff, #8d4be0); }
+.da-spells { flex: 1; display: flex; justify-content: center; gap: 10px; padding-bottom: 4px; }
+.da-spells .da-card { width: 58px; }
+.da-card.sel { transform: translateY(-8px); box-shadow: 0 0 0 3px var(--ink), 0 0 0 6px #ffe866, 0 10px 0 3px rgba(0, 0, 0, 0.3); }
+.da-card.off img { filter: grayscale(1) brightness(0.55); }
+.da-end { width: 170px; min-height: 62px; font-size: 22px; margin-bottom: 6px; }

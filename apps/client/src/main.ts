@@ -531,7 +531,9 @@ document.addEventListener('keydown', (e) => {
 
 applySettings();
 trackInputMode();
-if (new URLSearchParams(location.search).get('dev') === 'ui') {
+if (new URLSearchParams(location.search).get('dev') === 'da') {
+  void import('./ui/da-mock').then((m) => m.renderDaMock(app));
+} else if (new URLSearchParams(location.search).get('dev') === 'ui') {
   void import('./ui/gallery').then((m) => m.renderGallery(app));
 } else {
   renderSetup();
