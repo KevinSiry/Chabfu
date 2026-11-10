@@ -38,6 +38,7 @@ import {
   type ThreatZone,
   type Unit,
 } from '@chabfu/engine';
+import { slotFromKey, slotKeyLabel } from './keys';
 import { ELEMENT_LABEL, castPreviewCard, el, esc, monsterCard, spellTooltip } from './info';
 import {
   CANVAS_H,
@@ -342,9 +343,12 @@ window.addEventListener('keydown', (e) => {
     else view.pinned = null;
   } else if (e.key === 't' || e.key === 'T') {
     toggleThreat();
-  } else if (/^[1-9]$/.test(e.key)) {
-    const id = view.state.player.deck[Number(e.key) - 1];
-    if (id) selectSpell(view.selectedSpell === id ? null : id);
+  } else if (slotFromKey(e) >= 0) {
+    const id = view.state.player.deck[slotFromKey(e)];
+    if (id) {
+      e.preventDefault();
+      selectSpell(view.selectedSpell === id ? null : id);
+    }
   }
 });
 
@@ -886,7 +890,7 @@ function renderHud(): void {
       const cc = spellConcentrationCost(s, state.player.passives ?? []);
       const mr = spellMaxRange(s, state.player.passives ?? []);
       return `<button class="spell-btn ${v.selectedSpell === id ? 'active' : ''} ${disabled ? 'off' : ''}" data-spell="${id}" ${disabled ? 'aria-disabled="true"' : ''}>
-        <div class="k"><kbd>${i + 1}</kbd> <span class="el el-${s.element}"></span>${ELEMENT_LABEL[s.element]}</div>
+        <div class="k"><kbd>${esc(slotKeyLabel(i))}</kbd> <span class="el el-${s.element}"></span>${ELEMENT_LABEL[s.element]}</div>
         <div class="n">${s.name}</div>
         <div class="c"><span class="pa">${s.pa} PA</span>${cc ? ` · <span class="conc-t">${cc} Conc.</span>` : ''} · ${mr === 0 ? 'soi' : s.minRange === mr ? `${s.minRange}` : `${s.minRange}–${mr}`}${s.maxPerTurn ? ` · ${uses}/${s.maxPerTurn}` : ''}</div>
         ${err && !v.busy ? `<div class="why">${esc(err)}</div>` : ''}

@@ -1,4 +1,5 @@
 /** Textes et fiches d'information du combat (sorts, monstres, aperçus). Aucune règle ici. */
+import { slotKeyLabel } from './keys';
 import {
   DAMAGE_FACTORS,
   combinePassives,
@@ -75,7 +76,7 @@ export function spellTooltip(state: RunState, spellId: string, index: number): s
   const conc = spellConcentration(s, passives);
   const maxRange = spellMaxRange(s, passives);
   return `
-    <div class="tt-head"><b>${s.name}</b><span class="key">${index + 1}</span></div>
+    <div class="tt-head"><b>${s.name}</b><span class="key">${esc(slotKeyLabel(index))}</span></div>
     <div class="tt-meta">${el(s.element)} · <span class="pa">${s.pa} PA</span>${s.maxPerTurn ? ` · ${uses}/${s.maxPerTurn} ce tour` : ''}</div>
     <div class="tt-grid">
       <span>Portée</span><b>${rangeLabel(s.minRange, maxRange)}${maxRange > s.maxRange ? ` <span class="pos">(+${maxRange - s.maxRange} passif)</span>` : ''}</b>

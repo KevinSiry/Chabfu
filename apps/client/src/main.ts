@@ -27,6 +27,7 @@ import { grantRunRewards } from './craft/store';
 import { renderWorkshopScreen } from './craft/workshop-screen';
 import { formatTime, leaveRun, startRun as startCombat } from './combat';
 import { ELEMENT_LABEL, rangeLabel } from './info';
+import { slotKeysRange } from './keys';
 import { renderRunEndSections } from './character/run-end';
 import { getCharacter, saveCharacter } from './character/store';
 import { bindCharacterBanner, characterBannerHtml, renderCharacterCreation } from './character/ui';
@@ -174,7 +175,7 @@ function renderSetup(): void {
             }
           </div>
           <div class="card hint">
-            Clic : se déplacer · 1–${tranche.deckSize} : choisir un sort · Espace : fin du tour · T : zones de menace · Échap / clic droit : annuler.
+            Clic : se déplacer · ${slotKeysRange(tranche.deckSize)} (ou pavé numérique) : choisir un sort · Espace : fin du tour · T : zones de menace · Échap / clic droit : annuler.
             La Concentration monte de 1 si vous n’avez pas bougé au tour précédent, et baisse de 1 par PM dépensé.
           </div>
         </div>
