@@ -1,85 +1,23 @@
 import type { Element, RoomTemplate } from '../types.js';
+import { BOSQUET_DES_RONCES } from './dungeons/bosquet-des-ronces.js';
+import { CALDEIRA_DES_CENDRES } from './dungeons/caldeira-des-cendres.js';
+import { FALAISES_HURLANTES } from './dungeons/falaises-hurlantes.js';
+import { TOURBIERE_DES_NOYES } from './dungeons/tourbiere-des-noyes.js';
 
 export interface DungeonDef {
   id: string;
   name: string;
   tranche: number;
+  /** Élément des attaques des monstres et thème du donjon. */
   dominantElement: Element;
+  /** Élément que craignent la plupart des monstres : oriente le deck optimal. */
+  weakElement: Element;
   description: string;
   rooms: RoomTemplate[];
 }
 
-export const DUNGEONS: DungeonDef[] = [
-  {
-    id: 'bosquet_des_ronces',
-    name: 'Bosquet des Ronces',
-    tranche: 1,
-    dominantElement: 'earth',
-    description: 'Deux salles de ronces et de guêpes, puis le Gardien racineux. Les monstres craignent le feu.',
-    rooms: [
-      {
-        name: 'Lisière',
-        tiles: [
-          '..........',
-          '...#......',
-          '......#...',
-          '..........',
-          '.#....#...',
-          '..........',
-          '...#......',
-          '..........',
-        ],
-        playerSpawn: { x: 1, y: 3 },
-        monsters: [
-          { templateId: 'ronceau', pos: { x: 8, y: 1 } },
-          { templateId: 'guepe', pos: { x: 9, y: 4 } },
-          { templateId: 'ronceau', pos: { x: 8, y: 6 } },
-        ],
-      },
-      {
-        name: 'Clairière',
-        tiles: [
-          '..........',
-          '....##....',
-          '..........',
-          '..#....#..',
-          '..........',
-          '..#....#..',
-          '..........',
-          '....##....',
-          '..........',
-        ],
-        playerSpawn: { x: 1, y: 4 },
-        monsters: [
-          { templateId: 'guepe', pos: { x: 7, y: 1 } },
-          { templateId: 'ronceau', pos: { x: 5, y: 4 } },
-          { templateId: 'ronceau', pos: { x: 8, y: 4 } },
-          { templateId: 'guepe', pos: { x: 7, y: 7 } },
-        ],
-      },
-      {
-        name: 'Cœur du Bosquet',
-        tiles: [
-          '...........',
-          '...#...#...',
-          '...........',
-          '.#.......#.',
-          '...........',
-          '.#.......#.',
-          '...........',
-          '...#...#...',
-          '...........',
-        ],
-        playerSpawn: { x: 5, y: 8 },
-        monsters: [
-          { templateId: 'ronceau', pos: { x: 2, y: 2 } },
-          { templateId: 'gardien_racineux', pos: { x: 5, y: 1 } },
-          { templateId: 'ronceau', pos: { x: 8, y: 2 } },
-        ],
-      },
-    ],
-  },
-];
+/** Chaque donjon est décrit dans son propre fichier (data/dungeons/<donjon>.ts). */
+export const DUNGEONS: DungeonDef[] = [BOSQUET_DES_RONCES, TOURBIERE_DES_NOYES, CALDEIRA_DES_CENDRES, FALAISES_HURLANTES];
 
 const BY_ID = new Map(DUNGEONS.map((d) => [d.id, d]));
 
@@ -87,4 +25,8 @@ export function getDungeon(id: string): DungeonDef {
   const d = BY_ID.get(id);
   if (!d) throw new Error(`Donjon inconnu : ${id}`);
   return d;
+}
+
+export function dungeonsForTranche(tranche: number): DungeonDef[] {
+  return DUNGEONS.filter((d) => d.tranche === tranche);
 }

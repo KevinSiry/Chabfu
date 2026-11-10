@@ -8,6 +8,7 @@ import {
   canCraft,
   craft,
   dungeonResources,
+  dungeonsForTranche,
   getItem,
   getResource,
   isEquipped,
@@ -32,6 +33,7 @@ export interface WorkshopScreenOptions {
 }
 
 let rarityFilter: CraftRarity | 'all' = 'all';
+let dungeonFilter: string | null = null;
 let flash = '';
 
 /** Atelier : ressources et éclats, recettes de craft à rareté fixe, recyclage manuel et automatique. */
@@ -39,8 +41,10 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
   const inv = getInventory();
   const st = getCrafting();
   const shards = st.shards[o.trancheId] ?? 0;
-  const resources = dungeonResources(o.dungeonId);
-  const recipes = recipesForTranche(o.trancheId).filter((r) => rarityFilter === 'all' || r.rarity === rarityFilter);
+  // Donjon sélectionné en premier : ses ressources sont celles du prochain run.
+  const dungeons = dungeonsForTranche(o.trancheId).sort((a, b) => Number(b.id === o.dungeonId) - Number(a.id === o.dungeonId));
+  const dungeonId = dungeons.some((d) => d.id === dungeonFilter) ? dungeonFilter! : o.dungeonId;
+  const recipes = recipesForTranche(o.trancheId).filter((r) => r.dungeonId === dungeonId && (rarityFilter === 'all' || r.rarity === rarityFilter));
   const bag = sortItems(inv.items.filter((i) => getItem(i.itemId).tranche === o.trancheId));
   const masteries = Object.entries(st.recycled)
     .filter(([id]) => getItem(id).tranche === o.trancheId)
@@ -59,8 +63,11 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
           </div>
           <div class="card">
             <h3>Ressources</h3>
+            ${dungeons
+              .map(
+                (d) => `<h4 class="res-dungeon">${d.name}</h4>
             <div class="res-list">
-              ${resources
+              ${dungeonResources(d.id)
                 .map((r) => {
                   const n = st.resources[r.id] ?? 0;
                   return `<div class="res-row tier-${r.tier}${n ? '' : ' none'}">
@@ -68,13 +75,20 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
                   </div>`;
                 })
                 .join('')}
-            </div>
+            </div>`,
+              )
+              .join('')}
             <p class="muted">Tombent à la fin de chaque donjon gagné. Plus la difficulté est haute, plus elles tombent.</p>
           </div>
         </div>
 
         <div class="card">
           <h3>Recettes</h3>
+          <div class="chips">
+            ${dungeons
+              .map((d) => `<button class="chip${d.id === dungeonId ? ' on' : ''}" data-dfilter="${d.id}">${d.name}</button>`)
+              .join('')}
+          </div>
           <div class="chips">
             ${(['all', ...CRAFT_RARITIES] as const)
               .map((r) => `<button class="chip${rarityFilter === r ? ' on' : ''}" data-rfilter="${r}">${r === 'all' ? 'Toutes' : RARITIES[r].label}</button>`)
@@ -166,6 +180,12 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
   app.querySelectorAll<HTMLButtonElement>('[data-rfilter]').forEach((b) =>
     b.addEventListener('click', () => {
       rarityFilter = b.dataset.rfilter as CraftRarity | 'all';
+      rerender();
+    }),
+  );
+  app.querySelectorAll<HTMLButtonElement>('[data-dfilter]').forEach((b) =>
+    b.addEventListener('click', () => {
+      dungeonFilter = b.dataset.dfilter!;
       rerender();
     }),
   );

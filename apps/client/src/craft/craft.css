@@ -32,3 +32,4 @@ select { background: var(--panel-2); color: inherit; border: 1px solid #444b60; 
 .rewards { margin-top: 12px; text-align: left; }
 .res-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .res-chip { background: var(--panel-2); border-left: 3px solid var(--t); border-radius: 6px; padding: 3px 8px; font-size: 13px; }
+.res-dungeon { margin: 12px 0 6px; font-size: 13px; color: var(--muted); font-weight: 600; }

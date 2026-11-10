@@ -69,6 +69,13 @@ describe('craft', () => {
     expect(RECIPES.some((r) => (r.rarity as string) === 'legendary')).toBe(false);
   });
 
+  it('chaque objet est fabriqué avec les ressources de son propre donjon', () => {
+    for (const r of RECIPES) {
+      for (const id of Object.keys(r.resources)) expect(RESOURCES.find((x) => x.id === id)!.dungeonId).toBe(r.dungeonId);
+    }
+    expect(new Set(RECIPES.map((r) => r.dungeonId)).size).toBe(DUNGEONS.length);
+  });
+
   it('les recettes Rare et Mythique demandent les ressources du palier correspondant', () => {
     const tierOf = (id: string) => RESOURCES.find((r) => r.id === id)!.tier;
     expect(Object.keys(getRecipe('arc_racineux:common').resources).map(tierOf)).toEqual(['common']);

@@ -1,5 +1,6 @@
 import {
   DUNGEONS,
+  dungeonsForTranche,
   MAX_CONCENTRATION,
   MAX_DIFFICULTY,
   applyAction,
@@ -9,6 +10,7 @@ import {
   getCastError,
   getDungeon,
   getMonster,
+  monsterBehavior,
   getPlayer,
   getReachableCells,
   getSpell,
@@ -21,6 +23,8 @@ import {
   type Action,
   type Element,
   type GameEvent,
+  type MonsterAttack,
+  type MonsterBehavior,
   type Pos,
   type RoomState,
   type RunConfig,
@@ -48,13 +52,14 @@ interface SavedScore extends RunScore {
   deck: string[];
 }
 interface Save {
+  dungeonId: string;
   deck: string[];
   difficulty: number;
   scores: SavedScore[];
 }
 
 function loadSave(): Save {
-  const fallback: Save = { deck: ['fleche_ardente', 'bond_arriere', 'fleche_fracassante', 'fleche_givree', 'tir_concentre'], difficulty: 1, scores: [] };
+  const fallback: Save = { dungeonId: DUNGEONS[0].id, deck: ['fleche_ardente', 'bond_arriere', 'fleche_fracassante', 'fleche_givree', 'tir_concentre'], difficulty: 1, scores: [] };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
@@ -71,8 +76,31 @@ function writeSave(save: Save): void {
 }
 
 let save = loadSave();
-const dungeon = DUNGEONS[0];
-const tranche = getTranche(dungeon.tranche);
+const tranche = getTranche(DUNGEONS[0].tranche);
+const trancheDungeons = dungeonsForTranche(tranche.id);
+let dungeon = trancheDungeons.find((d) => d.id === save.dungeonId) ?? trancheDungeons[0];
+
+function dungeonListHtml(): string {
+  return `
+    <div class="card dungeon-picker">
+      <h3>Donjons de la tranche T${tranche.id}</h3>
+      <div class="dungeon-list">
+        ${trancheDungeons
+          .map((d) => {
+            const best = save.scores.filter((s) => s.dungeonId === d.id).sort(compareScores)[0];
+            const boss = d.rooms[d.rooms.length - 1].monsters.map((m) => getMonster(m.templateId)).find((m) => m.isBoss);
+            return `
+          <button class="dungeon-card${d.id === dungeon.id ? ' selected' : ''}" data-dungeon="${d.id}">
+            <div class="head"><span><span class="el el-${d.dominantElement}"></span>${d.name}</span></div>
+            <div class="meta">${ELEMENT_LABEL[d.dominantElement]} · craint ${ELEMENT_LABEL[d.weakElement]} <span class="el el-${d.weakElement}"></span></div>
+            <div class="meta">${d.rooms.length - 1} salle${d.rooms.length > 2 ? 's' : ''} + ${boss?.name ?? 'boss'}</div>
+            <div class="meta">${best ? `Record : diff. ${best.difficulty} · ${best.turns} tours` : 'Pas encore terminé'}</div>
+          </button>`;
+          })
+          .join('')}
+      </div>
+    </div>`;
+}
 
 // ---------------------------------------------------------------------------
 // Écran de préparation
@@ -84,10 +112,11 @@ function renderSetup(): void {
   app.innerHTML = `
     <div class="setup">
       <header><h1>Chabfu</h1><p>Prototype · Tranche T${tranche.id} (niveau ${tranche.redefinitionLevel})</p></header>
+      ${dungeonListHtml()}
       <div class="setup-grid">
         <div class="card">
           <h2>${dungeon.name}</h2>
-          <p class="muted">${dungeon.description} 2 salles + boss, toujours identiques.</p>
+          <p class="muted">${dungeon.description} ${dungeon.rooms.length - 1} salle${dungeon.rooms.length > 2 ? 's' : ''} + boss, toujours identiques.</p>
           <h3 style="margin-top:16px">Deck <span class="muted" id="deck-count"></span></h3>
           <div class="spell-list">
             ${spells
@@ -149,6 +178,18 @@ function renderSetup(): void {
     }),
   );
   const diff = app.querySelector('#diff') as HTMLInputElement;
+  app.querySelectorAll<HTMLButtonElement>('.dungeon-card').forEach((b) =>
+    b.addEventListener('click', () => {
+      const next = trancheDungeons.find((d) => d.id === b.dataset.dungeon);
+      if (!next || next.id === dungeon.id) return;
+      dungeon = next;
+      save.dungeonId = next.id;
+      save.deck = spells.map((s) => s.id).filter((id) => deck.has(id));
+      save.difficulty = Number(diff.value);
+      writeSave(save);
+      renderSetup();
+    }),
+  );
   diff.addEventListener('input', () => (app.querySelector('#diff-v')!.textContent = diff.value));
   app.querySelector('#open-equipment')!.addEventListener('click', () => {
     save.difficulty = Number(diff.value);
@@ -543,6 +584,17 @@ function renderHud(): void {
     .join('');
 }
 
+const BEHAVIOR_LABEL: Record<MonsterBehavior, string> = { aggressive: 'Fonce sur vous', kiter: 'Garde ses distances', sentinel: 'Immobile' };
+
+function attackEffects(a: MonsterAttack): string {
+  const fx: string[] = [];
+  if (!a.los) fx.push('en cloche');
+  if (a.burn) fx.push(`brûlure ${a.burn.damage} × ${a.burn.turns}`);
+  if (a.pmRemoval) fx.push(`−${a.pmRemoval} PM`);
+  if (a.push) fx.push(`pousse de ${a.push}`);
+  return fx.length ? ` (${fx.join(', ')})` : '';
+}
+
 function renderTarget(): void {
   if (!view) return;
   const el = document.getElementById('target');
@@ -552,9 +604,11 @@ function renderTarget(): void {
   const t = getMonster(u.templateId);
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between"><b>${u.name}</b><span>${u.hp} / ${u.maxHp} PV</span></div>
+    <div class="muted">${BEHAVIOR_LABEL[monsterBehavior(t)]}</div>
     <div class="bar"><div style="width:${(100 * u.hp) / u.maxHp}%;background:var(--hp)"></div></div>
     <div class="muted">Faiblesse : <span class="el el-${t.weakness}"></span>${ELEMENT_LABEL[t.weakness]} (+30 %) · Résistance : <span class="el el-${t.resistance}"></span>${ELEMENT_LABEL[t.resistance]} (−20 %)</div>
-    <div class="muted" style="margin-top:6px">${t.attacks.map((a) => `${a.name} : ${a.damage} dégâts, ${rangeLabel(a.minRange, a.maxRange)}`).join('<br>')}</div>
+    <div class="muted" style="margin-top:6px">${t.attacks.map((a) => `${a.name} : ${a.damage} dégâts, ${rangeLabel(a.minRange, a.maxRange)}${attackEffects(a)}`).join('<br>')}</div>
+    ${t.description ? `<div class="muted" style="margin-top:6px"><i>${t.description}</i></div>` : ''}
     <div class="muted" style="margin-top:6px">${u.pm} PM${u.pmMalus ? ` (−${u.pmMalus} au prochain tour)` : ''}${u.burn ? ` · Brûlure ${u.burn.damage} × ${u.burn.turns}` : ''}</div>`;
 }
 

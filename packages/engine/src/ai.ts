@@ -1,4 +1,4 @@
-import { getMonster, type MonsterAttack } from './data/monsters.js';
+import { getMonster, monsterBehavior, type MonsterAttack } from './data/monsters.js';
 import { distance, distanceMap, hasLineOfSight, key, reachable } from './grid.js';
 import type { Pos, RoomState, Unit } from './types.js';
 
@@ -16,20 +16,32 @@ export function canUseAttack(room: RoomState, units: Unit[], from: Pos, target: 
 }
 
 /**
- * IA déterministe : rejoindre la case la plus proche d'où une attaque peut toucher le joueur ;
- * sinon se rapprocher au maximum. Égalités départagées par l'ordre de parcours (stable).
+ * IA déterministe, selon le comportement du monstre (voir MonsterBehavior) :
+ * - aggressive : rejoindre la case la plus proche d'où une attaque peut toucher le joueur ;
+ * - kiter : parmi les cases d'où une attaque touche, prendre la plus éloignée du joueur ;
+ * - sentinel : ne jamais bouger.
+ * Sans attaque possible ce tour : se rapprocher au maximum. Égalités départagées par l'ordre de parcours (stable).
  */
 export function planMonsterMove(room: RoomState, units: Unit[], self: Unit, target: Unit): MonsterPlan {
   const template = getMonster(self.templateId);
+  const behavior = monsterBehavior(template);
+  if (behavior === 'sentinel') return { path: [] };
   const others = units.filter((u) => u.id !== self.id && u.hp > 0);
   const options = reachable(room, others, self.pos, self.pm);
 
   let best: Pos[] | null = null;
+  let bestDist = -1;
   for (const path of options.values()) {
     const cell = path.length ? path[path.length - 1] : self.pos;
     const usable = template.attacks.some((a) => a.pa <= self.pa && canUseAttack(room, units, cell, target, a, self));
     if (!usable) continue;
-    if (best === null || path.length < best.length) best = path;
+    if (behavior === 'kiter') {
+      const d = distance(cell, target.pos);
+      if (d > bestDist || (d === bestDist && best !== null && path.length < best.length)) {
+        best = path;
+        bestDist = d;
+      }
+    } else if (best === null || path.length < best.length) best = path;
   }
   if (best) return { path: best };
 

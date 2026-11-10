@@ -23,6 +23,8 @@ export const CRAFT_RARITIES: CraftRarity[] = ['common', 'uncommon', 'rare', 'myt
 export interface Recipe {
   id: string;
   itemId: string;
+  /** Donjon dont les ressources servent à la recette. */
+  dungeonId: string;
   tranche: number;
   rarity: CraftRarity;
   resources: Record<string, number>;
@@ -62,7 +64,7 @@ function buildRecipes(): Recipe[] {
         }
         resources[r.id] = (resources[r.id] ?? 0) + qty;
       }
-      if (ok) out.push({ id: `${item.id}:${rarity}`, itemId: item.id, tranche: item.tranche, rarity, resources, shards: cost.shards });
+      if (ok) out.push({ id: `${item.id}:${rarity}`, itemId: item.id, dungeonId, tranche: item.tranche, rarity, resources, shards: cost.shards });
     }
   }
   return out;
