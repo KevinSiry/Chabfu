@@ -4,9 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chabfu</title>
+    <meta name="theme-color" content="#140d34" />
     <link rel="stylesheet" href="/src/style.css" />
+    <style>
+      /* Écran de chargement : visible avant le CSS et le JS du jeu. */
+      html, body { margin: 0; background: #140d34; }
+      .boot { position: fixed; inset: 0; z-index: 999; display: grid; place-items: center; align-content: center; gap: 22px; background: radial-gradient(ellipse 120% 80% at 50% 10%, #3a2c86, #140d34 72%); font-family: system-ui, sans-serif; }
+      .boot-logo { font: 64px/1 'Lilita One', system-ui, sans-serif; color: #ffe866; transform: rotate(-3deg); text-shadow: 0 4px 0 #b86a00, 3px 3px 0 #140c38, -3px 3px 0 #140c38, 3px -3px 0 #140c38, -3px -3px 0 #140c38, 0 9px 0 #140c38; letter-spacing: 0.02em; }
+      .boot-bar { width: min(260px, 70vw); height: 18px; border-radius: 99px; background: #140c38; box-shadow: 0 0 0 3px #140c38, inset 0 3px 0 rgba(0, 0, 0, 0.4); overflow: hidden; }
+      .boot-bar i { display: block; height: 100%; width: 8%; border-radius: inherit; background: linear-gradient(180deg, #9af35e, #3fb823); box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.45); transition: width 0.25s; }
+      .boot-tip { max-width: min(340px, 80vw); margin: 0; text-align: center; font-weight: 800; font-size: 14px; line-height: 1.35; color: #d4ccff; }
+      @media (min-height: 600px) and (min-width: 900px) { .boot > * { zoom: 1.15; } }
+      @media (min-height: 800px) and (min-width: 1300px) { .boot > * { zoom: 1.35; } }
+      @media (min-height: 1000px) and (min-width: 1700px) { .boot > * { zoom: 1.55; } }
+      @media (min-height: 1300px) and (min-width: 2300px) { .boot > * { zoom: 2; } }
+    </style>
   </head>
   <body>
+    <div class="boot" id="boot" role="status" aria-label="Chargement">
+      <div class="boot-logo">Chabfu</div>
+      <div class="boot-bar"><i id="boot-bar"></i></div>
+      <p class="boot-tip" id="boot-tip">Chargement…</p>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

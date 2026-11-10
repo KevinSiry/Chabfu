@@ -64,6 +64,8 @@ import {
 import { icon } from './ui/icons';
 import { confirmModal, openSheet, toast, type SheetHandle } from './ui/components';
 import { getSettings } from './ui/settings';
+import { openSettings } from './ui/settings-screen';
+import { coachTour } from './ui/coach';
 import { sfx } from './ui/sfx';
 import { banner } from './ui/components';
 import './combat.css';
@@ -336,7 +338,7 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
     currentBoard = board;
     v0.board = board;
     bindBoardEvents(board.canvas, wrap);
-    if (v0.state.roomIndex === 0) void roomBanner(v0.state);
+    if (v0.state.roomIndex === 0) void roomBanner(v0.state).then(() => combatTutorial(v0));
   });
 
     if (!view) return;
@@ -592,7 +594,8 @@ function openPauseMenu(): void {
     html: `<div class="cb-menu">
       <button class="ui-btn ui-btn--primary ui-btn--block" data-m="resume">${icon('forward')} Reprendre</button>
       <button class="ui-btn ui-btn--blue ui-btn--block" data-m="legend">${icon('help')} Lire le plateau</button>
-      <p class="cb-menu-note">Vitesse des animations : ×${speed} · réglable dans les paramètres</p>
+      <button class="ui-btn ui-btn--block" data-m="settings">${icon('settings')} Paramètres</button>
+      <p class="cb-menu-note">Vitesse des animations : ×${String(speed).replace('.', ',')}</p>
       <button class="ui-btn ui-btn--danger ui-btn--block" data-m="quit">${icon('flag')} Abandonner le run</button>
     </div>`,
   });
@@ -601,6 +604,7 @@ function openPauseMenu(): void {
     if (!b) return;
     if (b.dataset.m === 'resume') sheet.close();
     else if (b.dataset.m === 'legend') sheet.setContent(legendHtml(), 'Lire le plateau');
+    else if (b.dataset.m === 'settings') openSettings();
     else if (b.dataset.m === 'quit') {
       sheet.close();
       if (view !== v || v.busy) return;
@@ -749,6 +753,23 @@ function roomBanner(state: RunState): Promise<void> {
   const boss = state.roomIndex === rooms - 1;
   sfx(boss ? 'boss' : 'room');
   return banner(boss ? 'Boss !' : state.room.name, boss ? state.room.name : `Salle ${state.roomIndex + 1} / ${rooms}`, boss ? 1400 : 1000);
+}
+
+/** Premier combat : visite guidée du HUD (une seule fois). */
+function combatTutorial(v: RunView): void {
+  if (view !== v || v.state.actionLog.length > 0) return;
+  const t0 = performance.now();
+  void coachTour('combat', [
+    { title: 'Premier combat', text: 'Éliminez tous les monstres de la salle pour passer à la suivante. Le boss vous attend dans la dernière.' },
+    { target: '.cb-player', title: 'Votre Archer', text: 'PV : votre vie. PA : de quoi lancer des sorts. PM : vos pas de déplacement. Tout se recharge à chaque tour.' },
+    { target: '.cb-spells', title: 'Vos sorts', text: 'Choisissez un sort, puis touchez un ennemi dans la zone bleue. Au doigt, touchez une case pour l’aperçu, encore une fois pour agir.' },
+    { target: '.cb-order', title: 'Ordre des tours', text: 'Qui joue après qui. Touchez un monstre pour voir sa fiche et où il peut aller.' },
+    { target: '#toggle-threat', title: 'Zones de menace', text: 'L’œil montre les cases où les ennemis pourront vous toucher. Finir son tour hors de portée, c’est la clé.' },
+    { target: '#end-turn', title: 'Fin du tour', text: 'Quand vous avez joué, terminez votre tour : les monstres agissent à leur tour.' },
+  ]).then(() => {
+    // Le temps passé à lire le tutoriel ne compte pas dans le chrono du run.
+    if (view === v && v.endedAt === null) v.startedAt += performance.now() - t0;
+  });
 }
 
 /** Signal bref « À vous ! » au début de chaque tour du joueur. */

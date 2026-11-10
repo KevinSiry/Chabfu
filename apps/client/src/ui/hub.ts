@@ -2,6 +2,7 @@
 import type { Character } from '@chabfu/engine';
 import { characterPlateHtml } from '../character/ui';
 import { icon } from './icons';
+import { openSettings } from './settings-screen';
 
 export type HubTab = 'dungeons' | 'grimoire' | 'equipment' | 'workshop';
 
@@ -21,7 +22,7 @@ export function hubBarHtml(active: HubTab, c: Character): string {
     <header class="hb-top">
       ${characterPlateHtml(c)}
       <div class="hb-title"><span>${TABS.find((t) => t.id === active)?.label ?? ''}</span></div>
-      <div class="hb-logo">Chabfu</div>
+      <div class="hb-right"><div class="hb-logo">Chabfu</div><button class="ui-icon-btn hb-gear" id="open-settings" aria-label="Paramètres">${icon('settings')}</button></div>
     </header>
     <nav class="hb-tabs hub-tabs" role="tablist">
       ${TABS.map((t) => `<button class="hub-tab ${t.id === active ? 'on' : ''}" role="tab" aria-selected="${t.id === active}" data-tab="${t.id}"><span class="hub-tab-icon">${icon(t.icon)}</span><span class="hub-tab-label">${t.label}</span></button>`).join('')}
@@ -30,4 +31,5 @@ export function hubBarHtml(active: HubTab, c: Character): string {
 
 export function bindHubTabs(root: HTMLElement, go: (tab: HubTab) => void): void {
   root.querySelectorAll<HTMLButtonElement>('.hub-tab').forEach((b) => b.addEventListener('click', () => go(b.dataset.tab as HubTab)));
+  root.querySelector('#open-settings')?.addEventListener('click', () => openSettings());
 }

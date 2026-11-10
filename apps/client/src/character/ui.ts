@@ -17,6 +17,8 @@ import {
   type Element,
 } from '@chabfu/engine';
 import './character.css';
+import { assetUrl, spellIconImg } from '../ui/assets';
+import { icon } from '../ui/icons';
 import { registerRunEndSection, type RunEndContext } from './run-end';
 import { getInventory } from '../stuff/store';
 import { deleteCharacter, getCharacter, saveCharacter } from './store';
@@ -39,22 +41,32 @@ function xpBar(xp: number, cls = ''): string {
 
 export function renderCharacterCreation(app: HTMLElement, onDone: () => void): void {
   app.innerHTML = `
-    <div class="setup">
-      <header><h1>Chabfu</h1><p>Nouveau personnage</p></header>
-      <div class="card create-card">
-        <h2>Votre Archer</h2>
-        <p class="muted">Votre personnage gagne de l’XP à chaque run, débloque des sorts, des passifs et de nouvelles tranches.
-        Il peut ensuite se redéfinir sur une tranche inférieure pour y rejouer avec exactement les options d’un niveau de redéfinition.</p>
-        <form id="create-form">
-          <label for="char-name">Nom</label>
-          <input id="char-name" maxlength="20" autocomplete="off" placeholder="Nom de l’Archer" required />
-          <button class="primary" type="submit">Créer le personnage</button>
-        </form>
-        <p class="muted">Niveau 1 · Sorts de départ : Flèche ardente et Bond arrière.</p>
+    <div class="welcome">
+      <div class="wl-wrap">
+        <div class="wl-hero">
+          <h1 class="wl-logo">Chabfu</h1>
+          <span class="wl-tag">Donjons tactiques au tour par tour</span>
+          <div class="wl-archer"><img src="${assetUrl('units/archer.png')}" alt="" draggable="false"></div>
+        </div>
+        <div class="wl-card">
+          <h2>Votre Archer</h2>
+          <p>Traversez des donjons de salle en salle jusqu’au boss. Chaque run rapporte de l’XP et du butin pour devenir plus fort.</p>
+          <ul class="wl-perks">
+            <li>${icon('levelUp')}Niveaux et sorts</li>
+            <li>${icon('bag')}Butin et stuff</li>
+            <li>${icon('trophy')}Records</li>
+          </ul>
+          <form class="wl-form" id="create-form">
+            <label for="char-name">Son nom</label>
+            <input id="char-name" maxlength="20" autocomplete="off" placeholder="Nom de l’Archer" required />
+            <button class="ui-btn ui-btn--primary ui-btn--block" type="submit">Jouer</button>
+          </form>
+          <div class="wl-spells" aria-label="Sorts de départ : Flèche ardente et Bond arrière">${spellIconImg('fleche_ardente')}${spellIconImg('bond_arriere')}</div>
+        </div>
       </div>
     </div>`;
   const input = app.querySelector('#char-name') as HTMLInputElement;
-  input.focus();
+  if (matchMedia('(pointer: fine)').matches) input.focus();
   app.querySelector('#create-form')!.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!input.value.trim()) return;

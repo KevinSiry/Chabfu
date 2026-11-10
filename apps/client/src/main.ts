@@ -40,6 +40,8 @@ import { bindCharacterBanner, renderCharacterCreation } from './character/ui';
 import './ui/legacy.css';
 import './ui/skin-ng.css';
 import './ui/components.css';
+import { coachTour, type CoachStep } from './ui/coach';
+import './ui/onboarding.css';
 import { openSheet, trackInputMode } from './ui/components';
 import { sfx, unlockAudio } from './ui/sfx';
 import { applySettings } from './ui/settings';
@@ -143,7 +145,25 @@ function hubShell(active: HubTab): HTMLElement | null {
   bindHubTabs(app, goTab);
   bindCharacterBanner(app, refreshCurrent);
   window.scrollTo(0, 0);
+  setTimeout(() => hubTips(active), 450);
   return app.querySelector<HTMLElement>('#hub-screen');
+}
+
+/** Première visite de chaque écran : courte visite guidée (une seule fois, coupée par « Passer »). */
+function hubTips(tab: HubTab): void {
+  if (currentTab !== tab || !app.classList.contains('has-hub') || document.querySelector('.ui-sheet.is-open, .overlay, .end-ov')) return;
+  const tours: Record<HubTab, CoachStep[]> = {
+    dungeons: [
+      { target: '.lb-dungeon', title: 'Choisissez un donjon', text: 'Chaque donjon enchaîne plusieurs salles de monstres, puis un boss. Les flèches font défiler les donjons de votre tranche.' },
+      { target: '.lb-steps', title: 'Difficulté', text: 'Plus la difficulté monte, plus les monstres sont résistants… et plus ils rapportent d’XP et de butin.' },
+      { target: '.lb-deck-panel', title: 'Votre deck', text: 'Les sorts que vous emportez au combat. Changez-les dans le Grimoire, votre stuff dans l’Équipement.' },
+      { target: '#start', title: 'À l’attaque !', text: 'Lancez le run. Un petit guide vous attend dans le premier combat.' },
+    ],
+    grimoire: [{ target: '.gr-grid', title: 'Le Grimoire', text: 'Touchez un sort pour lire sa fiche et l’ajouter à votre deck ou l’en retirer. De nouveaux sorts arrivent avec les niveaux.' }],
+    equipment: [{ target: '.eq-doll', title: 'Équipement', text: 'Touchez un objet pour voir ses stats et l’équiper. La flèche verte signale un objet meilleur que celui porté.' }],
+    workshop: [{ target: '[data-seg="ws-mode"]', title: 'L’Atelier', text: 'Fabriquez des objets avec les ressources des donjons, ou recyclez le butin en trop contre des éclats.' }],
+  };
+  if (document.querySelector(tours[tab][0].target as string)) void coachTour(`hub-${tab}`, tours[tab]);
 }
 
 function refreshCurrent(): void {
@@ -561,9 +581,47 @@ document.addEventListener('pointerdown', (e) => {
   if (b) sfx('tap');
 });
 if (new URLSearchParams(location.search).get('dev') === 'da') {
+  document.getElementById('boot')?.remove();
   void import('./ui/da-mock').then((m) => m.renderDaMock(app));
 } else if (new URLSearchParams(location.search).get('dev') === 'ui') {
+  document.getElementById('boot')?.remove();
   void import('./ui/gallery').then((m) => m.renderGallery(app));
 } else {
+  void boot();
+}
+
+
+/** Écran de chargement : polices et images principales, puis le hub (ou la création du personnage). */
+async function boot(): Promise<void> {
+  const BOOT_TIPS = [
+    'Astuce : finir son tour hors de portée des monstres vaut souvent mieux qu’un coup de plus.',
+    'Astuce : chaque PM dépensé fait perdre 1 de Concentration.',
+    'Astuce : les objets mythiques donnent beaucoup plus de stats que les communs.',
+    'Astuce : l’œil du combat montre les zones de menace ennemies.',
+    'Astuce : recyclez le butin en trop à l’Atelier pour fabriquer mieux.',
+  ];
+  const bar = document.getElementById('boot-bar');
+  const tip = document.getElementById('boot-tip');
+  if (tip) tip.textContent = BOOT_TIPS[Math.floor(Math.random() * BOOT_TIPS.length)];
+  const c = getCharacter();
+  const trancheId = c?.trancheId ?? 1;
+  const urls = [
+    'units/archer.png',
+    'ui/hub-bg.webp',
+    ...DUNGEONS.filter((d) => d.tranche === trancheId).flatMap((d) => {
+      const boss = d.rooms[d.rooms.length - 1].monsters.map((m) => getMonster(m.templateId)).find((m) => m.isBoss);
+      return [`dungeons/${d.id}.webp`, ...(boss ? [`units/${boss.id}.png`] : [])];
+    }),
+  ].map(assetUrl);
+  const jobs: Promise<unknown>[] = [document.fonts?.ready ?? Promise.resolve(), ...urls.map((u) => new Promise((r) => { const img = new Image(); img.onload = img.onerror = r; img.src = u; }))];
+  let done = 0;
+  jobs.forEach((j) => void j.then(() => { done++; if (bar) bar.style.width = `${8 + (92 * done) / jobs.length}%`; }));
+  const started = performance.now();
+  await Promise.race([Promise.all(jobs), new Promise((r) => setTimeout(r, 4000))]);
+  // Assez long pour lire la barre pleine, sans jamais faire attendre pour rien.
+  await new Promise((r) => setTimeout(r, Math.max(0, 450 - (performance.now() - started))));
   renderSetup();
+  const el = document.getElementById('boot');
+  el?.classList.add('is-done');
+  setTimeout(() => el?.remove(), 400);
 }
