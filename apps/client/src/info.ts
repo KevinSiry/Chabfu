@@ -1,23 +1,15 @@
 /** Textes et fiches d'information du combat (sorts, monstres, aperçus). Aucune règle ici. */
-import { slotKeyLabel } from './keys';
 import {
   DAMAGE_FACTORS,
-  combinePassives,
-  spellConcentrationCost,
-  spellConcentrationLoss,
-  spellMaxRange,
-  getCastError,
   getMonster,
   getSpell,
   monsterBehavior,
   monsterAttacks,
   spellDamageOn,
-  type ActionPreview,
   type Element,
   type MonsterBehavior,
   type MonsterIntent,
   type RunState,
-  type SpellDef,
   type Unit,
 } from '@chabfu/engine';
 
@@ -36,67 +28,6 @@ export function rangeLabel(min: number, max: number): string {
 
 export function esc(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-}
-
-/** Liste des effets d'un sort, en phrases courtes (passifs équipés compris). */
-export function spellEffects(spell: SpellDef, passives: readonly string[] = []): string[] {
-  const burnTurns = spell.burn ? spell.burn.turns + combinePassives(passives).burnExtraTurns : 0;
-  const out: string[] = [];
-  if (spell.damage !== undefined) out.push(`<b>${spell.damage}</b> dégâts ${el(spell.element)}${spell.zone === 'cross' ? ' en croix (5 cases)' : spell.zone === 'square' ? ' en carré (9 cases)' : ''}`);
-  if (spell.burn) out.push(`Brûlure : <b>${spell.burn.damage}</b> dégâts Feu au début de ses ${burnTurns} prochains tours`);
-  if (spell.push) out.push(`Pousse de <b>${spell.push}</b> case${spell.push > 1 ? 's' : ''} (collision : 8 dégâts par case restante, moitié pour le monstre heurté)`);
-  if (spell.pmRemoval) out.push(`Retire <b>${spell.pmRemoval} PM</b> à la cible pour son prochain tour`);
-  if (spell.jump) out.push(`Saute sur la case visée, par-dessus les obstacles`);
-  if (spell.gainPm) out.push(`Rend <b>${spell.gainPm} PM</b> à l'Archer`);
-  if (spell.buffNextShot) out.push(`Le prochain tir inflige <b>le double</b> de dégâts`);
-  return out;
-}
-
-export function spellConcentration(spell: SpellDef, passives: readonly string[] = []): string[] {
-  const out: string[] = [];
-  const cost = spellConcentrationCost(spell, passives);
-  const loss = spellConcentrationLoss(spell, passives);
-  if (cost) out.push(`Coûte <b>${cost}</b> Concentration (requise)${cost < (spell.concentrationCost ?? 0) ? ' <span class="muted">(réduit par un passif)</span>' : ''}`);
-  if (loss) out.push(`<span class="neg">−${loss}</span> Concentration`);
-  else if (spell.concentrationLoss) out.push('Ne coûte plus de Concentration <span class="muted">(passif)</span>');
-  if (spell.concentrationGain)
-    out.push(
-      `<span class="pos">+${spell.concentrationGain}</span> Concentration${spell.concentrationGainMinDistance ? ` si la cible est à ${spell.concentrationGainMinDistance} cases ou plus` : ''}`,
-    );
-  return out;
-}
-
-/** Infobulle complète d'un sort de la barre. */
-export function spellTooltip(state: RunState, spellId: string, index: number): string {
-  const s = getSpell(spellId);
-  const err = getCastError(state, spellId);
-  const uses = state.player.spellUses[spellId] ?? 0;
-  const target = { unit: 'Un ennemi', cell: 'Une case', emptyCell: 'Une case libre', self: 'Soi-même' }[s.target];
-  const passives = state.player.passives ?? [];
-  const conc = spellConcentration(s, passives);
-  const maxRange = spellMaxRange(s, passives);
-  return `
-    <div class="tt-head"><b>${s.name}</b><span class="key">${esc(slotKeyLabel(index))}</span></div>
-    <div class="tt-meta">${el(s.element)} · <span class="pa">${s.pa} PA</span>${s.maxPerTurn ? ` · ${uses}/${s.maxPerTurn} ce tour` : ''}</div>
-    <div class="tt-grid">
-      <span>Portée</span><b>${rangeLabel(s.minRange, maxRange)}${maxRange > s.maxRange ? ` <span class="pos">(+${maxRange - s.maxRange} passif)</span>` : ''}</b>
-      <span>Cible</span><b>${target}</b>
-      <span>Ligne de vue</span><b>${s.target === 'self' ? '—' : s.los ? 'requise' : 'non requise'}</b>
-      ${s.inLine ? '<span>Lancer</span><b>en ligne droite</b>' : ''}
-    </div>
-    <ul class="tt-list">${spellEffects(s, passives).map((e) => `<li>${e}</li>`).join('')}</ul>
-    ${conc.length ? `<ul class="tt-list conc-list">${conc.map((e) => `<li>${e}</li>`).join('')}</ul>` : ''}
-    ${state.player.nextShotDouble && s.damage !== undefined ? '<div class="tt-note pos">Tir concentré actif : dégâts ×2</div>' : ''}
-    ${err ? `<div class="tt-note neg">${esc(err)}</div>` : ''}`;
-}
-
-export function factorTags(d: NonNullable<ReturnType<typeof spellDamageOn>>): string {
-  const tags: string[] = [];
-  if (d.mastery) tags.push(`maîtrise +${d.mastery} %`);
-  if (d.weakness) tags.push(`<span class="pos">faiblesse ${pct(DAMAGE_FACTORS.weakness)}</span>`);
-  if (d.resistance) tags.push(`<span class="neg">résistance ${pct(DAMAGE_FACTORS.resistance)}</span>`);
-  if (d.doubled) tags.push('<span class="pos">×2 concentré</span>');
-  return tags.join(' · ');
 }
 
 export function intentText(intent: MonsterIntent | undefined, unit: Unit): string {
@@ -165,28 +96,4 @@ export function monsterCard(state: RunState, u: Unit, intent: MonsterIntent | un
             .join('')}</table>`
         : ''
     }`;
-}
-
-/** Détail d'un aperçu de sort (panneau d'inspection). */
-export function castPreviewCard(state: RunState, spellId: string, preview: ActionPreview): string {
-  const s = getSpell(spellId);
-  if (!preview.valid) return `<div class="card-head"><b>${s.name}</b></div><p class="neg">${esc(preview.error ?? '')}</p>`;
-  const rows = preview.outcomes
-    .filter((o) => o.unitId !== 'archer' || o.damage)
-    .map((o) => {
-      const u = state.units.find((x) => x.id === o.unitId)!;
-      const d = s.damage !== undefined && u.team === 'monster' ? spellDamageOn(state, spellId, u) : null;
-      const parts: string[] = [];
-      if (o.bySource.spell) parts.push(`<b>−${o.bySource.spell}</b> ${ELEMENT_LABEL[s.element]}${d ? ` <span class="muted">(${factorTags(d) || 'sans bonus'})</span>` : ''}`);
-      if (o.bySource.collision) parts.push(`<b>−${o.bySource.collision}</b> collision`);
-      if (o.pushedFrom && o.movedTo) parts.push(`poussé de ${Math.abs(o.movedTo.x - o.pushedFrom.x) + Math.abs(o.movedTo.y - o.pushedFrom.y)} case(s)`);
-      for (const st of o.statuses) parts.push(st);
-      return `<li><b>${o.name}</b> ${o.hpBefore} → <b>${o.hpAfter}</b> PV${o.killed ? ' <span class="kill">vaincu</span>' : ''}<br><span class="small">${parts.join(' · ')}</span></li>`;
-    });
-  const dc = preview.concentrationAfter - preview.concentrationBefore;
-  return `
-    <div class="card-head"><b>${s.name}</b><span class="pa">${s.pa} PA</span></div>
-    <ul class="outcomes">${rows.join('') || '<li class="muted">Aucun ennemi touché.</li>'}</ul>
-    ${dc ? `<p>Concentration ${preview.concentrationBefore} → <b class="${dc > 0 ? 'pos' : 'neg'}">${preview.concentrationAfter}</b></p>` : ''}
-    ${preview.clearsRoom ? '<p class="pos">La salle sera vidée.</p>' : ''}`;
 }
