@@ -45,6 +45,24 @@ export function statDeltaHtml(delta: EquipmentConfig): string {
     .join('')}</ul></div>`;
 }
 
+/**
+ * Stats d'un objet et écart avec l'objet porté, sur une seule liste : valeur de l'objet, puis ▲/▼ si on l'équipe.
+ * Les stats que l'objet n'a pas mais que l'objet remplacé avait apparaissent avec « — » et leur perte.
+ */
+export function statCompareHtml(bonus: EquipmentConfig, delta: EquipmentConfig | null): string {
+  const lines = statLines(bonus, LABELS);
+  const deltas = delta ? statLines(delta, LABELS) : [];
+  const byKey = new Map(deltas.map((d) => [d.key, d]));
+  const lost = deltas.filter((d) => !lines.some((l) => l.key === d.key));
+  if (!lines.length && !lost.length) return '<div class="stat-rows empty muted">Aucune stat</div>';
+  const dv = (d: StatLine | undefined) =>
+    !delta ? '' : d ? `<em class="${d.value > 0 ? 'up' : 'down'}">${d.value > 0 ? '▲' : '▼'} ${signed(d.value)}${d.unit}</em>` : '<em class="same">=</em>';
+  return `<ul class="stat-rows stat-cmp${delta ? ' has-delta' : ''}">${[
+    ...lines.map((l) => `<li>${medal(l)}<span class="stat-label">${l.label}</span><b class="stat-val">${signed(l.value)}${l.unit}</b>${dv(byKey.get(l.key))}</li>`),
+    ...lost.map((d) => `<li class="lost">${medal(d)}<span class="stat-label">${d.label}</span><b class="stat-val">—</b>${dv(d)}</li>`),
+  ].join('')}</ul>`;
+}
+
 /** Totaux du personnage (base de l'Archer + équipement), pour la fiche et l'écran d'équipement. */
 export function characterStatsHtml(equipment: EquipmentConfig, masteries?: Partial<Record<'fire' | 'water' | 'earth' | 'air' | 'neutral', number>>): string {
   const s = combatStats(equipment, masteries);
