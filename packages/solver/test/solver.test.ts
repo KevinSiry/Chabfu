@@ -39,3 +39,16 @@ describe('solveur', () => {
     expect(() => fullSetBonus(1, 'inconnu')).toThrow();
   });
 });
+
+describe('clé d’état', () => {
+  it('connaît tous les champs de l’état du moteur (sinon, mettre à jour stateKey)', async () => {
+    const { KEYED_PLAYER_FIELDS, STATIC_PLAYER_FIELDS, KEYED_UNIT_FIELDS, STATIC_UNIT_FIELDS } = await import('../src/solver.js');
+    const s = createRun({ ...config, passives: [] });
+    const known = (fields: string[]) => new Set(fields);
+    const playerKnown = known([...KEYED_PLAYER_FIELDS, ...STATIC_PLAYER_FIELDS]);
+    expect(Object.keys(s.player).filter((k) => !playerKnown.has(k))).toEqual([]);
+    const unitKnown = known([...KEYED_UNIT_FIELDS, ...STATIC_UNIT_FIELDS]);
+    for (const u of s.units) expect(Object.keys(u).filter((k) => !unitKnown.has(k))).toEqual([]);
+    expect(Object.keys(s).sort()).toEqual(['actionLog', 'config', 'player', 'room', 'roomIndex', 'status', 'turn', 'units']);
+  });
+});

@@ -86,13 +86,24 @@ export interface RouteStats {
 // Représentation compacte d'un état pour la fusion des doublons
 // ---------------------------------------------------------------------------
 
+/**
+ * Champs de l'état pris en compte par `stateKey`. Un test vérifie que le moteur n'en a pas ajouté
+ * d'autres : si c'est le cas, il faut les ajouter ici (ou dans STATIC_*), sinon deux états
+ * différents pourraient être fusionnés.
+ */
+export const KEYED_PLAYER_FIELDS = ['concentration', 'nextShotDouble', 'pmSpentThisTurn', 'spellUses', 'movedLastTurn'];
+export const STATIC_PLAYER_FIELDS = ['deck', 'masteries', 'passives'];
+export const KEYED_UNIT_FIELDS = ['id', 'pos', 'hp', 'pa', 'pm', 'pmMalus', 'burn', 'attackUses'];
+export const STATIC_UNIT_FIELDS = ['team', 'templateId', 'name', 'maxHp', 'basePa', 'basePm', 'weakness', 'resistance', 'isBoss'];
+
 export function stateKey(s: RunState): string {
   const p = s.player;
-  const parts: (string | number)[] = [s.roomIndex, s.turn, p.concentration, p.nextShotDouble ? 1 : 0, p.pmSpentThisTurn > 0 ? 1 : 0];
-  for (const id of Object.keys(p.spellUses).sort()) parts.push(id, p.spellUses[id]);
+  const parts: (string | number)[] = [s.roomIndex, s.turn, p.concentration, p.nextShotDouble ? 1 : 0, p.pmSpentThisTurn > 0 ? 1 : 0, p.movedLastTurn ? 1 : 0];
+  for (const id in p.spellUses) parts.push(id, p.spellUses[id]);
   for (const u of s.units) {
     if (u.hp <= 0) continue;
     parts.push(u.id, u.pos.x, u.pos.y, u.hp, u.pa, u.pm, u.pmMalus, u.burn ? `${u.burn.damage}/${u.burn.turns}` : '');
+    for (const a in u.attackUses) parts.push(a, u.attackUses[a]);
   }
   return parts.join('|');
 }
