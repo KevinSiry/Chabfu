@@ -81,20 +81,28 @@ function shade(hex: number, k: number): number {
 
 const textures = new Map<string, Texture | null>();
 const pending = new Set<string>();
+/** Incrémenté à chaque texture chargée, pour reconstruire le sol quand ses tuiles arrivent. */
+let textureVersion = 0;
 
-function unitTexture(templateId: string): Texture | null {
-  if (textures.has(templateId)) return textures.get(templateId)!;
-  if (!pending.has(templateId)) {
-    pending.add(templateId);
-    const url = `${import.meta.env.BASE_URL}assets/units/${templateId}.png`;
-    // Sprite absent : on garde la silhouette dessinée en code.
+/** Texture peinte `assets/<path>.png`, ou null tant qu'elle n'est pas chargée (ou si elle n'existe pas). */
+function asset(path: string): Texture | null {
+  if (textures.has(path)) return textures.get(path)!;
+  if (!pending.has(path)) {
+    pending.add(path);
+    const url = `${import.meta.env.BASE_URL}assets/${path}.png`;
+    // Fichier absent : on garde le rendu dessiné en code.
     fetch(url, { method: 'HEAD' })
       .then((r) => (r.ok && (r.headers.get('content-type') ?? '').startsWith('image') ? Assets.load<Texture>(url) : null))
-      .then((t) => textures.set(templateId, t ?? null))
-      .catch(() => textures.set(templateId, null));
+      .then((t) => {
+        textures.set(path, t ?? null);
+        if (t) textureVersion++;
+      })
+      .catch(() => textures.set(path, null));
   }
   return null;
 }
+
+const unitTexture = (templateId: string) => asset(`units/${templateId}`);
 
 interface UnitView {
   root: Container;
@@ -115,6 +123,7 @@ const LABEL_STYLE = new TextStyle({ fontFamily: 'system-ui, sans-serif', fontSiz
 export class PixiBoard {
   readonly app: Application;
   private floor = new Graphics();
+  private floorTiles = new Container();
   private overlay = new Graphics();
   private arrows = new Graphics();
   private depth = new Container();
@@ -130,7 +139,7 @@ export class PixiBoard {
   private constructor(app: Application) {
     this.app = app;
     this.depth.sortableChildren = true;
-    app.stage.addChild(this.floor, this.overlay, this.arrows, this.depth, this.fx, this.labels);
+    app.stage.addChild(this.floor, this.floorTiles, this.overlay, this.arrows, this.depth, this.fx, this.labels);
   }
 
   static async create(host: HTMLElement): Promise<PixiBoard> {
@@ -185,10 +194,10 @@ export class PixiBoard {
 
   render(scene: Scene): void {
     this.fit(scene.room);
-    this.drawFloor(scene.room);
+    this.drawFloor(scene.room, scene.theme);
     this.drawOverlay(scene);
     this.drawArrows(scene.room, scene.arrows);
-    this.syncRocks(scene.room);
+    this.syncRocks(scene.room, scene.theme);
     this.syncGhosts(scene.room, scene.ghosts);
     this.syncUnits(scene);
     this.drawFx(scene);
@@ -198,12 +207,15 @@ export class PixiBoard {
 
   // --- Sol et rochers -------------------------------------------------------
 
-  private drawFloor(room: RoomState): void {
-    const key = `${room.name}|${room.width}x${room.height}|${room.tiles.join('')}`;
+  private drawFloor(room: RoomState, theme: string | undefined): void {
+    const solA = theme ? asset(`tiles/${theme}_sol_a`) : null;
+    const solB = theme ? asset(`tiles/${theme}_sol_b`) : null;
+    const key = `${room.name}|${room.width}x${room.height}|${room.tiles.join('')}|${theme}|${solA ? textureVersion : 0}`;
     if (key === this.roomKey) return;
     this.roomKey = key;
     const g = this.floor;
     g.clear();
+    this.floorTiles.removeChildren().forEach((c) => c.destroy());
     // Socle sous la grille, pour donner de l'épaisseur au plateau.
     const top = toScreen(room, 0, 0);
     const right = toScreen(room, room.width - 1, 0);
@@ -217,6 +229,18 @@ export class PixiBoard {
       for (let x = 0; x < room.width; x++) {
         const c = toScreen(room, x, y);
         const n = cellNoise(x, y);
+        if (solA) {
+          // Tuile peinte (256×128) ramenée à la taille d'une case, variante choisie par case.
+          const tex = solB && n > 0.55 ? solB : solA;
+          const sp = new Sprite(tex);
+          sp.anchor.set(0.5);
+          sp.width = TILE_W + 1;
+          sp.height = TILE_H + 1;
+          sp.position.set(c.x, c.y);
+          sp.tint = (x + y) % 2 === 0 ? 0xffffff : 0xeeeeee;
+          this.floorTiles.addChild(sp);
+          continue;
+        }
         const base = (x + y) % 2 === 0 ? 0x3f5d3b : 0x446541;
         g.poly(diamondPts(c)).fill(shade(base, 0.92 + n * 0.14)).stroke({ width: 1, color: 0x000000, alpha: 0.22 });
         // Touffes d'herbe discrètes
@@ -228,10 +252,11 @@ export class PixiBoard {
     }
   }
 
-  private syncRocks(room: RoomState): void {
+  private syncRocks(room: RoomState, theme: string | undefined): void {
+    const obstacle = theme ? asset(`tiles/${theme}_obstacle`) : null;
     const wanted: Pos[] = [];
     for (let y = 0; y < room.height; y++) for (let x = 0; x < room.width; x++) if (room.tiles[y][x] === '#') wanted.push({ x, y });
-    while (this.rocks.length > wanted.length) this.rocks.pop()!.destroy();
+    while (this.rocks.length > wanted.length) this.rocks.pop()!.destroy({ children: true });
     while (this.rocks.length < wanted.length) {
       const g = new Graphics();
       this.rocks.push(g);
@@ -239,11 +264,22 @@ export class PixiBoard {
     }
     wanted.forEach((p, i) => {
       const g = this.rocks[i];
-      const tag = `${p.x},${p.y}`;
+      const tag = `${p.x},${p.y}|${obstacle ? theme : ''}`;
       if (g.label === tag) return;
       g.label = tag;
       g.clear();
+      g.removeChildren().forEach((ch) => ch.destroy());
       const c = toScreen(room, p.x, p.y);
+      g.zIndex = (p.x + p.y) * 10;
+      if (obstacle) {
+        // Obstacle peint (256×256, base losange en bas) à l'échelle d'une case.
+        const sp = new Sprite(obstacle);
+        sp.anchor.set(0.5, 1 - (TILE_H / 2) / (TILE_W) );
+        sp.scale.set((TILE_W + 2) / obstacle.width);
+        sp.position.set(c.x, c.y);
+        g.addChild(sp);
+        return;
+      }
       const n = cellNoise(p.x, p.y);
       const lift = 20 + n * 8;
       const w = TILE_W / 2 - 3;

@@ -86,6 +86,8 @@ export interface Projectile {
 
 export interface Scene {
   room: RoomState;
+  /** Thème graphique (id du donjon) pour les tuiles et obstacles peints. */
+  theme?: string;
   units: DisplayUnit[];
   highlights: Highlight[];
   path: Pos[];

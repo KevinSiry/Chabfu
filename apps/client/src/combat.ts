@@ -860,6 +860,7 @@ function drawBoard(): void {
   if (!v.board) return;
   v.board.render({
     room: v.displayRoom,
+    theme: v.config.dungeonId,
     units: [...v.display.values()].filter((u) => u.alive),
     highlights: o?.highlights ?? [],
     path: o?.path ?? [],
