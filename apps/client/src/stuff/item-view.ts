@@ -57,7 +57,7 @@ export function itemCardHtml(item: ItemInstance, o: ItemCardOptions): string {
   return `
     <div class="item-card rarity-${item.rarity} ${o.extraClass ?? ''}" data-uid="${item.uid}" ${o.style ? `style="${o.style}"` : ''}>
       <div class="item-head">
-        <span class="item-icon kind-${def.kind}">${itemIconImg(def.kind)}</span>
+        <span class="item-icon kind-${def.kind}">${itemIconImg(def.id)}</span>
         <span class="item-name">${def.name}</span>
         ${equipped ? '<span class="tag tag-eq">Équipé</span>' : upgrade ? '<span class="tag tag-up">▲ Mieux</span>' : ''}
       </div>

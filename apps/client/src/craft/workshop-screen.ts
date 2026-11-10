@@ -25,7 +25,7 @@ import {
 import { getInventory, setInventory } from '../stuff/store';
 import '../stuff/stuff.css';
 import './craft.css';
-import { itemIconImg } from '../ui/assets';
+import { itemIconImg, resourceIconImg, shardIconImg } from '../ui/assets';
 import { getCrafting, setCrafting } from './store';
 import { icon } from '../ui/icons';
 import { bindSegmented, openSheet, segmented, toast } from '../ui/components';
@@ -73,7 +73,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
   const di = dungeons.findIndex((d) => d.id === dungeonId);
   const allRecipes = recipesForTranche(o.trancheId).filter((r) => r.dungeonId === dungeonId);
   const itemIds = [...new Set(allRecipes.map((r) => r.itemId))];
-  const shardsHtml = `<span class="ws-shards" title="Éclats de la tranche ${o.trancheId}">${icon('shard')}<b>${shards}</b><small>Éclats</small></span>`;
+  const shardsHtml = `<span class="ws-shards" title="Éclats de la tranche ${o.trancheId}">${shardIconImg()}<b>${shards}</b><small>Éclats</small></span>`;
   const modeSeg = segmented('ws-mode', [{ value: 'craft', label: `${icon('hammer')} Fabriquer` }, { value: 'recycle', label: `${icon('recycle')} Recycler` }], mode);
 
   /** Écart de stats si l'on équipait cet objet (fabriqué dans cette rareté). */
@@ -97,7 +97,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
         const best = ready[ready.length - 1];
         const up = rs.some((r) => bonusScore(deltaOf(id, r.rarity)) > 0 && canCraft(st, r));
         return `<button type="button" class="ws-item${id === selectedItem ? ' on' : ''}" data-item="${id}" aria-label="${def.name}">
-          <span class="eq-tile rarity-${best?.rarity ?? 'common'}${up ? ' up' : ''}${ready.length ? '' : ' locked'}">${itemIconImg(def.kind)}</span>
+          <span class="eq-tile rarity-${best?.rarity ?? 'common'}${up ? ' up' : ''}${ready.length ? '' : ' locked'}">${itemIconImg(def.id)}</span>
           <span class="ws-item-name">${def.name}</span>
         </button>`;
       })
@@ -116,11 +116,11 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
       const miss = missingForRecipe(st, r);
       const delta = deltaOf(r.itemId, r.rarity);
       const upgrade = bonusScore(delta) > 0;
-      const ing = (name: string, have: number, need: number, missing: boolean, tier: string) =>
-        `<li class="ws-cost${missing ? ' miss' : ''} tier-${tier}"><span class="ws-cost-name">${name}</span><b>${have}<small>/${need}</small></b><i style="width:${Math.min(100, (100 * have) / need)}%"></i></li>`;
+      const ing = (name: string, have: number, need: number, missing: boolean, tier: string, img: string) =>
+        `<li class="ws-cost${missing ? ' miss' : ''} tier-${tier}">${img}<span class="ws-cost-name">${name}</span><b>${have}<small>/${need}</small></b><i style="width:${Math.min(100, (100 * have) / need)}%"></i></li>`;
       detail = `
         <div class="ws-d-head rarity-${r.rarity}">
-          <button type="button" class="eq-tile rarity-${r.rarity}" data-rdetail="${r.id}" aria-label="Fiche de ${def.name}">${itemIconImg(def.kind)}</button>
+          <button type="button" class="eq-tile rarity-${r.rarity}" data-rdetail="${r.id}" aria-label="Fiche de ${def.name}">${itemIconImg(def.id)}</button>
           <div class="ws-d-title">
             <b>${def.name}</b>
             <span><span class="rarity-label">${RARITIES[r.rarity].label}</span> · ${KIND_LABEL[def.kind]} · T${def.tranche}</span>
@@ -142,10 +142,10 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
             ${Object.entries(r.resources)
               .map(([id, n]) => {
                 const res = getResource(id);
-                return ing(res.name, st.resources[id] ?? 0, n, !!miss.resources[id], res.tier);
+                return ing(res.name, st.resources[id] ?? 0, n, !!miss.resources[id], res.tier, resourceIconImg(id));
               })
               .join('')}
-            ${r.shards ? ing('Éclats', shards, r.shards, !!miss.shards, 'shard') : ''}
+            ${r.shards ? ing('Éclats', shards, r.shards, !!miss.shards, 'shard', shardIconImg()) : ''}
           </ul></section>
         </div>
         <button class="ui-btn ${ok ? 'ui-btn--primary' : ''} ui-btn--block ws-go" data-craft="${r.id}" ${ok ? '' : 'disabled'}>${icon('hammer')} ${ok ? 'Fabriquer' : 'Ressources insuffisantes'}</button>`;
@@ -181,7 +181,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
             const eq = isEquipped(inv, it.uid);
             const on = picked.has(it.uid);
             return `<button type="button" class="ws-bag-item${on ? ' on' : ''}${eq ? ' is-worn' : ''}" data-ritem="${it.uid}" aria-pressed="${on}" aria-label="${getItem(it.itemId).name}${eq ? ' (équipé)' : ''}">
-              <span class="eq-tile rarity-${it.rarity}">${itemIconImg(getItem(it.itemId).kind)}</span>
+              <span class="eq-tile rarity-${it.rarity}">${itemIconImg(it.itemId)}</span>
               ${eq ? `<i class="ws-lock">${icon('lock')}</i>` : `<i class="ws-check">${icon('check')}</i>`}
             </button>`;
           })
@@ -193,7 +193,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
         ${modeSeg}
         <div class="ws-rec-sum">
           <span class="ws-rec-count"><b>${sel.length}</b> objet${sel.length > 1 ? 's' : ''} sélectionné${sel.length > 1 ? 's' : ''}</span>
-          <span class="ws-rec-gain">${icon('shard')}<b>+${gain}</b></span>
+          <span class="ws-rec-gain">${shardIconImg()}<b>+${gain}</b></span>
         </div>
         <div class="ws-quick">
           ${byRarity
@@ -348,7 +348,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
       html: `<p class="ws-confirm">${sel.length} objet${sel.length > 1 ? 's' : ''}, dont <b>${precious.length} rare${precious.length > 1 ? 's' : ''} ou mieux</b>, contre <b>+${gain} éclats</b>. C’est définitif.</p>
         <div class="ws-confirm-items">${precious
           .slice(0, 12)
-          .map((it) => `<span class="eq-tile rarity-${it.rarity}">${itemIconImg(getItem(it.itemId).kind)}</span>`)
+          .map((it) => `<span class="eq-tile rarity-${it.rarity}">${itemIconImg(it.itemId)}</span>`)
           .join('')}</div>
         <div class="gr-sheet-action"><button class="ui-btn ui-btn--gold ui-btn--block" id="ws-confirm">${icon('recycle')} Recycler : +${gain} éclats</button></div>`,
     });
