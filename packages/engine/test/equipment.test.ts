@@ -77,7 +77,7 @@ describe('butin du boss', () => {
     };
     const d1 = stats(1);
     const d8 = stats(8);
-    expect(d8.perRun).toBeGreaterThan(d1.perRun * 1.5);
+    expect(d8.perRun).toBeGreaterThan(d1.perRun * 1.3);
     expect(d8.highShare).toBeGreaterThan(d1.highShare * 1.5);
   });
 

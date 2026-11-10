@@ -102,7 +102,7 @@ export function craft(
 // ---------------------------------------------------------------------------
 
 /** Éclats rendus par le recyclage d'un objet, selon sa rareté. */
-export const SHARDS_BY_RARITY: Record<Rarity, number> = { common: 1, uncommon: 3, rare: 8, mythic: 20, legendary: 50 };
+export const SHARDS_BY_RARITY: Record<Rarity, number> = { common: 1, uncommon: 2, rare: 5, mythic: 12, legendary: 30 };
 
 /** Exemplaires recyclés nécessaires pour chaque palier de maîtrise (bonus de farm uniquement, jamais de puissance). */
 export const MASTERY_THRESHOLDS = [3, 10, 25, 50];
