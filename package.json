@@ -7,8 +7,9 @@
   "scripts": {
     "dev": "npm run dev -w @chabfu/client",
     "build": "npm run build -w @chabfu/client",
-    "test": "npm test -w @chabfu/engine",
-    "typecheck": "tsc -p packages/engine && tsc -p apps/client"
+    "test": "npm test -w @chabfu/engine -w @chabfu/solver",
+    "solve": "npm run solve -w @chabfu/solver --",
+    "typecheck": "tsc -p packages/engine && tsc -p packages/solver && tsc -p apps/client"
   },
   "devDependencies": {
     "typescript": "5.9.3"
