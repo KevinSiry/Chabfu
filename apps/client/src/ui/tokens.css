@@ -4,44 +4,63 @@
  * Toute autre feuille de style lit ces variables ; aucune valeur en dur ailleurs.
  * Documentation : src/ui/design-system.md · galerie : ?dev=ui
  */
-@import '@fontsource/outfit/400.css';
-@import '@fontsource/outfit/500.css';
-@import '@fontsource/outfit/600.css';
-@import '@fontsource/outfit/700.css';
-@import '@fontsource/outfit/800.css';
+@import '@fontsource/lilita-one/400.css';
+@import '@fontsource/nunito/600.css';
+@import '@fontsource/nunito/700.css';
+@import '@fontsource/nunito/800.css';
+@import '@fontsource/nunito/900.css';
 
+/* Direction « Arène » (choisie par Kevin) : casual mobile, panneaux violet nuit à contour épais,
+   boutons bombés à lèvre, titres détourés. */
 :root {
   color-scheme: dark;
 
-  /* ---------- Fonds et surfaces (du plus profond au plus proche) ---------- */
-  --c-bg: #0a0f1d;
-  --c-bg-2: #0e1528;
-  --c-surface: rgba(16, 23, 40, 0.78);
-  --c-surface-strong: rgba(18, 26, 46, 0.92);
-  --c-surface-solid: #131b2e;
-  --c-surface-raised: #1a2440;
-  --c-fill: rgba(255, 255, 255, 0.06);
-  --c-fill-strong: rgba(255, 255, 255, 0.1);
-  --c-fill-press: rgba(255, 255, 255, 0.14);
-  --c-line: rgba(255, 255, 255, 0.1);
-  --c-line-strong: rgba(255, 255, 255, 0.22);
-  --c-scrim: rgba(4, 7, 16, 0.72);
-  --c-slot: linear-gradient(180deg, #23314e, #131b2f);
+  /* ---------- Fonds et surfaces ---------- */
+  --c-bg: #140d34;
+  --c-bg-2: #22185a;
+  --c-bg-glow: #3a2c86;
+  --c-ink: #140c38;
+  --c-panel-a: #5844b5;
+  --c-panel-b: #2f2275;
+  --c-panel-hi: rgba(255, 255, 255, 0.35);
+  --c-well: #22185a;
+  --c-well-2: #2a1f6a;
+  --c-surface: linear-gradient(180deg, var(--c-panel-a), var(--c-panel-b));
+  --c-surface-strong: var(--c-surface);
+  --c-surface-solid: #33267e;
+  --c-surface-raised: #4433a0;
+  --c-fill: rgba(10, 5, 40, 0.32);
+  --c-fill-strong: rgba(10, 5, 40, 0.45);
+  --c-fill-press: rgba(10, 5, 40, 0.55);
+  --c-line: rgba(255, 255, 255, 0.14);
+  --c-line-strong: rgba(255, 255, 255, 0.3);
+  --c-scrim: rgba(8, 4, 26, 0.72);
+  --c-slot: var(--c-well);
 
   /* ---------- Texte ---------- */
-  --c-text: #eef2fb;
-  --c-text-2: #a3afc6;
-  --c-text-3: #6f7b93;
+  --c-text: #ffffff;
+  --c-text-2: #d4ccff;
+  --c-text-3: #a197dd;
   --c-title: #ffffff;
 
   /* ---------- Rôles ---------- */
-  --c-accent: #5ee0d0;
-  --c-accent-strong: #34c7b6;
-  --c-accent-soft: rgba(94, 224, 208, 0.16);
-  --c-cta-a: #ffd56e;
-  --c-cta-b: #f59e2b;
-  --c-cta-ink: #2a1600;
-  --c-cta-glow: rgba(245, 158, 43, 0.38);
+  --c-accent: #ffd84a;
+  --c-accent-strong: #ffc21a;
+  --c-accent-soft: rgba(255, 216, 74, 0.18);
+  --c-cta-a: #9af35e;
+  --c-cta-b: #3fb823;
+  --c-cta-ink: #ffffff;
+  --c-cta-lip: #1f6d0e;
+  --c-cta-glow: rgba(63, 184, 35, 0.35);
+  --c-blue-a: #6cc0ff;
+  --c-blue-b: #2a7be0;
+  --c-blue-lip: #154a9a;
+  --c-red-a: #ff7a6b;
+  --c-red-b: #e0362f;
+  --c-red-lip: #8e1a15;
+  --c-gold-a: #ffe866;
+  --c-gold-b: #ffb41f;
+  --c-gold-lip: #b86a00;
   --c-danger: #ff6b5e;
   --c-danger-strong: #e2483c;
   --c-danger-soft: rgba(255, 107, 94, 0.16);
@@ -50,12 +69,13 @@
   --c-warning: #ffc75a;
 
   /* ---------- Ressources de combat ---------- */
-  --c-hp: #ff5d55;
-  --c-hp-deep: #9b1f1a;
-  --c-pa: #59b4ff;
-  --c-pm: #6fdc8c;
-  --c-conc: #c48cff;
-  --c-xp: var(--c-cta-a);
+  --c-hp: #57e06a;
+  --c-hp-deep: #2a9a3a;
+  --c-hp-enemy: #ff5a52;
+  --c-pa: #4fa8ff;
+  --c-pm: #57e06a;
+  --c-conc: #c98bff;
+  --c-xp: var(--c-gold-a);
 
   /* ---------- Équipes ---------- */
   --c-ally: #6fdc8c;
@@ -77,8 +97,8 @@
   --c-r-legendary: #ffb547;
 
   /* ---------- Typographie ---------- */
-  --font-display: 'Outfit', system-ui, sans-serif;
-  --font-ui: 'Outfit', system-ui, sans-serif;
+  --font-display: 'Lilita One', 'Nunito', system-ui, sans-serif;
+  --font-ui: 'Nunito', system-ui, sans-serif;
   --fs-2xs: 11px;
   --fs-xs: 12px;
   --fs-sm: 14px;
@@ -89,14 +109,14 @@
   --fs-3xl: 44px;
   --fs-4xl: 64px;
   --fw-regular: 400;
-  --fw-medium: 500;
-  --fw-semibold: 600;
-  --fw-bold: 700;
-  --fw-black: 800;
+  --fw-medium: 700;
+  --fw-semibold: 800;
+  --fw-bold: 900;
+  --fw-black: 900;
   --lh-tight: 1.1;
   --lh-snug: 1.3;
   --lh-body: 1.5;
-  --ls-caps: 0.14em;
+  --ls-caps: 0.06em;
   --text-scale: 1;
 
   /* ---------- Espacements (grille de 4 px) ---------- */
@@ -120,16 +140,22 @@
   /* ---------- Formes ---------- */
   --r-xs: 6px;
   --r-sm: 10px;
-  --r-md: 14px;
+  --r-md: 16px;
   --r-lg: 20px;
   --r-xl: 28px;
   --r-pill: 999px;
 
   /* ---------- Profondeur ---------- */
-  --sh-1: 0 4px 12px rgba(0, 0, 0, 0.22);
-  --sh-2: 0 12px 32px rgba(0, 0, 0, 0.32);
+  --sh-1: 0 4px 0 rgba(0, 0, 0, 0.28);
+  --sh-2: 0 6px 0 3px rgba(0, 0, 0, 0.25);
   --sh-3: 0 24px 64px rgba(0, 0, 0, 0.5);
-  --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --sh-inset: inset 0 2px 0 var(--c-panel-hi), inset 0 -4px 0 rgba(0, 0, 0, 0.18);
+  /* Contour de panneau et de bouton : trait sombre épais. */
+  --outline-3: 0 0 0 3px var(--c-ink);
+  --outline-2: 0 0 0 2px var(--c-ink);
+  /* Texte détouré (titres, chiffres, boutons). */
+  --stroke: 2px 0 0 var(--c-ink), -2px 0 0 var(--c-ink), 0 2px 0 var(--c-ink), 0 -2px 0 var(--c-ink), 1.5px 1.5px 0 var(--c-ink), -1.5px 1.5px 0 var(--c-ink), 1.5px -1.5px 0 var(--c-ink), -1.5px -1.5px 0 var(--c-ink), 0 4px 0 var(--c-ink);
+  --stroke-sm: 1.5px 0 0 var(--c-ink), -1.5px 0 0 var(--c-ink), 0 1.5px 0 var(--c-ink), 0 -1.5px 0 var(--c-ink), 1px 1px 0 var(--c-ink), -1px 1px 0 var(--c-ink), 1px -1px 0 var(--c-ink), -1px -1px 0 var(--c-ink), 0 2.5px 0 var(--c-ink);
   --blur-1: blur(10px) saturate(1.2);
   --blur-2: blur(18px) saturate(1.25);
 
