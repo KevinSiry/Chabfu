@@ -3,9 +3,13 @@
 export const MIN_DIFFICULTY = 1;
 export const MAX_DIFFICULTY = 10;
 
-/** PV et dégâts des monstres : +15 % par palier au-dessus de 1. */
+/**
+ * PV et dégâts des monstres : +15 % par palier au-dessus de 1, plus une courbe qui ne pèse qu'en haut
+ * (D3 ×1,32, D5 ×1,70, D10 ×2,84) pour que les hautes difficultés exigent un stuff presque parfait.
+ */
 export function difficultyMultiplier(difficulty: number): number {
-  return 1 + 0.15 * (difficulty - 1);
+  const d = difficulty - 1;
+  return 1 + 0.15 * d + 0.006 * d * d;
 }
 
 /**
@@ -21,11 +25,11 @@ export function dropRate(baseRate: number, refDifficulty: number, difficulty: nu
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'mythic' | 'legendary';
 
 export const RARITIES: Record<Rarity, { label: string; power: number; runeSlots: number; craftable: boolean }> = {
-  common: { label: 'Commune', power: 1.0, runeSlots: 0, craftable: true },
-  uncommon: { label: 'Inhabituelle', power: 1.1, runeSlots: 1, craftable: true },
-  rare: { label: 'Rare', power: 1.2, runeSlots: 1, craftable: true },
-  mythic: { label: 'Mythique', power: 1.35, runeSlots: 2, craftable: true },
-  legendary: { label: 'Légendaire', power: 1.5, runeSlots: 3, craftable: false },
+  common: { label: 'Commune', power: 0.4, runeSlots: 0, craftable: true },
+  uncommon: { label: 'Inhabituelle', power: 0.55, runeSlots: 1, craftable: true },
+  rare: { label: 'Rare', power: 0.7, runeSlots: 1, craftable: true },
+  mythic: { label: 'Mythique', power: 1.0, runeSlots: 2, craftable: true },
+  legendary: { label: 'Légendaire', power: 1.2, runeSlots: 3, craftable: false },
 };
 
 /** Générateur pseudo-aléatoire à graine (mulberry32), pour des tirages reproductibles côté serveur. */

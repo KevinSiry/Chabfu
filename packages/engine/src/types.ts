@@ -1,4 +1,4 @@
-import type { EquipmentBonus } from './equipment.js';
+import type { EquipmentConfig } from './equipment.js';
 
 export type Element = 'fire' | 'water' | 'earth' | 'air' | 'neutral';
 
@@ -94,8 +94,8 @@ export interface RunConfig {
   /** Niveau réel du personnage (défaut : niveau de redéfinition de la tranche du donjon). */
   level?: number;
   masteries?: Partial<Record<Element, number>>;
-  /** Bonus de l'équipement porté (PV, PA, PM, maîtrises), calculés par `equipmentBonus`. */
-  equipment?: EquipmentBonus;
+  /** Bonus de l'équipement porté (voir `EquipmentBonus`), calculés par `equipmentBonus`. Stats absentes = 0. */
+  equipment?: EquipmentConfig;
   /** Passifs équipés, limités par les emplacements de la tranche et le niveau effectif. */
   passives?: string[];
 }

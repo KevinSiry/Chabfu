@@ -1,10 +1,7 @@
+import { characterStatsHtml } from '../stuff/stat-view';
 import {
-  BASE_PA,
-  BASE_PM,
-  MAX_CONCENTRATION,
   MAX_LEVEL,
   PASSIVES,
-  PLAYER_HP,
   SPELLS,
   TRANCHES,
   DUNGEONS,
@@ -24,7 +21,6 @@ import { registerRunEndSection, type RunEndContext } from './run-end';
 import { getInventory } from '../stuff/store';
 import { deleteCharacter, getCharacter, saveCharacter } from './store';
 
-const ELEMENT_LABEL: Record<Element, string> = { fire: 'Feu', water: 'Eau', earth: 'Terre', air: 'Air', neutral: 'Neutre' };
 
 export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -189,7 +185,6 @@ export function openCharacterSheet(onChange: () => void): void {
   const loadout = currentLoadout(c);
   const date = new Date(c.createdAt).toLocaleDateString('fr-FR');
   const eq = equipmentBonus(getInventory(), t.id);
-  const plus = (n: number) => (n ? `<small> (+${n})</small>` : '');
 
   const spellRows = SPELLS.map((s) => {
     const state = s.level > level ? 'locked' : s.level > eff ? 'capped' : 'unlocked';
@@ -231,15 +226,7 @@ export function openCharacterSheet(onChange: () => void): void {
      <div class="sheet-grid">
        <section>
          <h3>Caractéristiques <span class="muted">(T${t.id}, niveau ${eff})</span></h3>
-         <div class="stats sheet-stats">
-           <div class="stat" style="color:var(--hp)"><b>${PLAYER_HP + eq.hp}${plus(eq.hp)}</b>PV</div>
-           <div class="stat" style="color:var(--pa)"><b>${BASE_PA + eq.pa}${plus(eq.pa)}</b>PA</div>
-           <div class="stat" style="color:var(--pm)"><b>${BASE_PM + eq.pm}${plus(eq.pm)}</b>PM</div>
-           <div class="stat" style="color:var(--conc)"><b>${MAX_CONCENTRATION}</b>Conc. max</div>
-         </div>
-         <div class="masteries">
-           ${(['fire', 'water', 'earth', 'air'] as Element[]).map((e) => `<div><span class="el el-${e}"></span>Maîtrise ${ELEMENT_LABEL[e]} <b>${eq.masteries[e] ?? 0} %</b></div>`).join('')}
-         </div>
+         ${characterStatsHtml(eq)}
          <p class="muted">Base de l’Archer + équipement porté en T${t.id}.</p>
        </section>
        <section>

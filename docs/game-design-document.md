@@ -180,13 +180,15 @@ L'équipement est le moteur du farm : les donjons servent à l'optimiser, et la 
 
 | Rareté | Puissance (indicative) | Emplacements de runes | Obtention |
 | --- | --- | --- | --- |
-| Commune | 100 % | 0 | Craft, drop fréquent |
-| Inhabituelle | 110 % | 1 | Craft, drop |
-| Rare | 120 % | 1 | Craft (ressources rares), drop |
-| Mythique | 135 % | 2 | Craft (ressources mythiques), drop rare |
-| Légendaire | 150 % | 3 | Drop uniquement, très rare, difficulté élevée |
+| Commune | 40 % | 0 | Craft, drop fréquent |
+| Inhabituelle | 55 % | 1 | Craft, drop |
+| Rare | 70 % | 1 | Craft (ressources rares), drop |
+| Mythique | 100 % (référence) | 2 | Craft (ressources mythiques), drop rare |
+| Légendaire | 120 % | 3 | Drop uniquement, très rare, difficulté élevée |
 
 La Légendaire est volontairement la plus dure à obtenir : c'est l'aboutissement de l'optimisation d'une tranche.
+
+Échelle retenue par Kevin (2026-11-10) : un objet commun ne donne qu'un peu de stats, un mythique beaucoup. Les stats d'un objet sont fixes (pas de jets), données en Mythique et multipliées par la puissance de la rareté ; les +1 (PA, PM, portée, Concentration) n'apparaissent qu'à partir d'Inhabituelle. Stats possibles : PV, maîtrise et résistance par élément (résistance plafonnée à 50 %), Dommages (ajoutés à chaque coup de sort), portée, PA/PM, Concentration par salle.
 
 ### Obtention
 

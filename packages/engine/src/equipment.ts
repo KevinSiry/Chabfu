@@ -36,13 +36,28 @@ export interface LootDrop {
   rarity: Rarity;
 }
 
-/** Bonus totaux de l'équipement, injectés dans `RunConfig.equipment`. */
+/**
+ * Bonus totaux de l'équipement, injectés dans `RunConfig.equipment`.
+ * Les champs ajoutés après coup (resistances, damage, range, concentration) sont optionnels pour le combat :
+ * un bonus écrit à la main sans eux reste valide et vaut 0.
+ */
 export interface EquipmentBonus {
   hp: number;
   pa: number;
   pm: number;
   masteries: Record<Element, number>;
+  resistances: Record<Element, number>;
+  damage: number;
+  range: number;
+  concentration: number;
 }
+
+/** Bonus accepté par `RunConfig.equipment` : les stats ajoutées après coup peuvent manquer (elles valent 0). */
+export type EquipmentConfig = Pick<EquipmentBonus, 'hp' | 'pa' | 'pm' | 'masteries'> &
+  Partial<Omit<EquipmentBonus, 'hp' | 'pa' | 'pm' | 'masteries' | 'resistances'>> & { resistances?: Partial<Record<Element, number>> };
+
+/** Plafond des résistances élémentaires, en %. */
+export const MAX_RESISTANCE = 50;
 
 export type Loadout = Partial<Record<SlotId, string>>;
 
@@ -58,50 +73,118 @@ export interface Inventory {
 // ---------------------------------------------------------------------------
 
 const STAT_ELEMENTS: Element[] = ['fire', 'water', 'earth', 'air', 'neutral'];
+const zeroElements = (): Record<Element, number> => ({ fire: 0, water: 0, earth: 0, air: 0, neutral: 0 });
+
+/** Stats scalaires de l'équipement, dans l'ordre d'affichage. */
+const SCALAR_KEYS = ['hp', 'pa', 'pm', 'damage', 'range', 'concentration'] as const;
+type ScalarKey = (typeof SCALAR_KEYS)[number];
 
 export function emptyBonus(): EquipmentBonus {
-  return { hp: 0, pa: 0, pm: 0, masteries: { fire: 0, water: 0, earth: 0, air: 0, neutral: 0 } };
+  return { hp: 0, pa: 0, pm: 0, masteries: zeroElements(), resistances: zeroElements(), damage: 0, range: 0, concentration: 0 };
+}
+
+/** Complète un bonus partiel (ancien format, bonus écrit à la main) avec des zéros. */
+export function normalizeBonus(b: EquipmentConfig | Partial<EquipmentBonus> | undefined): EquipmentBonus {
+  const r = emptyBonus();
+  if (!b) return r;
+  for (const k of SCALAR_KEYS) r[k] = b[k] ?? 0;
+  for (const e of STAT_ELEMENTS) {
+    r.masteries[e] = b.masteries?.[e] ?? 0;
+    r.resistances[e] = b.resistances?.[e] ?? 0;
+  }
+  return r;
 }
 
 /** Caractéristiques d'un objet dans une rareté donnée. */
 export function itemStats(itemId: string, rarity: Rarity): EquipmentBonus {
-  const def = getItem(itemId);
+  const s = getItem(itemId).stats;
   const power = RARITIES[rarity].power;
+  const scaled = (v: number | undefined) => Math.round((v ?? 0) * power);
   const b = emptyBonus();
-  b.hp = Math.round((def.stats.hp ?? 0) * power);
-  b.pa = def.stats.pa ?? 0;
-  b.pm = def.stats.pm ?? 0;
-  for (const e of STAT_ELEMENTS) b.masteries[e] = Math.round((def.stats.masteries?.[e] ?? 0) * power);
+  b.hp = scaled(s.hp);
+  b.damage = scaled(s.damage);
+  b.pa = scaled(s.pa);
+  b.pm = scaled(s.pm);
+  b.range = scaled(s.range);
+  b.concentration = scaled(s.concentration);
+  for (const e of STAT_ELEMENTS) {
+    b.masteries[e] = scaled(s.masteries?.[e]);
+    b.resistances[e] = scaled(s.resistances?.[e]);
+  }
   return b;
 }
 
-export function addBonus(a: EquipmentBonus, b: EquipmentBonus): EquipmentBonus {
+function combine(a: EquipmentConfig, b: EquipmentConfig, sign: 1 | -1): EquipmentBonus {
+  const x = normalizeBonus(a);
+  const y = normalizeBonus(b);
   const r = emptyBonus();
-  r.hp = a.hp + b.hp;
-  r.pa = a.pa + b.pa;
-  r.pm = a.pm + b.pm;
-  for (const e of STAT_ELEMENTS) r.masteries[e] = a.masteries[e] + b.masteries[e];
+  for (const k of SCALAR_KEYS) r[k] = x[k] + sign * y[k];
+  for (const e of STAT_ELEMENTS) {
+    r.masteries[e] = x.masteries[e] + sign * y.masteries[e];
+    r.resistances[e] = x.resistances[e] + sign * y.resistances[e];
+  }
   return r;
 }
 
-export function subBonus(a: EquipmentBonus, b: EquipmentBonus): EquipmentBonus {
-  const neg = emptyBonus();
-  neg.hp = -b.hp;
-  neg.pa = -b.pa;
-  neg.pm = -b.pm;
-  for (const e of STAT_ELEMENTS) neg.masteries[e] = -b.masteries[e];
-  return addBonus(a, neg);
+export function addBonus(a: EquipmentConfig, b: EquipmentConfig): EquipmentBonus {
+  return combine(a, b, 1);
 }
 
-/** Lignes lisibles d'un bonus (« +12 PV », « +6 % Feu »…), pour l'affichage. */
-export function describeBonus(b: EquipmentBonus, labels: Record<Element, string>, signed = true): string[] {
-  const fmt = (v: number) => (signed && v > 0 ? `+${v}` : `${v}`);
-  const lines: string[] = [];
-  if (b.hp) lines.push(`${fmt(b.hp)} PV`);
-  if (b.pa) lines.push(`${fmt(b.pa)} PA`);
-  if (b.pm) lines.push(`${fmt(b.pm)} PM`);
-  for (const e of STAT_ELEMENTS) if (b.masteries[e]) lines.push(`${fmt(b.masteries[e])} % ${labels[e]}`);
-  return lines;
+export function subBonus(a: EquipmentConfig, b: EquipmentConfig): EquipmentBonus {
+  return combine(a, b, -1);
+}
+
+/** Une ligne de stat, structurée pour l'affichage (infobulle, comparaison, fiche). */
+export interface StatLine {
+  /** Clé stable : 'hp', 'pa', 'mastery.fire', 'resistance.water'… */
+  key: string;
+  /** Famille, pour l'icône et la couleur. */
+  stat: ScalarKey | 'mastery' | 'resistance';
+  element?: Element;
+  value: number;
+  /** Libellé sans la valeur : « PV », « Maîtrise Feu », « Résistance Eau »… */
+  label: string;
+  /** Suffixe d'unité : '' ou ' %'. */
+  unit: string;
+}
+
+const SCALAR_LABEL: Record<ScalarKey, string> = {
+  hp: 'PV',
+  pa: 'PA',
+  pm: 'PM',
+  damage: 'Dommages',
+  range: 'Portée',
+  concentration: 'Concentration par salle',
+};
+
+/** Lignes non nulles d'un bonus, dans un ordre stable. */
+export function statLines(bonus: EquipmentConfig, labels: Record<Element, string>): StatLine[] {
+  const b = normalizeBonus(bonus);
+  const out: StatLine[] = [];
+  const push = (key: ScalarKey) => {
+    if (b[key]) out.push({ key, stat: key, value: b[key], label: SCALAR_LABEL[key], unit: '' });
+  };
+  push('hp');
+  push('pa');
+  push('pm');
+  for (const e of STAT_ELEMENTS)
+    if (b.masteries[e]) out.push({ key: `mastery.${e}`, stat: 'mastery', element: e, value: b.masteries[e], label: `Maîtrise ${labels[e]}`, unit: ' %' });
+  push('damage');
+  push('range');
+  push('concentration');
+  for (const e of STAT_ELEMENTS)
+    if (b.resistances[e]) out.push({ key: `resistance.${e}`, stat: 'resistance', element: e, value: b.resistances[e], label: `Résistance ${labels[e]}`, unit: ' %' });
+  return out;
+}
+
+export function formatStatLine(l: StatLine, signed = true): string {
+  const v = signed && l.value > 0 ? `+${l.value}` : `${l.value}`;
+  return `${v}${l.unit} ${l.label}`;
+}
+
+/** Lignes lisibles d'un bonus (« +12 PV », « +6 % Maîtrise Feu »…), pour l'affichage. */
+export function describeBonus(b: EquipmentConfig, labels: Record<Element, string>, signed = true): string[] {
+  return statLines(b, labels).map((l) => formatStatLine(l, signed));
 }
 
 // ---------------------------------------------------------------------------
