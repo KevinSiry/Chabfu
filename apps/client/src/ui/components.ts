@@ -257,3 +257,73 @@ export function bindSegmented(root: HTMLElement, name: string, onChange: (value:
     onChange(b.dataset.value!);
   });
 }
+
+// ---------------------------------------------------------------------------
+// Grand panneau plein écran (fiche du personnage, tranches, paramètres) : jamais de défilement,
+// le contenu se répartit en onglets et en colonnes qui tiennent dans l'écran.
+// ---------------------------------------------------------------------------
+
+export interface PanelTab {
+  id: string;
+  label: string;
+  html: () => string;
+  /** Branche les boutons du volet après son affichage. */
+  bind?: (body: HTMLElement) => void;
+}
+
+export interface PanelHandle {
+  el: HTMLElement;
+  body: HTMLElement;
+  show(tabId: string): void;
+  close(): void;
+}
+
+export function openPanel(o: { title: string; tabs: PanelTab[]; tab?: string; cls?: string; onClose?: () => void }): PanelHandle {
+  openSheetHandle?.close();
+  const scrim = document.createElement('div');
+  scrim.className = 'ui-pmodal-scrim';
+  const multi = o.tabs.length > 1;
+  scrim.innerHTML = `
+    <section class="ui-pmodal${o.cls ? ` ${o.cls}` : ''}" role="dialog" aria-modal="true" aria-label="${o.title}">
+      <header class="ui-pmodal__head">
+        <h2 class="ui-pmodal__title">${o.title}</h2>
+        ${multi ? segmented('pmodal-tab', o.tabs.map((t) => ({ value: t.id, label: t.label })), o.tab ?? o.tabs[0].id) : ''}
+        <button class="ui-icon-btn ui-icon-btn--sm ui-pmodal__close" data-pmodal-close aria-label="Fermer">${icon('close')}</button>
+      </header>
+      <div class="ui-pmodal__body"></div>
+    </section>`;
+  const el = scrim.querySelector<HTMLElement>('.ui-pmodal')!;
+  const body = scrim.querySelector<HTMLElement>('.ui-pmodal__body')!;
+  const show = (id: string) => {
+    const t = o.tabs.find((x) => x.id === id) ?? o.tabs[0];
+    body.innerHTML = t.html();
+    body.dataset.tab = t.id;
+    scrim.querySelectorAll<HTMLButtonElement>('[data-seg="pmodal-tab"] button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === t.id)));
+    t.bind?.(body);
+  };
+  document.body.appendChild(scrim);
+  const previous = document.activeElement as HTMLElement | null;
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    document.removeEventListener('keydown', onKey, true);
+    scrim.classList.add('is-leaving');
+    setTimeout(() => scrim.remove(), 200);
+    previous?.focus?.({ preventScroll: true });
+    o.onClose?.();
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      close();
+    }
+  };
+  document.addEventListener('keydown', onKey, true);
+  scrim.addEventListener('click', (e) => e.target === scrim && close());
+  scrim.querySelector('[data-pmodal-close]')!.addEventListener('click', close);
+  if (multi) bindSegmented(scrim, 'pmodal-tab', show);
+  show(o.tab ?? o.tabs[0].id);
+  requestAnimationFrame(() => scrim.querySelector<HTMLElement>('[data-pmodal-close]')?.focus({ preventScroll: true }));
+  return { el, body, show, close };
+}

@@ -160,7 +160,7 @@ function hubTips(tab: HubTab): void {
     dungeons: [
       { target: '.lb-dungeon', title: 'Choisissez un donjon', text: 'Chaque donjon enchaîne plusieurs salles de monstres, puis un boss. Les flèches font défiler les donjons de votre tranche.' },
       { target: '.lb-steps', title: 'Difficulté', text: 'Plus la difficulté monte, plus les monstres sont résistants… et plus ils rapportent d’XP et de butin.' },
-      { target: '.lb-deck-panel', title: 'Votre deck', text: 'Les sorts que vous emportez au combat. Changez-les dans le Grimoire, votre stuff dans l’Équipement.' },
+      { target: '.lb-deck-panel', title: 'Votre deck', text: 'Les sorts que vous emportez au combat. Touchez-les pour les changer dans le Grimoire ; votre stuff se règle dans l’Équipement.' },
       { target: '#start', title: 'À l’attaque !', text: 'Lancez le run. Un petit guide vous attend dans le premier combat.' },
     ],
     grimoire: [{ target: '.gr-grid', title: 'Le Grimoire', text: 'Touchez un sort pour lire sa fiche et l’ajouter à votre deck ou l’en retirer. De nouveaux sorts arrivent avec les niveaux.' }],
@@ -251,7 +251,7 @@ function renderSetup(): void {
           <p class="lb-note" id="diff-mult">${multLabel(save.difficulty)}</p>
         </div>
         <div class="ui-panel lb-panel lb-deck-panel">
-          <div class="lb-deck">
+          <div class="lb-deck" id="lb-deck" role="button" tabindex="0" aria-label="Deck : ouvrir le Grimoire">
             ${Array.from({ length: tranche.deckSize }, (_, i) => {
               const sp = loadout.deck[i] ? SPELLS.find((x) => x.id === loadout.deck[i]) : undefined;
               return sp
@@ -259,10 +259,7 @@ function renderSetup(): void {
                 : `<div class="lb-card empty"></div>`;
             }).join('')}
           </div>
-          <div class="lb-deck-actions">
-            <button class="ui-btn ui-btn--blue ui-btn--sm" id="edit-deck">${icon('grimoire')} Grimoire</button>
-            <button class="ui-btn ui-btn--blue ui-btn--sm" id="open-equipment">${icon('equipment')} Équipement </button>
-          </div>
+          <button class="ui-icon-btn ui-icon-btn--sm lb-deck-edit" id="edit-deck" aria-label="Modifier le deck dans le Grimoire">${icon('grimoire')}</button>
         </div>
         <button class="ui-btn ui-btn--primary ui-btn--xl lb-go" id="start">Combattre</button>
         <p class="lb-error" id="deck-error"></p>
@@ -416,6 +413,7 @@ function renderSetup(): void {
     }),
   );
   app.querySelector('#edit-deck')?.addEventListener('click', () => goTab('grimoire'));
+  app.querySelector('#lb-deck')?.addEventListener('click', () => goTab('grimoire'));
   app.querySelector('#open-equipment')?.addEventListener('click', () => {
     keepDifficulty();
     openEquipment();
