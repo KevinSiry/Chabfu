@@ -18,3 +18,4 @@ export { PASSIVES, getPassive, type PassiveDef, type PassiveMods } from './data/
 export * from './crafting.js';
 export { RESOURCES, RESOURCE_TIERS, getResource, dungeonResources, type ResourceDef, type ResourceTier } from './data/resources.js';
 export { RECIPES, CRAFTABLE_ITEMS, CRAFT_RARITIES, getRecipe, recipesForTranche, type Recipe, type CraftRarity, type CraftableItem } from './data/recipes.js';
+export * from './save.js';

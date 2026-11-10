@@ -55,3 +55,18 @@ docker compose --profile dev up dev   # développement avec rechargement : http:
 ```
 
 L'image de production lance les tests du moteur pendant le build : un test qui échoue bloque l'image.
+
+## Sauvegarde (PostgreSQL)
+
+`docker compose up -d --build` lance trois services : `web` (Nginx, le jeu), `api` (Node, `apps/server`) et `db` (PostgreSQL 17).
+Nginx sert l'API sous `/api`. La base vit dans le volume Docker `chabfu-db` : elle survit aux reconstructions et à `docker compose down`
+(mais **pas** à `docker compose down -v`).
+
+- Le jeu écrit toujours ses clés `chabfu.*` dans le navigateur, qui sert de cache. `apps/client/src/save/sync.ts` repère chaque écriture
+  et envoie la partie complète à `PUT /api/save` peu après. Au démarrage (`boot.ts`), la sauvegarde du serveur remplace celle du navigateur,
+  sauf si des changements faits serveur arrêté sont plus récents. Si la base est vide, la partie du navigateur y est envoyée.
+- Format : `packages/engine/src/save.ts`. Enveloppe `{ format: 'chabfu-save', version, savedAt, data }` où `data` contient **toutes** les clés
+  `chabfu.*` : une nouvelle clé (runes, challenges…) est sauvegardée sans rien changer. Si la forme d'une donnée change, monter `SAVE_VERSION`
+  et ajouter l'étape dans `MIGRATIONS`.
+- La base garde aussi les 200 sauvegardes précédentes (table `save_history`), en filet de sécurité.
+- Paramètres du jeu : bloc « Sauvegarde » (état, export en fichier JSON, import avec confirmation).
