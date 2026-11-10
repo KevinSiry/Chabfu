@@ -468,13 +468,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   .ui-sheet.is-wide { width: min(760px, calc(100vw - 24px - var(--safe-l) - var(--safe-r))); }
   .ui-sheet.is-xwide { left: calc(10px + var(--safe-l)); right: calc(10px + var(--safe-r)); top: calc(8px + var(--safe-t)); bottom: calc(8px + var(--safe-b)); width: auto; }
   .ui-sheet.is-xwide .ui-sheet__head { padding-top: 8px; margin-bottom: 6px; }
-  .ui-sheet__content.has-cols > :not(.ui-sheet__cols) { display: none; }
-  .ui-sheet__cols { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 16px; }
-  .ui-sheet__cols > div { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-  .ui-sheet__cols > div > * { margin: 0; }
-  .ui-sheet__cols .gr-sheet-action { margin-top: auto; padding-top: 4px; }
-  .ui-sheet.is-dense .ui-sheet__content { font-size: 12px; line-height: 1.25; }
-  .ui-sheet.is-dense .ui-sheet__content :is(p, li, td, th, span, small) { font-size: inherit; }
+  .ui-sheet.is-dense .ui-sheet__content { zoom: 0.86; }
   .ui-sheet.is-dense .ui-sheet__cols > div { gap: 5px; }
 }
 /* Journal du combat : seules les dernières lignes restent visibles. */
@@ -490,4 +484,26 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   .ui-sheet.is-dense .ss-formula { margin-top: 4px; }
   .ui-sheet.is-dense .ss-cost { padding: 2px 8px; }
   .ui-sheet.is-dense .gr-sheet-action .ui-btn { min-height: 40px; font-size: 16px; }
+}
+
+/* Fiche répartie en colonnes (sheetColumns) : la carte et ses parents remplissent la hauteur. */
+.has-cols, .has-cols .cols-path { flex: 1; min-height: 0; display: flex !important; flex-direction: column; }
+.ui-sheet__cols { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 16px; align-items: start; }
+.ui-sheet__cols > div { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; gap: 8px; }
+.ui-sheet__cols > div > * { margin: 0 !important; }
+.ui-sheet__cols .gr-sheet-action { margin-top: auto !important; padding-top: 4px; }
+
+/* ---------- Combat : la fiche de droite ne défile pas, elle s'élargit en colonnes si besoin ---------- */
+#app .cb-info { overflow: hidden; display: flex; flex-direction: column; }
+#app .cb-info[hidden] { display: none; }
+#app .cb-info .inspector { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#app .cb-info .inspector > :not(.ss) { flex: none; }
+#app .cb-info.is-wide { width: 640px; max-width: 70vw; }
+#app .cb-info.is-xwide { width: 940px; max-width: calc(100vw - 2 * var(--edge-r, 12px) - 60px); }
+#app .cb-info.is-dense .inspector { zoom: 0.88; }
+#app .cb-info .ui-sheet__cols { gap: 12px; }
+#app .cb-info .has-cols .ss { margin: -12px -14px 0; }
+@media (max-height: 520px) and (orientation: landscape) {
+  /* Sur téléphone, la fiche détaillée passe par-dessus le HUD pour avoir toute la hauteur. */
+  #app .cb-info.is-wide { z-index: calc(var(--z-hud) + 3); top: var(--edge-t, 8px); bottom: var(--edge-b, 8px); left: auto; right: var(--edge-r, 8px); width: calc((100vw - 90px) / var(--hud-zoom, 1)); max-width: none; }
 }

@@ -62,7 +62,7 @@ import {
   type Scene,
 } from './render';
 import { icon } from './ui/icons';
-import { confirmModal, openSheet, toast, type SheetHandle } from './ui/components';
+import { confirmModal, fitBox, openSheet, toast, type SheetHandle } from './ui/components';
 import { getSettings } from './ui/settings';
 import { openSettings } from './ui/settings-screen';
 import { coachTour } from './ui/coach';
@@ -1540,6 +1540,8 @@ function renderInspector(): void {
   if (el.dataset.html !== html) {
     el.innerHTML = html;
     el.dataset.html = html;
+    // La fiche ne défile jamais : elle s'élargit en colonnes si son contenu dépasse.
+    if (show) fitBox(panel, panel, el);
   }
 }
 

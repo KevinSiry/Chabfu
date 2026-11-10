@@ -154,64 +154,69 @@ export const currentSheet = () => openSheetHandle;
 export function fitSheet(el: HTMLElement): void {
   const body = el.querySelector<HTMLElement>('.ui-sheet__body');
   const content = el.querySelector<HTMLElement>('.ui-sheet__content');
-  if (!body || !content) return;
+  if (body && content) fitBox(el, body, content);
+}
+
+/**
+ * Fait tenir `content` dans `scroller` sans défilement : classes is-wide (deux colonnes), is-xwide (trois), is-dense (plus petit)
+ * posées sur `box`, une à une, tant que le contenu dépasse.
+ */
+export function fitBox(box: HTMLElement, scroller: HTMLElement, content: HTMLElement): void {
   const steps = ['is-wide', 'is-xwide', 'is-dense'];
-  el.classList.remove(...steps);
+  box.classList.remove(...steps);
   sheetColumns(content, 1);
-  const over = () => body.scrollHeight > body.clientHeight + 2 || content.scrollWidth > content.clientWidth + 2;
-  if (!body.clientHeight) return;
+  const over = () => scroller.scrollHeight > scroller.clientHeight + 2 || content.scrollWidth > content.clientWidth + 2;
+  if (!scroller.clientHeight) return;
   for (const step of steps) {
     if (!over()) return;
-    el.classList.add(step);
-    sheetColumns(content, el.classList.contains('is-xwide') ? 3 : 2);
+    box.classList.add(step);
+    const pad = parseFloat(getComputedStyle(scroller).paddingTop) + parseFloat(getComputedStyle(scroller).paddingBottom);
+    const inner = scroller === content ? 0 : parseFloat(getComputedStyle(content).paddingTop) + parseFloat(getComputedStyle(content).paddingBottom);
+    sheetColumns(content, box.classList.contains('is-xwide') ? 3 : 2, (scroller.clientHeight - pad) / (parseFloat(getComputedStyle(content).zoom) || 1) - inner);
   }
 }
 
 /**
- * Répartit les blocs d'une fiche en colonnes (fiche élargie). Chaque bloc va dans la colonne prévue pour sa classe ;
- * les blocs inconnus suivent le précédent. Avec n = 1, remet la fiche dans son ordre d'origine.
+ * Répartit les blocs d'une fiche en n colonnes, dans l'ordre, en passant à la colonne suivante dès qu'un bloc dépasse
+ * la hauteur disponible (`maxH`). Avec n = 1, remet la fiche dans son ordre d'origine.
+ * Les blocs pris en compte sont les enfants de la carte principale (.ss, .item-card, .monster-card) puis ceux du contenu.
  */
-const COLUMN_PLAN: Record<number, string[][]> = {
-  2: [['ss-head', 'ss-costs', 'ss-dmg', 'ss-fx', 'item-head', 'item-meta', 'stat-rows'], ['ss-grid', 'ss-conc', 'ss-passives', 'ss-note', 'stat-delta', 'gr-sheet-action']],
-  3: [['ss-head', 'ss-costs', 'ss-dmg', 'item-head', 'item-meta', 'stat-rows'], ['ss-fx', 'ss-conc', 'stat-delta'], ['ss-grid', 'ss-passives', 'ss-note', 'gr-sheet-action']],
-};
-function sheetColumns(content: HTMLElement, n: number): void {
-  // Remise à plat : chaque bloc revient à sa place d'origine.
+export function sheetColumns(content: HTMLElement, n: number, maxH = content.clientHeight): void {
+  // Remise à plat : chaque bloc revient à sa place d'origine, dans l'ordre.
   const moved = [...content.querySelectorAll<HTMLElement>('[data-col-home]')];
+  const host0 = content.querySelector<HTMLElement>('[data-col-id="host"]');
   moved
     .sort((a, b) => Number(a.dataset.colOrder) - Number(b.dataset.colOrder))
     .forEach((b) => {
-      const home = content.querySelector<HTMLElement>(`[data-col-id="${b.dataset.colHome}"]`) ?? content;
-      home.appendChild(b);
+      (b.dataset.colHome === 'host' && host0 ? host0 : content).appendChild(b);
       delete b.dataset.colHome;
       delete b.dataset.colOrder;
     });
-  content.querySelector('.ui-sheet__cols')?.remove();
+  content.querySelectorAll('.ui-sheet__cols').forEach((c) => c.remove());
+  content.querySelectorAll('.cols-path').forEach((c) => c.classList.remove('cols-path'));
   content.classList.remove('has-cols');
-  const plan = COLUMN_PLAN[n];
-  if (!plan) return;
+  if (n <= 1) return;
   const host = content.querySelector<HTMLElement>('.ss, .item-card');
-  if (!host) return;
-  host.dataset.colId = 'host';
-  content.dataset.colId = 'content';
-  const blocks: { el: HTMLElement; home: string }[] = [
-    ...[...host.children].map((c) => ({ el: c as HTMLElement, home: 'host' })),
-    ...[...content.children].filter((c) => c !== host && !c.contains(host)).map((c) => ({ el: c as HTMLElement, home: 'content' })),
-  ];
+  const blocks: { el: HTMLElement; home: string }[] = [];
+  if (host) {
+    host.dataset.colId = 'host';
+    blocks.push(...[...host.children].map((c) => ({ el: c as HTMLElement, home: 'host' })));
+    for (let p: HTMLElement | null = host; p && p !== content; p = p.parentElement) p.classList.add('cols-path');
+  }
+  blocks.push(...[...content.children].filter((c) => !host || (c !== host && !c.contains(host))).map((c) => ({ el: c as HTMLElement, home: 'content' })));
   const cols = document.createElement('div');
   cols.className = 'ui-sheet__cols';
   cols.style.setProperty('--n', String(n));
-  const colEls = plan.map(() => cols.appendChild(document.createElement('div')));
-  let last = 0;
+  const colEls = Array.from({ length: n }, () => cols.appendChild(document.createElement('div')));
+  content.classList.add('has-cols');
+  (host ?? content).appendChild(cols);
+  let ci = 0;
   blocks.forEach((b, i) => {
-    const ci = plan.findIndex((list) => list.some((cls) => b.el.classList.contains(cls)));
-    if (ci >= 0) last = ci;
     b.el.dataset.colHome = b.home;
     b.el.dataset.colOrder = String(i);
-    colEls[last].appendChild(b.el);
+    colEls[ci].appendChild(b.el);
+    if (ci < n - 1 && colEls[ci].children.length > 1 && colEls[ci].scrollHeight > maxH + 1) colEls[++ci].appendChild(b.el);
   });
-  content.classList.add('has-cols');
-  content.prepend(cols);
 }
 
 // ---------------------------------------------------------------------------
