@@ -117,6 +117,8 @@ interface UnitView {
   seed: number;
 }
 
+/** Taille relative des créatures (les sprites remplissent tous leur canevas) : petites bêtes plus petites. */
+const UNIT_SIZE: Record<string, number> = { salamandre: 0.75, sangsue_geante: 0.82, crapaud_vaseux: 0.85, nuee_moustiques: 0.85, guepe: 0.9 };
 const INK = 0x140c38;
 const FONT_FUN = "'Lilita One', 'Nunito', system-ui, sans-serif";
 const LABEL_STYLE = new TextStyle({ fontFamily: FONT_FUN, fontSize: 13, fill: 0xffffff, stroke: { color: INK, width: 4, join: 'round' } });
@@ -253,8 +255,8 @@ export class PixiBoard {
     const left = toScreen(room, 0, room.height - 1);
     const x0 = left.x - TILE_W / 2 - 6;
     const x1 = right.x + TILE_W / 2 + 6;
-    const y0 = top.y - TILE_H / 2 - 70;
-    const y1 = bottom.y + TILE_H / 2 + 22;
+    const y0 = top.y - TILE_H / 2 - 44;
+    const y1 = bottom.y + TILE_H / 2 + 16;
     const i = this.insets;
     const aw = Math.max(80, this.w - i.left - i.right);
     const ah = Math.max(80, this.h - i.top - i.bottom);
@@ -318,8 +320,8 @@ export class PixiBoard {
           const tex = solB && n > 0.55 ? solB : solA;
           const sp = new Sprite(tex);
           sp.anchor.set(0.5);
-          sp.width = TILE_W + 1;
-          sp.height = TILE_H + 1;
+          sp.width = TILE_W + 3; // chevauchement : pas de liseré d'anticrénelage entre les tuiles
+          sp.height = TILE_H + 2;
           sp.position.set(c.x, c.y);
           sp.tint = (x + y) % 2 === 0 ? 0xffffff : 0xe6e6e6;
           this.floorTiles.addChild(sp);
@@ -518,7 +520,7 @@ export class PixiBoard {
           v.fallback.visible = false;
           v.initial.visible = false;
         }
-        const h = (u.isBoss ? 96 : 66);
+        const h = (u.isBoss ? 96 : 66) * (UNIT_SIZE[u.templateId] ?? 1);
         v.sprite.scale.set(h / tex.height);
         v.sprite.position.set(0, bob);
         v.sprite.tint = flash ? 0xff8080 : 0xffffff;
