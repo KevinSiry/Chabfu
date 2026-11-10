@@ -29,6 +29,8 @@ import { formatTime, leaveRun, startRun as startCombat } from './combat';
 import { ELEMENT_LABEL, rangeLabel } from './info';
 import { slotKeyLabel, slotKeysRange } from './keys';
 import { dungeonBannerImg, spellIconImg } from './ui/assets';
+// Habillage peint : chargé en dernier pour passer devant les styles de base.
+import './ui/skin.css';
 import { bindHubTabs, hubBarHtml, type HubTab } from './ui/hub';
 import { renderRunEndSections } from './character/run-end';
 import { getCharacter, saveCharacter } from './character/store';

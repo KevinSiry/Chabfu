@@ -885,9 +885,11 @@ function renderHud(): void {
 
   const hpPct = (100 * player.hp) / player.maxHp;
   document.getElementById('hud')!.innerHTML = `
-    <div class="hp-orb ${hpPct <= 30 ? 'low' : ''}" title="Points de vie" style="--fill:${hpPct}%">
-      <div class="hp-orb-fill"></div>
-      <div class="hp-orb-text"><b>${player.hp}</b><small>/ ${player.maxHp}</small></div>
+    <div class="hp-orb-wrap">
+      <div class="hp-orb ${hpPct <= 30 ? 'low' : ''}" title="Points de vie" style="--fill:${hpPct}%">
+        <div class="hp-orb-fill"></div>
+        <div class="hp-orb-text"><b>${player.hp}</b><small>/ ${player.maxHp}</small></div>
+      </div>
     </div>
     <div class="dock-stats">
       <div class="dock-name">${esc(getCharacter()?.name ?? 'Archer')}</div>

@@ -1,0 +1,96 @@
+/*
+ * Habillage peint (public/assets/ui) : cadres en 9-slice, boutons, emplacements, médaillons.
+ * Chargé après les styles de base : si une image manque, le style CSS de base reste dessous.
+ */
+:root {
+  --img-panel: url('/assets/ui/panel.webp');
+  --img-btn-gold: url('/assets/ui/btn-gold.webp');
+  --img-btn-wood: url('/assets/ui/btn-wood.webp');
+  --img-slot: url('/assets/ui/slot.webp');
+  --img-medal: url('/assets/ui/medal-frame.webp');
+  --img-orb: url('/assets/ui/orb-frame.webp');
+  --img-wood: url('/assets/ui/wood.webp');
+  --img-hub-bg: url('/assets/ui/hub-bg.webp');
+}
+
+body { background: linear-gradient(180deg, rgba(14, 10, 7, 0.55), rgba(14, 10, 7, 0.85)), var(--img-wood) 0 0 / 256px repeat, var(--wood-950); }
+#app:has(.hub-bar) { min-height: 100vh; background: linear-gradient(180deg, rgba(14, 10, 7, 0.55) 0, rgba(14, 10, 7, 0.82) 45%, rgba(14, 10, 7, 0.95)), var(--img-hub-bg) center top / cover fixed; }
+
+/* Panneaux : cadre bois verni et liseré d'or */
+.card, .frame {
+  background: none;
+  border: 16px solid transparent;
+  border-image: var(--img-panel) 72 fill / 26px stretch;
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.55));
+  padding: 14px 16px;
+}
+.run > .side .frame, .hud-dock > .frame { padding: 8px 10px; }
+.panel-title { margin: 0 0 10px; }
+
+/* Boutons peints */
+.primary, .end-turn, .hub-tab.on, .launch {
+  background: none;
+  border: 0;
+  border-style: solid;
+  border-image: var(--img-btn-gold) 79 80 80 80 fill / 50% 26px stretch;
+  box-shadow: none;
+  border-radius: 0;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.5));
+}
+.secondary, .hub-tab, .tranche-btn {
+  background: none;
+  border: 0;
+  border-style: solid;
+  border-image: var(--img-btn-wood) 79 80 80 80 fill / 50% 26px stretch;
+  box-shadow: none;
+  border-radius: 0;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.45));
+}
+.primary, .secondary, .hub-tab, .end-turn, .tranche-btn { padding: 12px 28px 14px; }
+.end-turn { padding: 18px 28px 20px; color: #fff; text-shadow: 0 2px 0 #7a4a10, 1px 1px 0 #7a4a10, -1px 1px 0 #7a4a10, 1px -1px 0 #7a4a10, -1px -1px 0 #7a4a10; }
+.end-turn:disabled { filter: grayscale(0.8) brightness(0.6); }
+.primary:hover:not(:disabled), .secondary:hover:not(:disabled), .hub-tab:hover, .end-turn:hover:not(:disabled) { filter: brightness(1.12) drop-shadow(0 4px 4px rgba(0, 0, 0, 0.5)); }
+.primary:active:not(:disabled), .secondary:active:not(:disabled), .end-turn:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+.hub-tab.on { filter: drop-shadow(0 0 10px rgba(240, 169, 46, 0.55)) drop-shadow(0 4px 4px rgba(0, 0, 0, 0.5)); }
+
+/* Emplacements de sort : cadre d'or creusé, icône insérée */
+.slot-icon { width: 68px; height: 68px; border: 0; border-radius: 0; background: var(--img-slot) center / 100% 100% no-repeat; box-shadow: none; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6)); }
+.slot-icon > img { inset: 15%; width: 70%; height: 70%; border-radius: 8px; }
+.spell-btn:hover:not(.off) .slot-icon { transform: translateY(-2px); }
+.spell-btn.active .slot-icon { transform: translateY(-3px); box-shadow: none; filter: drop-shadow(0 0 6px var(--gold-300)) drop-shadow(0 0 12px var(--gold-400)); }
+.spell-btn.off .slot-icon { filter: grayscale(0.85) brightness(0.55); }
+.spell-btn { width: 84px; }
+.slot-pa { top: 46px; right: 4px; }
+.slot-uses { top: 48px; left: 6px; }
+.spell-empty { width: 84px; height: 68px; }
+.spell-empty::before { left: 8px; width: 68px; height: 68px; border: 0; border-radius: 0; background: var(--img-slot) center / 100% 100% no-repeat; opacity: 0.55; }
+.deck-slot { background: var(--img-slot) center / 100% 100% no-repeat; border: 0; box-shadow: none; border-radius: 0; padding: 8px; }
+.deck-slot > img { inset: 15%; width: 70%; height: 70%; border-radius: 6px; }
+.deck-slot.empty { background: var(--img-slot) center / 100% 100% no-repeat; box-shadow: none; opacity: 0.6; }
+.spell-card-icon { border: 0; border-radius: 0; box-shadow: none; background: var(--img-slot) center / 100% 100% no-repeat; }
+.spell-card-icon > img { inset: 14%; width: 72%; height: 72%; border-radius: 6px; }
+
+/* Médaillons de l'ordre des tours */
+.to-dot { width: 52px; height: 52px; border: 0; box-shadow: none; overflow: visible; background: none !important; }
+.to-dot::before { content: ''; position: absolute; inset: 12%; border-radius: 50%; background: var(--dot, #5a3f2a); background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.25), transparent 60%), #4a3628; z-index: 0; }
+.to-dot::after { content: ''; position: absolute; inset: 0; background: var(--img-medal) center / 100% 100% no-repeat; z-index: 2; pointer-events: none; }
+.to-dot > img { inset: 12%; width: 76%; height: 76%; border-radius: 50%; z-index: 1; transform: none; object-position: 50% 20%; }
+.to-dot { position: relative; isolation: isolate; }
+.to-dot::before { z-index: -1; }
+.to-chip.now .to-dot { box-shadow: none; filter: drop-shadow(0 0 8px var(--gold-300)); transform: scale(1.14); }
+.to-chip[data-unit='archer'] .to-dot::before { background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.25), transparent 60%), var(--pm-dark); }
+.to-chip.pinned .to-dot { outline: none; filter: drop-shadow(0 0 6px #fff); }
+
+/* Orbe de PV encadrée */
+.hp-orb-wrap { position: relative; flex: none; width: 104px; height: 104px; display: grid; place-items: center; }
+.hp-orb-wrap::after { content: ''; position: absolute; inset: 0; background: var(--img-orb) center / 100% 100% no-repeat; pointer-events: none; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.6)); }
+.hp-orb { width: 76px; height: 76px; border: 0; box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8); }
+
+/* Barre du haut du hub et ordre des tours : bois peint */
+.hub-bar { background: linear-gradient(180deg, rgba(58, 42, 28, 0.92), rgba(36, 26, 18, 0.96)), var(--img-wood) 0 0 / 256px repeat; }
+.turn-order { background: linear-gradient(180deg, rgba(36, 26, 18, 0.9), rgba(22, 16, 11, 0.92)), var(--img-wood) 0 0 / 256px repeat; border: 3px solid var(--gold-500); }
+
+/* Plateau : cadre peint */
+.board { border: 12px solid transparent; border-image: var(--img-panel) 72 / 24px stretch; border-radius: 0; box-shadow: none; background-clip: padding-box; }

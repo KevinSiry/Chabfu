@@ -13,6 +13,6 @@ export function assetImg(path: string, cls: string, alt = ''): string {
   return `<img class="${cls}" src="${assetUrl(path)}" alt="${alt}" draggable="false" loading="lazy" onerror="this.remove()">`;
 }
 
-export const spellIconImg = (spellId: string, cls = 'asset-icon') => assetImg(`icons/${spellId}.png`, cls);
+export const spellIconImg = (spellId: string, cls = 'asset-icon') => assetImg(`icons/${spellId}.webp`, cls);
 export const unitPortraitImg = (templateId: string, cls = 'asset-portrait') => assetImg(`units/${templateId}.png`, cls);
-export const dungeonBannerImg = (dungeonId: string, cls = 'asset-banner') => assetImg(`dungeons/${dungeonId}.png`, cls);
+export const dungeonBannerImg = (dungeonId: string, cls = 'asset-banner') => assetImg(`dungeons/${dungeonId}.webp`, cls);
