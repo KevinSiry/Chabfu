@@ -1,0 +1,104 @@
+/* Fiche de sort et carte de visée — style « Verre nocturne ». */
+
+/* ---------- Conteneurs ---------- */
+:root[data-skin] .spell-tip { width: 380px; padding: 0; overflow: hidden; }
+:root[data-skin] .cursor-tip:has(.tp) { padding: 0; max-width: none; width: 300px; overflow: hidden; }
+
+/* ---------- Fiche de sort ---------- */
+.ss { --c: var(--ng-accent); font-size: 13px; line-height: 1.45; color: var(--ng-text); }
+.ss-head {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px 10px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 26%, transparent), transparent 70%);
+  border-bottom: 1px solid var(--ng-border);
+}
+.ss-icon, .tp-icon { flex: none; width: 46px; height: 46px; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 70%, transparent), 0 6px 16px rgba(0, 0, 0, 0.4); background: #10172a; }
+.ss-icon img, .tp-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ss-title { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.ss-title b { font-family: var(--ng-title-font); font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 0.2px; }
+.ss-title span { color: var(--ng-muted); font-size: 12px; }
+.ss-key { font-family: var(--ng-title-font); font-size: 12px; padding: 2px 8px; border-radius: 8px; background: var(--ng-surface-2); border: 1px solid var(--ng-border-strong); color: var(--ng-text); }
+
+.ss-costs { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px 0; }
+.ss-cost { display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; color: var(--ng-muted); background: var(--ng-surface-2); border: 1px solid var(--ng-border); }
+.ss-cost b { font-family: var(--ng-title-font); font-size: 14px; color: #fff; }
+.ss-cost.pa { border-color: color-mix(in srgb, var(--pa) 55%, transparent); background: color-mix(in srgb, var(--pa) 16%, transparent); }
+.ss-cost.pa b { color: var(--pa); }
+.ss-cost.conc { border-color: color-mix(in srgb, var(--conc) 55%, transparent); background: color-mix(in srgb, var(--conc) 16%, transparent); }
+.ss-cost.conc b { color: var(--conc); }
+
+.ss-dmg { margin: 10px 14px 0; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--c) 10%, rgba(255, 255, 255, 0.03)); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+.ss-dmg-main { display: flex; align-items: center; gap: 10px; }
+.ss-dmg-main > b { font-family: var(--ng-title-font); font-size: 34px; line-height: 1; color: var(--c); text-shadow: 0 0 18px color-mix(in srgb, var(--c) 45%, transparent); }
+.ss-dmg-main > span { font-size: 13px; color: var(--ng-text); }
+.ss-dmg-main small { color: var(--ng-muted); font-size: 11px; }
+.ss-dmg-cases { display: flex; gap: 8px; margin-top: 8px; }
+.ss-dmg-cases > span { flex: 1; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; padding: 4px 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.22); font-size: 11.5px; color: var(--ng-muted); }
+.ss-dmg-cases b { font-family: var(--ng-title-font); font-size: 15px; }
+.ss-formula { margin-top: 7px; font-size: 11.5px; color: var(--ng-text); }
+
+.ss-fx, .tp-fx { list-style: none; margin: 0; padding: 0; }
+.ss-fx { margin: 10px 14px 0; display: grid; gap: 6px; }
+.ss-fx li, .tp-fx li { display: flex; gap: 8px; align-items: flex-start; }
+.ss-fx li > i, .tp-fx li > i {
+  flex: none; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-style: normal; font-size: 12px;
+  background: var(--fxc, rgba(255, 255, 255, 0.08)); color: #fff;
+}
+.ss-fx .fire, .tp-fx .fire { --fxc: color-mix(in srgb, var(--fire) 45%, transparent); }
+.ss-fx .water, .tp-fx .water { --fxc: color-mix(in srgb, var(--water) 45%, transparent); }
+.ss-fx .earth, .tp-fx .earth { --fxc: color-mix(in srgb, var(--earth) 50%, transparent); }
+.ss-fx .air, .tp-fx .air { --fxc: color-mix(in srgb, var(--air) 45%, transparent); }
+.ss-fx .conc { --fxc: color-mix(in srgb, var(--conc) 45%, transparent); }
+.ss-fx .muted-fx > i { opacity: 0.6; }
+
+.ss-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 10px 14px 0; padding-top: 10px; border-top: 1px solid var(--ng-border); font-size: 12.5px; }
+.ss-grid > span { color: var(--ng-muted); }
+.ss-grid > b { font-weight: 600; color: var(--ng-text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.zone-mini { display: inline-grid; grid-template-columns: repeat(3, 6px); gap: 1.5px; vertical-align: middle; }
+.zone-mini i { width: 6px; height: 6px; border-radius: 1.5px; background: rgba(255, 255, 255, 0.1); }
+.zone-mini i.on { background: var(--c); }
+.zone-mini i.c { box-shadow: 0 0 0 1px #fff inset; }
+
+.ss-conc { margin: 10px 14px 0; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--conc) 10%, transparent); border: 1px solid color-mix(in srgb, var(--conc) 30%, transparent); }
+.ss-conc p { margin: 2px 0; }
+.ss-sec { font-family: var(--ng-title-font); font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--conc); margin-bottom: 2px; }
+.ss-passives { margin: 10px 14px 0; font-size: 12px; color: var(--ng-muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ss-note { margin: 10px 14px 0; font-weight: 700; font-size: 12.5px; }
+.ss > :last-child { margin-bottom: 14px; }
+
+/* ---------- Carte de visée ---------- */
+.tp { --c: var(--ng-accent); font-size: 12.5px; line-height: 1.4; color: var(--ng-text); }
+.tp-head { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 28%, transparent), transparent 75%); border-bottom: 1px solid var(--ng-border); }
+.tp-icon { width: 30px; height: 30px; border-radius: 9px; }
+.tp-head > b { flex: 1; font-family: var(--ng-title-font); font-size: 15px; color: #fff; }
+.tp-pa { font-family: var(--ng-title-font); font-size: 12px; padding: 1px 8px; border-radius: 999px; color: var(--pa); background: color-mix(in srgb, var(--pa) 16%, transparent); border: 1px solid color-mix(in srgb, var(--pa) 50%, transparent); }
+
+.tp-unit { padding: 9px 12px; border-bottom: 1px solid var(--ng-border); }
+.tp-unit:last-of-type { border-bottom: 0; }
+.tp-line { display: flex; align-items: center; gap: 8px; }
+.tp-name { flex: 1; font-weight: 700; color: #fff; font-size: 13.5px; }
+.tp-dmg { font-family: var(--ng-title-font); font-size: 24px; line-height: 1; text-shadow: 0 0 14px currentColor; }
+.tp-unit.compact .tp-dmg { font-size: 18px; }
+.tp-kill { font-family: var(--ng-title-font); font-size: 11px; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 999px; background: linear-gradient(180deg, #ff6b62, #c9302c); color: #fff; box-shadow: 0 0 12px rgba(255, 80, 70, 0.55); }
+.kill-txt { color: #ff8a80; }
+
+.tp-bar { position: relative; display: flex; height: 9px; margin: 7px 0 4px; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.tp-bar i { display: block; height: 100%; }
+.tp-bar .rest { background: linear-gradient(180deg, #ff6f68, #d63f3a); }
+.tp-bar .burn { background: repeating-linear-gradient(135deg, #ff9b4a 0 4px, #c2551f 4px 8px); }
+.tp-bar .loss { background: #fff; animation: tp-pulse 0.9s ease-in-out infinite alternate; }
+@keyframes tp-pulse { from { opacity: 0.95; } to { opacity: 0.35; } }
+.tp-hp { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--ng-muted); }
+.tp-hp b { color: #fff; }
+.tp-factors { font-size: 11px; }
+.tp-fx { margin-top: 6px; display: grid; gap: 4px; }
+.tp-fx li > i { width: 18px; height: 18px; font-size: 10px; border-radius: 6px; }
+.tp-unit.dead .tp-name { text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, 0.4); }
+
+.tp-foot { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; background: rgba(0, 0, 0, 0.22); border-top: 1px solid var(--ng-border); font-size: 12px; }
+.tp-empty { padding: 10px 12px; color: var(--ng-muted); }
+.tp-error { padding: 9px 12px; color: #ff8a80; font-weight: 700; }
+.tp-ghost { padding: 0 12px 10px; color: var(--ng-text); opacity: 0.75; font-size: 12px; }
+.tp.invalid .tp-head { filter: saturate(0.4); }
+
+/* Fiche au survol du grimoire */
+.grimoire-tip { position: fixed; z-index: 50; pointer-events: none; }

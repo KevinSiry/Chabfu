@@ -27,6 +27,7 @@ import { grantRunRewards } from './craft/store';
 import { renderWorkshopScreen } from './craft/workshop-screen';
 import { formatTime, leaveRun, startRun as startCombat } from './combat';
 import { ELEMENT_LABEL, rangeLabel } from './info';
+import { spellSheet } from './spell-info';
 import { slotKeyLabel, slotKeysRange } from './keys';
 import { dungeonBannerImg, spellIconImg } from './ui/assets';
 import { bindHubTabs, hubBarHtml, type HubTab } from './ui/hub';
@@ -261,7 +262,9 @@ function renderSetup(): void {
 
   app.innerHTML = `
     ${hubBarHtml(tab, character)}
-    <div class="setup hub">${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>`;
+    <div class="setup hub">${tab === 'dungeons' ? dungeonsTab : grimoireTab}</div>
+    <div class="spell-tip grimoire-tip" id="grimoire-tip" hidden></div>`;
+  if (tab === 'grimoire' && dungeon) bindGrimoireSheets(characterRunConfig(character, dungeon.id, save.difficulty), loadout.deck);
 
   bindHubTabs(app, goTab);
   bindCharacterBanner(app, renderSetup);
@@ -351,6 +354,33 @@ function renderSetup(): void {
 // ---------------------------------------------------------------------------
 // Run
 // ---------------------------------------------------------------------------
+
+/**
+ * Fiche complète au survol des sorts du grimoire, avec les chiffres réels du personnage
+ * (maîtrises de l'équipement porté, passifs choisis) calculés sur un run fictif du donjon choisi.
+ */
+function bindGrimoireSheets(baseConfig: RunConfig, deck: string[]): void {
+  let state: RunState;
+  try {
+    const config = withEquipment(baseConfig);
+    state = createRun(config.deck.length ? config : { ...config, deck: [SPELLS[0].id] });
+  } catch {
+    return;
+  }
+  state.player.deck = [...deck];
+  const tip = app.querySelector('#grimoire-tip') as HTMLElement;
+  app.querySelectorAll<HTMLElement>('.spell-card').forEach((card) => {
+    card.addEventListener('mouseenter', () => {
+      tip.innerHTML = spellSheet(state, card.dataset.spell!, { outOfCombat: true });
+      tip.hidden = false;
+      const r = card.getBoundingClientRect();
+      const left = r.right + 12 + tip.offsetWidth < window.innerWidth ? r.right + 12 : r.left - tip.offsetWidth - 12;
+      tip.style.left = `${Math.max(8, left)}px`;
+      tip.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - tip.offsetHeight - 8))}px`;
+    });
+    card.addEventListener('mouseleave', () => (tip.hidden = true));
+  });
+}
 
 function openEquipment(): void {
   const trancheId = getCharacter()?.trancheId ?? 1;

@@ -452,7 +452,17 @@ export class PixiBoard {
       const ratio = Math.max(0, u.hp) / u.maxHp;
       v.bars.clear();
       v.bars.roundRect(-w / 2 - 1.5, top - 1.5, w + 3, 8, 4).fill({ color: 0x0b1020, alpha: 0.78 });
-      if (ratio > 0) v.bars.roundRect(-w / 2, top, Math.max(5, w * ratio), 5, 2.5).fill(u.team === 'player' ? 0x6cc070 : 0xe0544f);
+      const hpp = scene.hpPreview?.get(u.id);
+      if (hpp) {
+        // Aperçu du sort visé : PV restants, part de la brûlure (orange), perte immédiate (blanc pulsé).
+        const after = Math.max(0, hpp.hpAfter) / u.maxHp;
+        const burn = Math.min(hpp.burn, Math.max(0, hpp.hpAfter)) / u.maxHp;
+        const pulse = 0.45 + 0.4 * Math.sin(scene.now / 140);
+        v.bars.roundRect(-w / 2 - 3, top - 3, w + 6, 11, 5).stroke({ width: 1.5, color: hpp.killed ? 0xff6b62 : 0xffffff, alpha: 0.85 });
+        if (ratio > 0) v.bars.roundRect(-w / 2, top, Math.max(5, w * ratio), 5, 2.5).fill({ color: 0xffffff, alpha: pulse });
+        if (after > 0) v.bars.roundRect(-w / 2, top, Math.max(3, w * after), 5, 2.5).fill(0xff9b4a);
+        if (after - burn > 0) v.bars.roundRect(-w / 2, top, Math.max(3, w * (after - burn)), 5, 2.5).fill(0xe0544f);
+      } else if (ratio > 0) v.bars.roundRect(-w / 2, top, Math.max(5, w * ratio), 5, 2.5).fill(u.team === 'player' ? 0x6cc070 : 0xe0544f);
       if (u.burning) v.bars.circle(w / 2 + 6, top + 2, 4.5).fill(0xe8643c).stroke({ width: 1, color: 0x1b1f2a });
       v.pm.text = u.pmMalus > 0 ? `-${u.pmMalus}PM` : '';
       v.pm.position.set(w / 2 + (u.burning ? 13 : 4), top + 2);

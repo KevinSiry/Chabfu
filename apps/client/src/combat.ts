@@ -19,13 +19,11 @@ import {
   getReachableCells,
   getSpell,
   getSpellRange,
-  getSpellZone,
   getTranche,
   key,
   monsterThreatZone,
-  previewCast,
+  previewCastDetailed,
   previewEnemyTurn,
-  samePos,
   turnOrder,
   unitAt,
   willGainConcentrationNextTurn,
@@ -42,7 +40,8 @@ import {
 import { slotFromKey, slotKeyLabel } from './keys';
 import { getCharacter } from './character/store';
 import { assetUrl, spellIconImg, unitPortraitImg } from './ui/assets';
-import { ELEMENT_LABEL, castPreviewCard, el, esc, monsterCard, spellTooltip } from './info';
+import { ELEMENT_LABEL, el, esc, monsterCard } from './info';
+import { castTargetCard, spellSheet } from './spell-info';
 import {
   CANVAS_H,
   CANVAS_W,
@@ -55,6 +54,7 @@ import {
   type FloatingText,
   type Ghost,
   type Highlight,
+  type HpPreview,
   type Marker,
   type Projectile,
   type Scene,
@@ -83,6 +83,8 @@ interface Overlay {
   /** Concentration prévue après l'action survolée. */
   concPreview: number | null;
   concReason: string | null;
+  /** PV prévus après le sort visé, par unité (barres de vie du plateau). */
+  hpPreview: Map<string, HpPreview>;
 }
 
 interface Analysis {
@@ -90,7 +92,6 @@ interface Analysis {
   zones: Map<string, ThreatZone>;
   combined: ReturnType<typeof combinedThreat> | null;
   reach: Map<string, Pos[]>;
-  moveCache: Map<string, EnemyTurnPreview | null>;
 }
 
 interface RunView {
@@ -170,7 +171,6 @@ function analyse(state: RunState): Analysis {
     zones: new Map(),
     combined: null,
     reach: playing ? getReachableCells(state) : new Map(),
-    moveCache: new Map(),
   };
 }
 
@@ -706,7 +706,7 @@ function playerCard(v: RunView): string {
 
 function defaultInspector(): string {
   return `<p class="muted">Survolez un monstre pour voir sa fiche, ses déplacements et ce qu’il fera à son tour. Cliquez dessus pour l’épingler.</p>
-    <p class="muted">Survolez une case accessible pour voir le coût du déplacement et les dégâts que vous subirez si vous finissez votre tour dessus.</p>`;
+    <p class="muted">Survolez un sort pour voir exactement ce qu’il fait. Sort sélectionné, survolez un ennemi pour voir les dégâts, les PV restants et les effets.</p>`;
 }
 
 function computeOverlay(v: RunView): Overlay {
@@ -722,6 +722,7 @@ function computeOverlay(v: RunView): Overlay {
     inspector: defaultInspector(),
     concPreview: null,
     concReason: null,
+    hpPreview: new Map(),
   };
   const s = v.state;
   if (v.busy || s.status !== 'playing') {
@@ -769,59 +770,40 @@ function computeOverlay(v: RunView): Overlay {
 
   if (v.selectedSpell && v.hover) {
     const spell = getSpell(v.selectedSpell);
-    const preview = previewCast(s, v.selectedSpell, v.hover);
+    const preview = previewCastDetailed(s, v.selectedSpell, v.hover);
+    o.tooltip = castTargetCard(s, preview, hovered);
     if (preview.valid) {
-      for (const z of getSpellZone(s, v.selectedSpell, v.hover)) o.highlights.push({ pos: z, color: COLORS.zone });
-      for (const out of preview.outcomes) {
-        const u = s.units.find((x) => x.id === out.unitId);
-        if (!u) continue;
-        if (u.id === PLAYER_ID) {
-          if (out.movedTo) {
-            o.ghosts.push({ x: out.movedTo.x, y: out.movedTo.y, templateId: u.templateId, team: u.team, isBoss: false, name: u.name });
-            o.arrows.push({ points: [u.pos, out.movedTo], color: 'rgba(216, 255, 216, 0.9)' });
-          }
-          continue;
-        }
-        let row = 0;
-        if (out.bySource.spell !== undefined || out.killed) {
-          o.markers.push({ x: u.pos.x, y: u.pos.y, text: `−${out.bySource.spell ?? 0}${out.killed && !out.bySource.collision ? ' ☠' : ''}`, color: ELEMENT_COLORS[spell.element], row: row++ });
-        }
-        if (out.bySource.collision) {
-          o.markers.push({ x: u.pos.x, y: u.pos.y, text: `−${out.bySource.collision} choc${out.killed ? ' ☠' : ''}`, color: '#ffffff', row: row++ });
-        }
-        if (out.pushedFrom && out.movedTo) {
-          o.arrows.push({ points: [out.pushedFrom, out.movedTo], color: 'rgba(255, 255, 255, 0.9)' });
-          if (!samePos(out.pushedFrom, out.movedTo)) o.ghosts.push({ x: out.movedTo.x, y: out.movedTo.y, templateId: u.templateId, team: u.team, isBoss: !!u.isBoss, name: u.name });
+      for (const z of preview.zone) o.highlights.push({ pos: z, color: COLORS.zone });
+      for (const t of preview.targets) {
+        const u = s.units.find((x) => x.id === t.unitId)!;
+        o.hpPreview.set(u.id, { hpAfter: t.hpAfter, burn: t.killed || !t.burn ? 0 : t.burn.damage * t.burn.turns, killed: t.killed });
+        if (t.killed) o.markers.push({ x: u.pos.x, y: u.pos.y, text: '☠ Vaincu', color: '#ff6b62', row: 0 });
+        else if (t.burnKillsIn) o.markers.push({ x: u.pos.x, y: u.pos.y, text: '☠ brûlure', color: '#ff9b4a', row: 0 });
+        if (t.push && t.push.cells) {
+          o.arrows.push({ points: [t.push.from, t.push.to], color: 'rgba(255, 255, 255, 0.9)' });
+          o.ghosts.push({ x: t.push.to.x, y: t.push.to.y, templateId: u.templateId, team: u.team, isBoss: !!u.isBoss, name: u.name });
         }
       }
-      const dmg = preview.outcomes.filter((x) => x.unitId !== PLAYER_ID).reduce((n, x) => n + x.damage, 0);
-      const kills = preview.outcomes.filter((x) => x.killed).length;
-      o.tooltip = `<b>${spell.name}</b>${dmg ? ` · <span class="neg">−${dmg} PV</span>` : ''}${kills ? ` · <span class="kill">${kills} vaincu${kills > 1 ? 's' : ''}</span>` : ''}${
-        preview.concentrationAfter !== preview.concentrationBefore ? ` · Conc. ${preview.concentrationBefore} → ${preview.concentrationAfter}` : ''
-      }`;
-      o.inspector = castPreviewCard(s, v.selectedSpell, preview);
+      if (preview.playerMovedTo) {
+        o.ghosts.push({ x: preview.playerMovedTo.x, y: preview.playerMovedTo.y, templateId: player.templateId, team: player.team, isBoss: false, name: player.name });
+        o.arrows.push({ points: [player.pos, preview.playerMovedTo], color: 'rgba(216, 255, 216, 0.9)' });
+      }
       o.concPreview = preview.concentrationAfter;
       o.concReason = spell.name;
-    } else {
-      o.tooltip = `<span class="neg">${esc(preview.error ?? '')}</span>`;
-      if (preview.error === 'Pas de ligne de vue.') o.arrows.push({ points: [player.pos, v.hover], color: 'rgba(224, 84, 79, 0.9)', dashed: true, head: false, width: 2 });
-      if (hoveredMonster) o.inspector = monsterCard(s, hoveredMonster, intentOf(hoveredMonster.id), false);
-      else o.inspector = castPreviewCard(s, v.selectedSpell, preview);
+    } else if (preview.error === 'Pas de ligne de vue.') {
+      o.arrows.push({ points: [player.pos, v.hover], color: 'rgba(224, 84, 79, 0.9)', dashed: true, head: false, width: 2 });
     }
-  } else if (!v.selectedSpell && v.hover) {
+    o.inspector = hoveredMonster ? monsterCard(s, hoveredMonster, intentOf(hoveredMonster.id), false) : spellSheet(s, v.selectedSpell, { slot: s.player.deck.indexOf(v.selectedSpell) });
+  } else if (v.selectedSpell) {
+    o.inspector = spellSheet(s, v.selectedSpell, { slot: s.player.deck.indexOf(v.selectedSpell) });
+  } else if (v.hover) {
     const path = v.analysis.reach.get(key(v.hover));
     if (path) {
       o.path = path;
-      const k = key(v.hover);
-      if (!v.analysis.moveCache.has(k)) v.analysis.moveCache.set(k, previewEnemyTurn(s, v.hover));
-      const ifEnd = v.analysis.moveCache.get(k)!;
       const concAfter = Math.max(0, s.player.concentration - path.length);
       o.concPreview = concAfter;
       o.concReason = `déplacement de ${path.length} PM`;
-      o.tooltip = `<b>${path.length} PM</b>${concAfter !== s.player.concentration ? ` · Conc. ${s.player.concentration} → <span class="neg">${concAfter}</span>` : ''}<br>${
-        ifEnd ? (ifEnd.damageToPlayer ? `Fin de tour ici : <span class="neg">−${ifEnd.damageToPlayer} PV</span>${ifEnd.playerDies ? ' <span class="kill">mortel</span>' : ''}` : '<span class="pos">Aucune attaque ennemie ici</span>') : ''
-      }`;
-      if (!subjectId && ifEnd) o.inspector = endTurnDetails(ifEnd, 'Si vous finissez votre tour sur cette case');
+      o.tooltip = `<b>${path.length} PM</b>${concAfter !== s.player.concentration ? ` · Concentration ${s.player.concentration} → <span class="neg">${concAfter}</span>` : ''}`;
     } else if (hovered?.id === PLAYER_ID && !subjectId) {
       o.inspector = playerCard(v);
     }
@@ -830,20 +812,6 @@ function computeOverlay(v: RunView): Overlay {
     o.tooltip = `<b>${esc(hoveredMonster.name)}</b> · ${hoveredMonster.hp}/${hoveredMonster.maxHp} PV`;
   }
   return o;
-}
-
-function endTurnDetails(p: EnemyTurnPreview, title: string): string {
-  const rows = p.intents
-    .filter((i) => !i.skipped)
-    .map((i) => {
-      const what = i.diesFromBurn ? '<span class="pos">meurt de brûlure</span>' : i.attacks.length ? i.attacks.map((a) => `${a.name} <b class="neg">−${a.damage}</b>`).join(', ') : '<span class="muted">ne vous touche pas</span>';
-      const fx = i.effects.length ? ` <span class="neg small">(${i.effects.map(esc).join(', ')})</span>` : '';
-      return `<li><b>${esc(i.name)}</b> : ${what}${fx}</li>`;
-    });
-  return `<div class="card-head"><b>${title}</b></div>
-    <ul class="outcomes">${rows.join('')}</ul>
-    <p>Total : <b class="${p.damageToPlayer ? 'neg' : 'pos'}">−${p.damageToPlayer} PV</b> → ${p.playerHpAfter} PV${p.playerDies ? ' <span class="kill">mortel</span>' : ''}</p>
-    ${p.playerBurnNextTurn ? `<p class="neg">Brûlure au début de votre tour : −${p.playerBurnNextTurn} PV</p>` : ''}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -872,6 +840,7 @@ function drawBoard(): void {
     projectiles: v.projectiles,
     focus: o?.focus ?? [],
     intents: o?.intents ?? new Map(),
+    hpPreview: o?.hpPreview,
     now,
   });
 }
@@ -892,8 +861,18 @@ function positionCursorTip(): void {
   tip.hidden = false;
   const wrap = tip.parentElement!.getBoundingClientRect();
   const w = tip.offsetWidth;
-  const x = Math.min(view.mouse.x + 16, wrap.width - w - 8);
-  const y = Math.max(8, view.mouse.y - tip.offsetHeight - 14);
+  const h = tip.offsetHeight;
+  let x: number;
+  let y: number;
+  if (tip.querySelector('.tp')) {
+    // Carte de visée : à côté du curseur, sous la tête de l'unité visée, pour laisser voir sa barre de vie.
+    x = view.mouse.x + 28 + w <= wrap.width - 8 ? view.mouse.x + 28 : view.mouse.x - w - 28;
+    y = Math.min(Math.max(8, view.mouse.y - 12), wrap.height - h - 8);
+  } else {
+    x = Math.min(view.mouse.x + 16, wrap.width - w - 8);
+    const above = view.mouse.y - h - 14;
+    y = above >= 8 ? above : Math.min(view.mouse.y + 22, wrap.height - h - 8);
+  }
   tip.style.transform = `translate(${Math.max(8, x)}px, ${y}px)`;
 }
 
@@ -901,7 +880,7 @@ function showSpellTip(btn: HTMLElement): void {
   if (!view) return;
   const tip = document.getElementById('spell-tip') as HTMLElement;
   const id = btn.dataset.spell!;
-  tip.innerHTML = spellTooltip(view.state, id, view.state.player.deck.indexOf(id));
+  tip.innerHTML = spellSheet(view.state, id, { slot: view.state.player.deck.indexOf(id) });
   tip.hidden = false;
   const parent = tip.parentElement!.getBoundingClientRect();
   const r = btn.getBoundingClientRect();

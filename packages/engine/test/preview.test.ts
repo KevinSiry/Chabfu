@@ -9,6 +9,8 @@ import {
   monsterAttacks,
   monsterThreatZone,
   previewCast,
+  previewCastDetailed,
+  spellPower,
   previewEnemyTurn,
   previewMove,
   spellDamageOn,
@@ -127,5 +129,66 @@ describe('aperçus sur tous les donjons', () => {
         s = after;
       }
     }
+  });
+});
+
+describe('fiche et aperçu détaillé des sorts', () => {
+  it('donne les dégâts réels du sort avec la maîtrise, contre une faiblesse et une résistance', () => {
+    const s = createRun({ ...config, masteries: { fire: 50 } });
+    const p = spellPower(s, 'fleche_ardente');
+    expect(p.damage).toEqual({ normal: 18, weak: 23, resist: 14 }); // 12 × 1,5 ; × 1,3 ; × 0,8
+    expect(p.burn).toEqual({ base: 4, perTurn: { normal: 6, weak: 7, resist: 4 }, turns: 2 });
+    expect(p.maxRange).toBe(6);
+  });
+
+  it('compte les passifs et le tir concentré', () => {
+    const s = edit(createRun({ ...config, passives: ['instinct_du_chasseur'] }), (st) => {
+      st.player.nextShotDouble = true;
+      st.player.passives = ['pointes_incendiaires'];
+    });
+    const p = spellPower(s, 'fleche_ardente');
+    expect(p.doubled).toBe(true);
+    expect(p.damage.normal).toBe(24);
+    expect(p.burn!.turns).toBe(3);
+    expect(spellPower(s, 'bond_arriere').doubled).toBe(false);
+  });
+
+  it('détaille la poussée, la collision et le monstre heurté', () => {
+    const s = edit(createRun(config), (st) => {
+      st.units[1].pos = { x: 5, y: 3 };
+      st.units[2].pos = { x: 7, y: 3 };
+    });
+    const p = previewCastDetailed(s, 'fleche_fracassante', { x: 5, y: 3 });
+    expect(p.valid).toBe(true);
+    const [main, other] = p.targets;
+    expect(main.isTarget).toBe(true);
+    expect(main.push).toEqual({ from: { x: 5, y: 3 }, to: { x: 6, y: 3 }, cells: 1, wanted: 2, blocked: true });
+    expect(main.collisionDamage).toBe(8);
+    expect(main.breakdown!.resistance).toBe(true);
+    expect(other.hitByCollision).toBe(true);
+    expect(other.collisionDamage).toBe(4);
+  });
+
+  it('annonce la brûlure, sa mort programmée et le gain de Concentration manqué', () => {
+    const s = edit(createRun(config), (st) => {
+      st.units[1].pos = { x: st.units[0].pos.x + 3, y: st.units[0].pos.y };
+      st.units[1].hp = 20;
+    });
+    const t = getMonsters(s)[0];
+    const p = previewCastDetailed(s, 'fleche_ardente', t.pos);
+    expect(p.valid).toBe(true);
+    const o = p.targets[0];
+    expect(o.spellDamage).toBe(spellDamageOn(s, 'fleche_ardente', t)!.amount);
+    expect(o.burn).toBeTruthy();
+    if (o.hpAfter <= o.burn!.damage * o.burn!.turns) expect(o.burnKillsIn).toBe(Math.ceil(o.hpAfter / o.burn!.damage));
+    expect(p.concentrationGainMissed).toEqual({ distance: 3, needed: 5, gain: 1 });
+  });
+
+  it('reste exploitable quand le sort est impossible', () => {
+    const s = createRun(config);
+    const p = previewCastDetailed(s, 'fleche_ardente', { x: 8, y: 1 });
+    expect(p.valid).toBe(false);
+    expect(p.targets).toEqual([]);
+    expect(p.maxRange).toBe(6);
   });
 });

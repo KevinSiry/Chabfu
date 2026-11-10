@@ -4,10 +4,11 @@
  * mêmes fonctions que le moteur. Les aperçus sont donc exacts (le combat est déterministe).
  */
 import { canUseAttack } from './ai.js';
-import { PLAYER_ID, applyAction, computeDamage, getCastError, getPlayer, getReachableCells, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
+import { PLAYER_ID, applyAction, computeDamage, getCastError, getPlayer, getReachableCells, getSpellZone, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
 import { getMonster, monsterBehavior } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
-import { isWall, key, reachable } from './grid.js';
+import { distance, isWall, key, reachable, samePos } from './grid.js';
+import { combinePassives, spellMaxRange } from './passives.js';
 import { difficultyMultiplier } from './loot.js';
 import type { Action, Burn, Element, GameEvent, Pos, RunState, Unit } from './types.js';
 
@@ -39,6 +40,8 @@ export interface ActionPreview {
   /** La salle est vidée par cette action. */
   clearsRoom: boolean;
   events: GameEvent[];
+  /** État après l'action (absent si l'action est invalide). */
+  after?: RunState;
 }
 
 function summarize(before: RunState, events: GameEvent[], stopAtRoomChange = true): Omit<ActionPreview, 'valid' | 'error' | 'events'> {
@@ -98,8 +101,8 @@ function summarize(before: RunState, events: GameEvent[], stopAtRoomChange = tru
 /** Aperçu exact d'une action du joueur : dégâts, morts, poussées, collisions, Concentration. */
 export function previewAction(state: RunState, action: Action): ActionPreview {
   try {
-    const { events } = applyAction(state, action);
-    return { valid: true, error: null, events, ...summarize(state, events) };
+    const { state: after, events } = applyAction(state, action);
+    return { valid: true, error: null, events, after, ...summarize(state, events) };
   } catch (e) {
     return {
       valid: false,
@@ -158,6 +161,205 @@ export function spellDamageOn(state: RunState, spellId: string, target: Unit): D
 }
 
 export const DAMAGE_FACTORS = { weakness: WEAKNESS_BONUS, resistance: RESISTANCE_MALUS };
+
+// ---------------------------------------------------------------------------
+// Puissance réelle d'un sort (fiche de sort)
+// ---------------------------------------------------------------------------
+
+/** Dégâts d'un sort contre une cible neutre, une cible faible et une cible résistante à son élément. */
+export interface DamageSpread {
+  normal: number;
+  weak: number;
+  resist: number;
+}
+
+export interface SpellPower {
+  element: Element;
+  /** Dégâts de base du catalogue. */
+  base: number;
+  /** Maîtrise de l'élément du sort, en %. */
+  mastery: number;
+  /** Dégâts directs avec les stats actuelles du personnage (tir concentré compris s'il est actif). */
+  damage: DamageSpread;
+  /** Le prochain tir est doublé (Tir concentré actif). */
+  doubled: boolean;
+  /** Brûlure par tour avec les stats actuelles, et nombre de tours (passifs compris). */
+  burn?: { base: number; perTurn: DamageSpread; turns: number };
+  /** Portée maximale réelle (passifs compris). */
+  maxRange: number;
+}
+
+/** Cible fictive sans faiblesse ni résistance, pour calculer les dégâts « à vide » d'un sort. */
+function dummyTarget(state: RunState, weakness?: Element, resistance?: Element): Unit {
+  const p = getPlayer(state);
+  return {
+    id: '__cible__',
+    team: 'monster',
+    templateId: '__cible__',
+    name: 'Cible',
+    pos: { ...p.pos },
+    hp: 1,
+    maxHp: 1,
+    pa: 0,
+    pm: 0,
+    basePa: 0,
+    basePm: 0,
+    weakness,
+    resistance,
+    pmMalus: 0,
+    attackUses: {},
+  };
+}
+
+function spread(state: RunState, base: number, element: Element, doubled: boolean): DamageSpread {
+  const player = getPlayer(state);
+  const neutral = element === 'neutral';
+  return {
+    normal: computeDamage(state, base, element, player, dummyTarget(state), doubled),
+    weak: computeDamage(state, base, element, player, dummyTarget(state, neutral ? undefined : element), doubled),
+    resist: computeDamage(state, base, element, player, dummyTarget(state, undefined, neutral ? undefined : element), doubled),
+  };
+}
+
+/** Chiffres réels d'un sort avec les stats du personnage : ce que la fiche de sort affiche. */
+export function spellPower(state: RunState, spellId: string): SpellPower {
+  const spell = getSpell(spellId);
+  const doubled = spell.damage !== undefined && state.player.nextShotDouble;
+  return {
+    element: spell.element,
+    base: spell.damage ?? 0,
+    mastery: state.player.masteries[spell.element] ?? 0,
+    damage: spell.damage !== undefined ? spread(state, spell.damage, spell.element, doubled) : { normal: 0, weak: 0, resist: 0 },
+    doubled,
+    burn: spell.burn
+      ? { base: spell.burn.damage, perTurn: spread(state, spell.burn.damage, spell.element, false), turns: spell.burn.turns + combinePassives(state.player.passives).burnExtraTurns }
+      : undefined,
+    maxRange: spellMaxRange(spell, state.player.passives),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Aperçu détaillé d'un sort sur une case (survol avec un sort sélectionné)
+// ---------------------------------------------------------------------------
+
+export interface TargetOutcome {
+  unitId: string;
+  name: string;
+  templateId: string;
+  /** Unité sur la case visée (les autres sont touchées par la zone ou une collision). */
+  isTarget: boolean;
+  hpBefore: number;
+  hpAfter: number;
+  maxHp: number;
+  spellDamage: number;
+  collisionDamage: number;
+  killed: boolean;
+  /** Détail du calcul des dégâts directs (absent si l'unité n'est touchée que par une collision). */
+  breakdown: DamageBreakdown | null;
+  /** Brûlure portée après le sort (dégâts par tour, tours restants). */
+  burn?: Burn;
+  /** Nombre de ses tours au bout duquel la brûlure l'achève (si rien d'autre ne la touche). */
+  burnKillsIn?: number;
+  /** PM retirés par ce sort, et PM qu'il aura à son prochain tour. */
+  pmRemoved: number;
+  pmNextTurn: number;
+  basePm: number;
+  /** Poussée subie : départ, arrivée, cases parcourues, cases demandées. */
+  push?: { from: Pos; to: Pos; cells: number; wanted: number; blocked: boolean };
+  /** Heurté par une unité poussée contre lui. */
+  hitByCollision: boolean;
+}
+
+export interface CastPreview extends ActionPreview {
+  spellId: string;
+  target: Pos;
+  /** Cases touchées par le sort. */
+  zone: Pos[];
+  targets: TargetOutcome[];
+  /** Distance lanceur → case visée. */
+  distance: number;
+  /** Portée réelle du sort. */
+  minRange: number;
+  maxRange: number;
+  /** Nouvelle case de l'Archer (saut). */
+  playerMovedTo?: Pos;
+  /** Le gain de Concentration conditionnel du sort n'est pas obtenu (cible trop proche). */
+  concentrationGainMissed?: { distance: number; needed: number; gain: number };
+  /** Le sort consomme le Tir concentré (dégâts doublés). */
+  consumesDouble: boolean;
+}
+
+/** Aperçu complet d'un sort sur une case : tout ce que l'infobulle de visée affiche. */
+export function previewCastDetailed(state: RunState, spellId: string, target: Pos): CastPreview {
+  const spell = getSpell(spellId);
+  const base = previewCast(state, spellId, target);
+  const player = getPlayer(state);
+  const d = distance(player.pos, target);
+  const out: CastPreview = {
+    ...base,
+    spellId,
+    target,
+    zone: spell.target === 'self' ? [player.pos] : getSpellZone(state, spellId, target),
+    targets: [],
+    distance: d,
+    minRange: spell.minRange,
+    maxRange: spellMaxRange(spell, state.player.passives),
+    consumesDouble: spell.damage !== undefined && state.player.nextShotDouble,
+  };
+  if (spell.concentrationGain && spell.concentrationGainMinDistance !== undefined && d < spell.concentrationGainMinDistance) {
+    out.concentrationGainMissed = { distance: d, needed: spell.concentrationGainMinDistance, gain: spell.concentrationGain };
+  }
+  if (!base.valid) return out;
+
+  const sameRoom = !!base.after && base.after.roomIndex === state.roomIndex;
+  const pushes = new Map<string, { from: Pos; to: Pos }>();
+  for (const ev of base.events) {
+    if (ev.type === 'roomCleared') break;
+    if (ev.type === 'push') pushes.set(ev.unitId, { from: ev.from, to: ev.to });
+    if (ev.type === 'jump' && ev.unitId === PLAYER_ID) out.playerMovedTo = ev.to;
+  }
+
+  for (const o of base.outcomes) {
+    if (o.unitId === PLAYER_ID) continue;
+    const u = state.units.find((x) => x.id === o.unitId);
+    if (!u) continue;
+    const a = sameRoom ? base.after!.units.find((x) => x.id === u.id) : undefined;
+    const hitBySpell = (o.bySource.spell ?? 0) > 0 || out.zone.some((c) => samePos(c, u.pos));
+    const burn = a && a.hp > 0 && a.burn ? { ...a.burn } : undefined;
+    const pmMalus = a ? a.pmMalus : u.pmMalus;
+    const p = pushes.get(u.id);
+    let push: TargetOutcome['push'];
+    if (spell.push && hitBySpell && (o.hpAfter > 0 || p || (o.bySource.collision ?? 0) > 0)) {
+      const from = p?.from ?? u.pos;
+      const to = p?.to ?? u.pos;
+      const cells = Math.abs(to.x - from.x) + Math.abs(to.y - from.y);
+      push = { from, to, cells, wanted: spell.push, blocked: cells < spell.push };
+    }
+    out.targets.push({
+      unitId: u.id,
+      name: u.name,
+      templateId: u.templateId,
+      isTarget: samePos(u.pos, target),
+      hpBefore: o.hpBefore,
+      hpAfter: o.hpAfter,
+      maxHp: u.maxHp,
+      spellDamage: o.bySource.spell ?? 0,
+      collisionDamage: o.bySource.collision ?? 0,
+      killed: o.killed,
+      breakdown: hitBySpell && spell.damage !== undefined ? spellDamageOn(state, spellId, u) : null,
+      burn,
+      burnKillsIn: burn && burn.damage > 0 && Math.ceil(o.hpAfter / burn.damage) <= burn.turns ? Math.ceil(o.hpAfter / burn.damage) : undefined,
+      pmRemoved: hitBySpell && o.hpAfter > 0 ? (spell.pmRemoval ?? 0) : 0,
+      pmNextTurn: Math.max(0, u.basePm - pmMalus),
+      basePm: u.basePm,
+      push,
+      hitByCollision: !hitBySpell && (o.bySource.collision ?? 0) > 0,
+    });
+  }
+  // La cible principale d'abord, puis les autres de haut en bas.
+  out.targets.sort((x, y) => Number(y.isTarget) - Number(x.isTarget));
+  return out;
+}
 
 export interface AttackInfo {
   id: string;

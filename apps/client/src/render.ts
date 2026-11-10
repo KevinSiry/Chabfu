@@ -101,7 +101,16 @@ export interface Scene {
   focus: { id: string; color: string }[];
   /** Badges d'intention au-dessus des monstres, par id d'unité. */
   intents: Map<string, { text: string; color: string }>;
+  /** Aperçu des PV après le sort visé, par id d'unité. */
+  hpPreview?: Map<string, HpPreview>;
   now: number;
+}
+
+export interface HpPreview {
+  hpAfter: number;
+  /** PV que la brûlure retirera ensuite (tous ses tours). */
+  burn: number;
+  killed: boolean;
 }
 
 export const ELEMENT_COLORS: Record<Element, string> = {
