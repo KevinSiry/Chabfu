@@ -33,3 +33,13 @@ select { background: var(--panel-2); color: inherit; border: 1px solid var(--gol
 .res-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .res-chip { background: var(--panel-2); border-left: 3px solid var(--t); border-radius: 6px; padding: 3px 8px; font-size: 13px; }
 .res-dungeon { margin: 12px 0 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
+
+/* Recettes : en-tête cliquable (fiche détaillée) et stats de l'objet obtenu. */
+#app .ws-recipe button.ws-recipe-head { width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 12px; }
+#app .ws-recipe button.ws-recipe-head:focus-visible { outline: 3px solid var(--c-cta-a, #57e06a); outline-offset: 3px; }
+#app .ws-recipe button.ws-recipe-head .eq-tile { cursor: pointer; }
+#app .ws-recipe-head > div { flex: 1; min-width: 0; }
+#app .ws-recipe-head .tag-up { display: inline-block; margin-left: 8px; padding: 2px 7px; border-radius: 999px; font: 800 11px/1.2 var(--font-ui); vertical-align: 1px; }
+#app .ws-recipe .stat-rows { margin: 0 0 4px; padding: 4px 8px; gap: 2px; }
+#app .ws-recipe .stat-rows li { font-size: 12px; gap: 6px; }
+#app .ws-recipe .stat-rows .stat-medal { width: 18px; height: 18px; font-size: 10px; border-radius: 6px; }

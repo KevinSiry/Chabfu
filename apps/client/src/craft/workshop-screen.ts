@@ -11,7 +11,9 @@ import {
   dungeonsForTranche,
   getItem,
   getResource,
+  compareWithEquipped,
   isEquipped,
+  itemStats,
   masteryLevel,
   missingForRecipe,
   recipesForTranche,
@@ -19,6 +21,8 @@ import {
   setAutoRecycle,
   sortItems,
   type CraftRarity,
+  type Inventory,
+  type ItemInstance,
   type Rarity,
 } from '@chabfu/engine';
 import { getInventory, setInventory } from '../stuff/store';
@@ -29,7 +33,16 @@ import { getCrafting, setCrafting } from './store';
 import { icon } from '../ui/icons';
 import { bindSegmented, openSheet, segmented, toast } from '../ui/components';
 import { pageAll, pagerHtml } from '../ui/pager';
-import { itemCardHtml } from '../stuff/item-view';
+import { bonusScore, itemCardHtml } from '../stuff/item-view';
+import { statRowsHtml } from '../stuff/stat-view';
+
+const PREVIEW_UID = '__craft-preview__';
+
+/** Objet fictif (pas encore fabriqué) ajouté à l'inventaire pour le comparer à l'équipement porté. */
+function previewInventory(inv: Inventory, itemId: string, rarity: Rarity): { inv: Inventory; item: ItemInstance } {
+  const item: ItemInstance = { uid: PREVIEW_UID, itemId, rarity };
+  return { inv: { ...inv, items: [...inv.items, item] }, item };
+}
 
 export interface WorkshopScreenOptions {
   trancheId: number;
@@ -86,10 +99,13 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
             const miss = missingForRecipe(st, r);
             const ok = canCraft(st, r);
             const def = getItem(r.itemId);
+            const pv = previewInventory(inv, r.itemId, r.rarity);
+            const upgrade = bonusScore(compareWithEquipped(pv.inv, o.trancheId, PREVIEW_UID)) > 0;
             const ing = (name: string, have: number, need: number, missing: boolean) =>
               `<div class="ws-ing${missing ? ' miss' : ''}" title="${name}"><span>${name}</span><b>${have}/${need}</b><i style="width:${Math.min(100, (100 * have) / need)}%"></i></div>`;
             return `<div class="ws-recipe rarity-${r.rarity}">
-              <div class="ws-recipe-head"><span class="eq-tile rarity-${r.rarity}">${itemIconImg(def.kind)}</span><div><b>${def.name}</b><span class="rarity-label">${RARITIES[r.rarity].label}</span></div></div>
+              <button type="button" class="ws-recipe-head" data-rdetail="${r.id}" aria-label="Voir les stats de ${def.name}"><span class="eq-tile rarity-${r.rarity}">${itemIconImg(def.kind)}</span><div><b>${def.name}</b><span class="rarity-label">${RARITIES[r.rarity].label}</span>${upgrade ? '<span class="tag tag-up">▲ Mieux</span>' : ''}</div></button>
+              ${statRowsHtml(itemStats(r.itemId, r.rarity), { compact: true })}
               <div class="ws-ings">
               ${Object.entries(r.resources)
                 .map(([id, n]) => ing(getResource(id).name, st.resources[id] ?? 0, n, !!miss.resources[id]))
@@ -191,13 +207,29 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     const sheet = openSheet({ title: 'Maîtrise d’objet', html: `<div class="ws-mastery-sheet">${masteryHtml}</div>`, cls: 'ws-mastery-panel' });
     pageAll(sheet.body);
   });
-  app.querySelectorAll<HTMLButtonElement>('[data-craft]').forEach((b) =>
+  const doCraft = (recipeId: string) => {
+    const res = craft(getInventory(), getCrafting(), recipeId);
+    setInventory(res.inventory);
+    setCrafting(res.crafting);
+    flash = `${getItem(res.item.itemId).name} (${RARITIES[res.item.rarity].label}) ajouté au sac.`;
+    rerender();
+  };
+  app.querySelectorAll<HTMLButtonElement>('[data-craft]').forEach((b) => b.addEventListener('click', () => doCraft(b.dataset.craft!)));
+  // Fiche détaillée de l'objet à fabriquer : stats complètes et comparaison avec l'objet porté.
+  app.querySelectorAll<HTMLButtonElement>('[data-rdetail]').forEach((b) =>
     b.addEventListener('click', () => {
-      const res = craft(getInventory(), getCrafting(), b.dataset.craft!);
-      setInventory(res.inventory);
-      setCrafting(res.crafting);
-      flash = `${getItem(res.item.itemId).name} (${RARITIES[res.item.rarity].label}) ajouté au sac.`;
-      rerender();
+      const r = recipes.find((x) => x.id === b.dataset.rdetail);
+      if (!r) return;
+      const pv = previewInventory(getInventory(), r.itemId, r.rarity);
+      const ok = canCraft(getCrafting(), r);
+      const sheet = openSheet({
+        title: 'Fabriquer',
+        html: `${itemCardHtml(pv.item, { inv: pv.inv, trancheId: o.trancheId, compare: true })}<div class="gr-sheet-action"><button class="ui-btn ${ok ? 'ui-btn--primary' : ''} ui-btn--block" id="ws-sheet-craft" ${ok ? '' : 'disabled'}>${icon('hammer')} ${ok ? 'Fabriquer' : 'Ressources insuffisantes'}</button></div>`,
+      });
+      sheet.el.querySelector('#ws-sheet-craft')?.addEventListener('click', () => {
+        sheet.close();
+        doCraft(r.id);
+      });
     }),
   );
   const recycle = (uids: string[]) => {
