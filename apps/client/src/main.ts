@@ -1,39 +1,22 @@
 import {
   DUNGEONS,
-  MAX_CONCENTRATION,
   MAX_DIFFICULTY,
-  applyAction,
   availableSpells,
   compareScores,
   createRun,
-  getCastError,
-  getDungeon,
-  getMonster,
-  getPlayer,
-  getReachableCells,
-  getSpell,
-  getSpellRange,
-  getSpellZone,
   getTranche,
-  key,
-  unitAt,
   verifyRun,
-  type Action,
-  type Element,
-  type GameEvent,
-  type Pos,
-  type RoomState,
   type RunConfig,
   type RunScore,
   type RunState,
 } from '@chabfu/engine';
+import { formatTime, leaveRun, startRun as startCombat } from './combat';
+import { ELEMENT_LABEL, rangeLabel } from './info';
 import { equipmentSummaryHtml, renderEquipmentScreen } from './stuff/equipment-screen';
 import { bindLootPanel, lootPanelHtml } from './stuff/loot-panel';
 import { grantBossLoot, withEquipment } from './stuff/store';
-import { CANVAS_H, CANVAS_W, ELEMENT_COLORS, draw, toCell, type DisplayUnit, type FloatingText, type Highlight } from './render';
 
 const app = document.getElementById('app')!;
-const ELEMENT_LABEL: Record<Element, string> = { fire: 'Feu', water: 'Eau', earth: 'Terre', air: 'Air', neutral: 'Neutre' };
 const STORAGE_KEY = 'chabfu.v1';
 
 // ---------------------------------------------------------------------------
@@ -119,7 +102,8 @@ function renderSetup(): void {
             }
           </div>
           <div class="card hint">
-            Clic : se déplacer · 1–${tranche.deckSize} : choisir un sort · Espace : fin du tour · Échap / clic droit : annuler.
+            Clic : se déplacer · 1–${tranche.deckSize} : choisir un sort · Espace : fin du tour · T : zones de menace · Échap / clic droit : annuler.
+            Survolez un monstre pour voir sa fiche et ce qu’il fera, un sort pour voir sa portée, une case pour voir ce qu’elle vous coûtera.
             La Concentration monte de 1 si vous n’avez pas bougé au tour précédent, et baisse de 1 par PM dépensé.
           </div>
         </div>
@@ -157,59 +141,9 @@ function renderSetup(): void {
   refresh();
 }
 
-function rangeLabel(min: number, max: number): string {
-  if (max === 0) return 'Soi';
-  return min === max ? `Portée ${min}` : `Portée ${min}–${max}`;
-}
-
-function formatTime(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${Math.floor((ms % 1000) / 100)}`;
-}
-
 // ---------------------------------------------------------------------------
 // Run
 // ---------------------------------------------------------------------------
-
-interface RunView {
-  config: RunConfig;
-  state: RunState;
-  displayRoom: RoomState;
-  display: Map<string, DisplayUnit>;
-  floats: FloatingText[];
-  log: string[];
-  selectedSpell: string | null;
-  hover: Pos | null;
-  busy: boolean;
-  startedAt: number;
-  endedAt: number | null;
-  ctx: CanvasRenderingContext2D;
-}
-
-let view: RunView | null = null;
-let frame = 0;
-
-function buildDisplay(state: RunState): Map<string, DisplayUnit> {
-  const map = new Map<string, DisplayUnit>();
-  for (const u of state.units) {
-    if (u.hp <= 0) continue;
-    map.set(u.id, {
-      id: u.id,
-      name: u.name,
-      team: u.team,
-      templateId: u.templateId,
-      isBoss: !!u.isBoss,
-      x: u.pos.x,
-      y: u.pos.y,
-      hp: u.hp,
-      maxHp: u.maxHp,
-      alive: true,
-      alpha: 1,
-      burning: !!u.burn,
-    });
-  }
-  return map;
-}
 
 function openEquipment(): void {
   renderEquipmentScreen(app, { trancheId: tranche.id, dungeonId: dungeon.id, difficulty: save.difficulty, onBack: renderSetup });
@@ -218,338 +152,19 @@ function openEquipment(): void {
 function startRun(baseConfig: RunConfig): void {
   // L'équipement porté au lancement fait partie de la config : le replay le rejoue à l'identique.
   const config = withEquipment(baseConfig);
-  const state = createRun(config);
-  app.innerHTML = `
-    <div class="run">
-      <div>
-        <div class="board">
-          <canvas id="board" width="${CANVAS_W}" height="${CANVAS_H}"></canvas>
-          <div class="topbar"><span id="room"></span><span id="turn"></span><span id="clock"></span></div>
-        </div>
-        <div class="spellbar" id="spellbar"></div>
-      </div>
-      <div class="side">
-        <div class="card" id="hud"></div>
-        <button class="primary end-turn" id="end-turn">Fin du tour (Espace)</button>
-        <div class="card" id="target"><p class="muted">Survolez un monstre pour voir ses faiblesses.</p></div>
-        <div class="card"><h3>Journal</h3><div class="log" id="log"></div></div>
-        <button class="secondary" id="abandon">Abandonner</button>
-      </div>
-    </div>`;
-
-  const canvas = app.querySelector('#board') as HTMLCanvasElement;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = CANVAS_W * dpr;
-  canvas.height = CANVAS_H * dpr;
-  const ctx = canvas.getContext('2d')!;
-  ctx.scale(dpr, dpr);
-
-  view = {
-    config,
-    state,
-    displayRoom: state.room,
-    display: buildDisplay(state),
-    floats: [],
-    log: [`Entrée : ${state.room.name}`],
-    selectedSpell: null,
-    hover: null,
-    busy: false,
-    startedAt: performance.now(),
-    endedAt: null,
-    ctx,
-  };
-
-  canvas.addEventListener('mousemove', (e) => {
-    if (!view) return;
-    const r = canvas.getBoundingClientRect();
-    view.hover = toCell(view.displayRoom, ((e.clientX - r.left) / r.width) * CANVAS_W, ((e.clientY - r.top) / r.height) * CANVAS_H);
-    renderTarget();
+  startCombat(config, createRun(config), {
+    onExit: renderSetup,
+    onFinish: finishRun,
   });
-  canvas.addEventListener('mouseleave', () => view && (view.hover = null));
-  canvas.addEventListener('click', () => view?.hover && onCellClick(view.hover));
-  canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    selectSpell(null);
-  });
-  app.querySelector('#end-turn')!.addEventListener('click', () => act({ type: 'endTurn' }));
-  app.querySelector('#abandon')!.addEventListener('click', () => {
-    view = null;
-    renderSetup();
-  });
-
-  renderHud();
-  cancelAnimationFrame(frame);
-  const loop = () => {
-    if (!view) return;
-    drawBoard();
-    updateClock();
-    frame = requestAnimationFrame(loop);
-  };
-  frame = requestAnimationFrame(loop);
-}
-
-window.addEventListener('keydown', (e) => {
-  if (!view) return;
-  if (e.code === 'Space') {
-    e.preventDefault();
-    act({ type: 'endTurn' });
-  } else if (e.key === 'Escape') {
-    selectSpell(null);
-  } else if (/^[1-9]$/.test(e.key)) {
-    const id = view.state.player.deck[Number(e.key) - 1];
-    if (id) selectSpell(view.selectedSpell === id ? null : id);
-  }
-});
-
-function selectSpell(id: string | null): void {
-  if (!view) return;
-  if (id && getSpell(id).target === 'self') {
-    if (!getCastError(view.state, id)) act({ type: 'cast', spellId: id, target: getPlayer(view.state).pos });
-    return;
-  }
-  view.selectedSpell = id && !getCastError(view.state, id) ? id : null;
-  renderHud();
-}
-
-function onCellClick(cell: Pos): void {
-  if (!view || view.busy) return;
-  if (view.selectedSpell) {
-    if (!getCastError(view.state, view.selectedSpell, cell)) act({ type: 'cast', spellId: view.selectedSpell, target: cell });
-    return;
-  }
-  if (getReachableCells(view.state).has(key(cell))) act({ type: 'move', to: cell });
-}
-
-function act(action: Action): void {
-  if (!view || view.busy || view.state.status !== 'playing') return;
-  let result: { state: RunState; events: GameEvent[] };
-  try {
-    result = applyAction(view.state, action);
-  } catch (e) {
-    view.log.push(`⚠ ${(e as Error).message}`);
-    renderHud();
-    return;
-  }
-  const v = view;
-  v.state = result.state;
-  v.selectedSpell = null;
-  v.busy = true;
-  renderHud();
-  void animate(v, result.events).then(() => {
-    if (view !== v) return;
-    v.busy = false;
-    v.displayRoom = v.state.room;
-    v.display = buildDisplay(v.state);
-    renderHud();
-    if (v.state.status !== 'playing') finishRun(v);
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Animation des événements
-// ---------------------------------------------------------------------------
-
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function slide(u: DisplayUnit, to: Pos, ms: number): Promise<void> {
-  const from = { x: u.x, y: u.y };
-  const start = performance.now();
-  while (true) {
-    const t = Math.min(1, (performance.now() - start) / ms);
-    u.x = from.x + (to.x - from.x) * t;
-    u.y = from.y + (to.y - from.y) * t;
-    if (t >= 1) return;
-    await new Promise((r) => requestAnimationFrame(r));
-  }
-}
-
-function unitName(v: RunView, id: string): string {
-  return v.display.get(id)?.name ?? v.state.units.find((u) => u.id === id)?.name ?? id;
-}
-
-async function animate(v: RunView, events: GameEvent[]): Promise<void> {
-  for (const ev of events) {
-    if (view !== v) return;
-    const u = 'unitId' in ev ? v.display.get(ev.unitId) : undefined;
-    switch (ev.type) {
-      case 'move':
-        if (u) for (const step of ev.path) await slide(u, step, 110);
-        break;
-      case 'jump':
-        if (u) await slide(u, ev.to, 180);
-        break;
-      case 'push':
-        if (u) await slide(u, ev.to, 160);
-        break;
-      case 'cast':
-        v.log.push(`Archer lance ${getSpell(ev.spellId).name}`);
-        await wait(120);
-        break;
-      case 'attack': {
-        const atk = getMonster(v.state.units.find((x) => x.id === ev.unitId)?.templateId ?? '').attacks.find((a) => a.id === ev.attackId);
-        v.log.push(`${unitName(v, ev.unitId)} utilise ${atk?.name ?? ev.attackId}`);
-        await wait(150);
-        break;
-      }
-      case 'damage':
-        if (u) {
-          u.hp -= ev.amount;
-          if (ev.source === 'burn') u.burning = true;
-          v.floats.push({ x: u.x, y: u.y, text: `-${ev.amount}`, color: ev.source === 'collision' ? '#ffffff' : ELEMENT_COLORS[ev.element], born: performance.now() });
-        }
-        v.log.push(`${unitName(v, ev.unitId)} perd ${ev.amount} PV${ev.source === 'burn' ? ' (brûlure)' : ev.source === 'collision' ? ' (collision)' : ''}`);
-        await wait(140);
-        break;
-      case 'status':
-        if (u) {
-          if (ev.text.startsWith('Brûlure')) u.burning = true;
-          v.floats.push({ x: u.x, y: u.y, text: ev.text, color: '#f2c14e', born: performance.now() + 150 });
-        }
-        break;
-      case 'concentration':
-        if (u === undefined) {
-          const p = v.display.get('archer');
-          if (p) v.floats.push({ x: p.x, y: p.y, text: `${ev.delta > 0 ? '+' : ''}${ev.delta} Conc.`, color: '#b67ee8', born: performance.now() + 250 });
-        }
-        break;
-      case 'death':
-        v.log.push(`${unitName(v, ev.unitId)} est vaincu`);
-        if (u) {
-          for (let a = 1; a >= 0; a -= 0.1) {
-            u.alpha = a;
-            await wait(25);
-          }
-          u.alive = false;
-        }
-        break;
-      case 'roomCleared':
-        await wait(400);
-        break;
-      case 'roomEnter':
-        v.log.push(`Entrée : ${ev.name}`);
-        v.displayRoom = v.state.room;
-        v.display = buildDisplay(v.state);
-        await wait(200);
-        break;
-      case 'turnStart':
-        if (ev.unitId === 'archer') v.log.push(`— Tour ${ev.turn} —`);
-        break;
-      default:
-        break;
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Affichage
-// ---------------------------------------------------------------------------
-
-function drawBoard(): void {
-  if (!view) return;
-  const v = view;
-  const highlights: Highlight[] = [];
-  let path: Pos[] = [];
-  const canPlay = !v.busy && v.state.status === 'playing';
-
-  if (canPlay && v.selectedSpell) {
-    for (const c of getSpellRange(v.state, v.selectedSpell)) {
-      highlights.push({ pos: c.pos, color: c.los ? 'rgba(74, 163, 223, 0.35)' : 'rgba(120, 120, 140, 0.35)' });
-    }
-    if (v.hover && !getCastError(v.state, v.selectedSpell, v.hover)) {
-      for (const z of getSpellZone(v.state, v.selectedSpell, v.hover)) highlights.push({ pos: z, color: 'rgba(232, 100, 60, 0.6)' });
-    }
-  } else if (canPlay) {
-    const reach = getReachableCells(v.state);
-    for (const p of reach.values()) highlights.push({ pos: p[p.length - 1], color: 'rgba(108, 192, 112, 0.22)' });
-    if (v.hover) path = reach.get(key(v.hover)) ?? [];
-  }
-
-  const now = performance.now();
-  v.floats = v.floats.filter((f) => now - f.born < 1300);
-  draw(v.ctx, {
-    room: v.displayRoom,
-    units: [...v.display.values()].filter((u) => u.alive),
-    highlights,
-    path,
-    hover: v.hover,
-    floats: v.floats,
-    now,
-  });
-}
-
-function updateClock(): void {
-  if (!view) return;
-  const el = document.getElementById('clock');
-  if (el) el.textContent = `⏱ ${formatTime((view.endedAt ?? performance.now()) - view.startedAt)}`;
-}
-
-function renderHud(): void {
-  if (!view) return;
-  const { state } = view;
-  const player = getPlayer(state);
-  const p = state.player;
-  document.getElementById('room')!.textContent = `Salle ${state.roomIndex + 1}/${getDungeon(state.config.dungeonId).rooms.length} · ${state.room.name}`;
-  document.getElementById('turn')!.textContent = `Tour ${state.turn} · Difficulté ${state.config.difficulty}`;
-
-  document.getElementById('hud')!.innerHTML = `
-    <div style="display:flex;justify-content:space-between"><b>Archer</b><span>${player.hp} / ${player.maxHp} PV</span></div>
-    <div class="bar"><div style="width:${(100 * player.hp) / player.maxHp}%;background:var(--hp)"></div></div>
-    <div class="stats">
-      <div class="stat" style="color:var(--pa)"><b>${player.pa}</b>PA</div>
-      <div class="stat" style="color:var(--pm)"><b>${player.pm}</b>PM</div>
-      <div class="stat" style="color:var(--conc)"><b>${p.concentration}</b>Conc.</div>
-    </div>
-    <div class="conc">${Array.from({ length: MAX_CONCENTRATION }, (_, i) => `<div class="${i < p.concentration ? 'on' : ''}"></div>`).join('')}</div>
-    ${p.nextShotDouble ? '<span class="badge">Prochain tir ×2</span>' : ''}`;
-
-  const bar = document.getElementById('spellbar')!;
-  bar.innerHTML = p.deck
-    .map((id, i) => {
-      const s = getSpell(id);
-      const err = getCastError(state, id);
-      const uses = state.player.spellUses[id] ?? 0;
-      return `<button class="spell-btn ${view!.selectedSpell === id ? 'active' : ''}" data-spell="${id}" ${err || view!.busy ? 'disabled' : ''} title="${s.description}${err ? `\n${err}` : ''}">
-        <div class="k">${i + 1} · <span class="el el-${s.element}"></span>${ELEMENT_LABEL[s.element]}</div>
-        <div class="n">${s.name}</div>
-        <div class="c">${s.pa} PA${s.concentrationCost ? ` · ${s.concentrationCost} Conc.` : ''}${s.maxPerTurn ? ` · ${uses}/${s.maxPerTurn}` : ''}</div>
-      </button>`;
-    })
-    .join('');
-  bar.querySelectorAll<HTMLButtonElement>('.spell-btn').forEach((b) =>
-    b.addEventListener('click', () => selectSpell(view!.selectedSpell === b.dataset.spell ? null : b.dataset.spell!)),
-  );
-  (document.getElementById('end-turn') as HTMLButtonElement).disabled = view.busy || state.status !== 'playing';
-  document.getElementById('log')!.innerHTML = view.log
-    .slice(-60)
-    .reverse()
-    .map((l) => `<div>${l}</div>`)
-    .join('');
-}
-
-function renderTarget(): void {
-  if (!view) return;
-  const el = document.getElementById('target');
-  if (!el || !view.hover) return;
-  const u = unitAt(view.state.units, view.hover);
-  if (!u || u.team !== 'monster') return;
-  const t = getMonster(u.templateId);
-  el.innerHTML = `
-    <div style="display:flex;justify-content:space-between"><b>${u.name}</b><span>${u.hp} / ${u.maxHp} PV</span></div>
-    <div class="bar"><div style="width:${(100 * u.hp) / u.maxHp}%;background:var(--hp)"></div></div>
-    <div class="muted">Faiblesse : <span class="el el-${t.weakness}"></span>${ELEMENT_LABEL[t.weakness]} (+30 %) · Résistance : <span class="el el-${t.resistance}"></span>${ELEMENT_LABEL[t.resistance]} (−20 %)</div>
-    <div class="muted" style="margin-top:6px">${t.attacks.map((a) => `${a.name} : ${a.damage} dégâts, ${rangeLabel(a.minRange, a.maxRange)}`).join('<br>')}</div>
-    <div class="muted" style="margin-top:6px">${u.pm} PM${u.pmMalus ? ` (−${u.pmMalus} au prochain tour)` : ''}${u.burn ? ` · Brûlure ${u.burn.damage} × ${u.burn.turns}` : ''}</div>`;
 }
 
 // ---------------------------------------------------------------------------
 // Fin de run
 // ---------------------------------------------------------------------------
 
-function finishRun(v: RunView): void {
-  v.endedAt = performance.now();
-  updateClock();
+function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
+  const v = { config, state };
   const won = v.state.status === 'won';
-  const timeMs = Math.round(v.endedAt - v.startedAt);
   // Même vérification que celle que fera le serveur : on rejoue la suite d'actions.
   const check = won ? verifyRun(v.config, v.state.actionLog, v.state.turn) : null;
   if (won && check?.valid) {
@@ -582,12 +197,12 @@ function finishRun(v: RunView): void {
   bindLootPanel(overlay, loot, v.config);
   overlay.querySelector('#equipment')!.addEventListener('click', () => {
     overlay.remove();
-    view = null;
+    leaveRun();
     openEquipment();
   });
   overlay.querySelector('#back')!.addEventListener('click', () => {
     overlay.remove();
-    view = null;
+    leaveRun();
     renderSetup();
   });
   overlay.querySelector('#copy')!.addEventListener('click', async () => {
