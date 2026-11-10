@@ -169,9 +169,13 @@
   #app .cb-pill { height: 30px; font-size: 14px; padding: 0 10px; }
   #app .cb-order .to-chip, #app .cb-order .to-dot { width: 38px; height: 38px; }
   #app .cb-order .to-chip { height: 38px; }
-  #app .cb-dock { grid-template-columns: 190px minmax(0, 1fr) 160px; gap: 8px; }
-  #app .cb-spells .spellbar { gap: 10px; }
-  #app .cb-spells .spell-btn, #app .cb-spells .slot-icon, #app .cb-spells .spell-empty, #app .cb-spells .spell-empty::before { width: 56px; height: 56px; }
+  /* 6 emplacements de sorts : barre resserrée pour laisser la place au bouton Fin du tour. */
+  #app .cb-dock { grid-template-columns: 172px minmax(0, 1fr) 140px; gap: 8px; }
+  #app .cb-spells .spellbar { gap: 7px; }
+  #app .cb-spells .spell-btn, #app .cb-spells .slot-icon, #app .cb-spells .spell-empty, #app .cb-spells .spell-empty::before { width: 48px; height: 48px; }
+  #app .cb-spells .slot-icon { border-radius: 13px; }
+  #app .cb-spells .slot-pa { width: 22px; height: 22px; font-size: 13px; }
+  #app .cb-spells .slot-uses { height: 16px; font-size: 10px; line-height: 16px; padding: 0 4px; }
   #app .cb-spells .spell-btn { height: auto; }
   #app .cb-spells .slot-name { display: none; }
   #app .cb-spells .slot-pa { bottom: -6px; }

@@ -51,7 +51,7 @@ import './ui/fit.css';
 import { sfx, unlockAudio } from './ui/sfx';
 import { applySettings } from './ui/settings';
 import { elementIcon, icon } from './ui/icons';
-import { grimoireFocusHtml, grimoireTableHtml, spellGlyph, type GrimoireLayout } from './ui/grimoire';
+import { grimoireTableHtml, spellGlyph } from './ui/grimoire';
 import './ui/grimoire.css';
 
 
@@ -137,10 +137,6 @@ function goTab(t: HubTab): void {
 let currentTab: HubTab = 'dungeons';
 /** Volet du grimoire : sorts ou passifs. */
 let grTab: 'spells' | 'passives' = 'spells';
-/** Présentation du grimoire (maquettes A et B, `?gr=table|focus`). */
-const grLayout: GrimoireLayout = new URLSearchParams(location.search).get('gr') === 'focus' ? 'focus' : 'table';
-let grElement: import('@chabfu/engine').Element = 'fire';
-let grSelected: string | undefined;
 
 /**
  * Coquille commune des écrans hors combat : barre de navigation fixe et zone d'écran.
@@ -172,7 +168,7 @@ function hubTips(tab: HubTab): void {
       { target: '.lb-deck-panel', title: 'Votre deck', text: 'Les sorts que vous emportez au combat. Touchez-les pour les changer dans le Grimoire ; votre stuff se règle dans l’Équipement.' },
       { target: '#start', title: 'À l’attaque !', text: 'Lancez le run. Un petit guide vous attend dans le premier combat.' },
     ],
-    grimoire: [{ target: '.gr-grid', title: 'Le Grimoire', text: 'Touchez un sort pour lire sa fiche et l’ajouter à votre deck ou l’en retirer. De nouveaux sorts arrivent avec les niveaux.' }],
+    grimoire: [{ target: '.grt', title: 'Le Grimoire', text: 'Une rangée par élément, chacun avec son style de jeu. Touchez un sort pour lire sa fiche et l’ajouter à votre deck ou l’en retirer. De nouveaux sorts arrivent avec les niveaux.' }],
     equipment: [{ target: '.eq-doll', title: 'Équipement', text: 'Touchez un objet pour voir ses stats et l’équiper. La flèche verte signale un objet meilleur que celui porté.' }],
     workshop: [{ target: '[data-seg="ws-mode"]', title: 'L’Atelier', text: 'Fabriquez des objets avec les ressources des donjons, ou recyclez le butin en trop contre des éclats.' }],
   };
@@ -277,13 +273,7 @@ function renderSetup(): void {
     : `<div class="ui-empty"><b>Aucun donjon</b><p>La tranche T${tranche.id} n’a pas encore de donjon. Redéfinissez-vous sur une tranche inférieure pour jouer.</p></div>`;
 
   const inDeck = new Set(loadout.deck);
-  const grView = {
-    spells,
-    deck: inDeck,
-    effLevel,
-    deckSize: tranche.deckSize,
-    state: dungeon ? grimoireState(characterRunConfig(character, dungeon.id, save.difficulty), loadout.deck) : null,
-  };
+  const grView = { spells, deck: inDeck, effLevel };
   const grimoireTab = `
     <div class="gr">
       <section class="ui-panel gr-deck-panel">
@@ -307,9 +297,7 @@ function renderSetup(): void {
         </div>
         ${
           grTab === 'spells'
-            ? grLayout === 'table'
-              ? grimoireTableHtml(grView)
-              : grimoireFocusHtml(grView, grElement, grSelected)
+            ? grimoireTableHtml(grView)
             : `<div class="gr-passives" data-paged="gr-passives-${tranche.id}">
           ${passives
             .map((pa) => {
@@ -383,29 +371,6 @@ function renderSetup(): void {
         sheet.close();
         rerender();
       });
-    }),
-  );
-  app.querySelectorAll<HTMLButtonElement>('[data-el]').forEach((b) =>
-    b.addEventListener('click', () => {
-      grElement = b.dataset.el as typeof grElement;
-      grSelected = undefined;
-      rerender();
-    }),
-  );
-  app.querySelectorAll<HTMLButtonElement>('[data-pick]').forEach((b) =>
-    b.addEventListener('click', () => {
-      grSelected = b.dataset.pick;
-      rerender();
-    }),
-  );
-  app.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach((b) =>
-    b.addEventListener('click', () => {
-      const id = b.dataset.toggle!;
-      if (deck.has(id)) deck.delete(id);
-      else if (deck.size < tranche.deckSize) deck.add(id);
-      grSelected = id;
-      persist();
-      rerender();
     }),
   );
   app.querySelectorAll<HTMLButtonElement>('.passive-card').forEach((b) =>

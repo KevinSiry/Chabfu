@@ -575,8 +575,10 @@ function castSpell(state: RunState, spell: SpellDef, target: Pos, events: GameEv
       }
       if (spell.push) pushUnit(state, victim, player.pos, spell.push, events);
     }
-    if (mods.airLongShotConcentration && spell.element === 'air' && victims.length && distance(caster, target) >= 5) {
-      changeConcentration(state, mods.airLongShotConcentration, events);
+    if (mods.airLongShotPm && spell.element === 'air' && victims.length && distance(caster, target) >= 5 && !state.player.spellUses.__vent_arriere) {
+      state.player.spellUses.__vent_arriere = 1;
+      player.pm += mods.airLongShotPm;
+      events.push({ type: 'status', unitId: PLAYER_ID, text: `+${mods.airLongShotPm} PM` });
     }
   }
 

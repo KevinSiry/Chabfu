@@ -31,7 +31,7 @@ export interface CombinedMods {
   fireVsBurningPct: number;
   frozenBonusPct: number;
   collisionBonusPct: number;
-  airLongShotConcentration: number;
+  airLongShotPm: number;
 }
 
 export function combinePassives(passives: readonly string[] | undefined): CombinedMods {
@@ -45,7 +45,7 @@ export function combinePassives(passives: readonly string[] | undefined): Combin
     fireVsBurningPct: 0,
     frozenBonusPct: 0,
     collisionBonusPct: 0,
-    airLongShotConcentration: 0,
+    airLongShotPm: 0,
   };
   for (const id of passives ?? []) {
     const m: PassiveMods = getPassive(id).mods;
@@ -60,7 +60,7 @@ export function combinePassives(passives: readonly string[] | undefined): Combin
     out.fireVsBurningPct += m.fireVsBurningPct ?? 0;
     out.frozenBonusPct += m.frozenBonusPct ?? 0;
     out.collisionBonusPct += m.collisionBonusPct ?? 0;
-    out.airLongShotConcentration += m.airLongShotConcentration ?? 0;
+    out.airLongShotPm += m.airLongShotPm ?? 0;
   }
   return out;
 }

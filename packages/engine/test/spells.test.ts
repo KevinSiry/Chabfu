@@ -82,24 +82,21 @@ describe('sorts par élément', () => {
     expect(spellHits(applyAction(s, { type: 'cast', spellId: 'pic_de_glace', target: { x: 4, y: 3 } }).events)[0].amount).toBe(19);
   });
 
-  it('Flèche du zénith ignore la ligne de vue et rapporte de la Concentration', () => {
+  it('Flèche du zénith ignore la ligne de vue', () => {
     const s = setup(['fleche_du_zenith'], (st) => {
       st.units[1].pos = { x: 6, y: 3 };
       st.units[2].pos = { x: 3, y: 3 }; // bloque la ligne de vue
     });
     expect(getCastError(s, 'fleche_du_zenith', { x: 6, y: 3 })).toBeNull();
     const res = applyAction(s, { type: 'cast', spellId: 'fleche_du_zenith', target: { x: 6, y: 3 } });
-    expect(res.state.player.concentration).toBe(1);
+    expect(res.events.some((e) => e.type === 'damage' && e.source === 'spell')).toBe(true);
   });
 
-  it('Roulade déplace d’une case sans PM ni Concentration', () => {
-    const s = setup(['roulade'], (st) => {
-      st.player.concentration = 3;
-    });
+  it('Roulade déplace d’une case sans PM', () => {
+    const s = setup(['roulade'], () => {});
     const res = applyAction(s, { type: 'cast', spellId: 'roulade', target: { x: 2, y: 3 } });
     expect(getPlayer(res.state).pos).toEqual({ x: 2, y: 3 });
     expect(getPlayer(res.state).pm).toBe(getPlayer(s).pm);
-    expect(res.state.player.concentration).toBe(3);
   });
 });
 
@@ -135,10 +132,14 @@ describe('passifs élémentaires', () => {
     expect(col.map((e) => (e.type === 'damage' ? e.amount : 0))).toEqual([24, 12]);
   });
 
-  it('Vent arrière : +1 Concentration pour un sort Air à 5 cases ou plus', () => {
+  it('Vent arrière : +1 PM pour un sort Air à 5 cases ou plus, une fois par tour', () => {
     const s = setup(['fleche_du_vent'], (st) => {
       st.units[1].pos = { x: 6, y: 3 };
     }, ['vent_arriere']);
-    expect(applyAction(s, { type: 'cast', spellId: 'fleche_du_vent', target: { x: 6, y: 3 } }).state.player.concentration).toBe(1);
+    const pm = getPlayer(s).pm;
+    const once = applyAction(s, { type: 'cast', spellId: 'fleche_du_vent', target: { x: 6, y: 3 } }).state;
+    expect(getPlayer(once).pm).toBe(pm + 1);
+    const twice = applyAction(once, { type: 'cast', spellId: 'fleche_du_vent', target: { x: 6, y: 3 } }).state;
+    expect(getPlayer(twice).pm).toBe(pm + 1);
   });
 });

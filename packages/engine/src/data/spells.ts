@@ -66,8 +66,8 @@ export const ELEMENT_IDENTITY: Record<Element, { name: string; text: string }> =
   fire: { name: 'Brûlure', text: 'Dégâts sur la durée, qu’on fait éclater d’un coup.' },
   water: { name: 'Ralenti', text: 'Retire des PM ; une cible ralentie devient vulnérable.' },
   earth: { name: 'Poussée', text: 'Pousse, collisions, frappe plus fort contre un obstacle.' },
-  air: { name: 'Distance', text: 'Portée, tirs en cloche, recul et Concentration.' },
-  neutral: { name: 'Utilitaires', text: 'Se dégager et préparer un tir doublé.' },
+  air: { name: 'Distance', text: 'Longue portée, tirs en cloche et recul après le tir.' },
+  neutral: { name: 'Utilitaires', text: 'Se dégager et préparer ses tirs.' },
 };
 
 /** Catalogue de l'Archer, sorts jusqu'au niveau 20 (tranche T1). Valeurs indicatives du GDD. */
@@ -206,7 +206,7 @@ export const SPELLS: SpellDef[] = [
     target: 'emptyCell',
     jump: true,
     role: 'Mobilité',
-    description: 'Roule sur une case voisine libre, sans PM et sans perdre de Concentration.',
+    description: 'Roule sur une case voisine libre, sans dépenser de PM.',
   },
   {
     id: 'fleche_rocheuse',
@@ -383,9 +383,8 @@ export const SPELLS: SpellDef[] = [
     maxPerTurn: 1,
     target: 'unit',
     damage: 13,
-    concentrationGain: 1,
     role: 'Gros coup',
-    description: 'Tir en cloche, sans ligne de vue : gros dégâts Air et +1 Concentration.',
+    description: 'Tir en cloche à très longue portée, sans ligne de vue : gros dégâts Air.',
   },
 ];
 

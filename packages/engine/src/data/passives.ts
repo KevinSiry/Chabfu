@@ -22,8 +22,8 @@ export interface PassiveMods {
   frozenBonusPct?: number;
   /** % de dégâts de collision en plus quand l'Archer pousse un ennemi. */
   collisionBonusPct?: number;
-  /** Concentration gagnée par un sort Air lancé sur une cible à 5 cases ou plus. */
-  airLongShotConcentration?: number;
+  /** PM rendus par un sort Air lancé sur une cible à 5 cases ou plus. */
+  airLongShotPm?: number;
 }
 
 export interface PassiveDef {
@@ -104,8 +104,8 @@ export const PASSIVES: PassiveDef[] = [
     id: 'vent_arriere',
     name: 'Vent arrière',
     level: 16,
-    description: '+1 Concentration quand un sort Air touche une cible à 5 cases ou plus.',
-    mods: { airLongShotConcentration: 1 },
+    description: '+1 PM quand un sort Air touche une cible à 5 cases ou plus (une fois par tour).',
+    mods: { airLongShotPm: 1 },
   },
 ];
 

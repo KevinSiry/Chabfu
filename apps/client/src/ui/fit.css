@@ -357,7 +357,7 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   #app .lb-tags .ui-chip { min-height: 24px; font-size: 13px; }
   #app .lb-rooms { margin-top: 6px; }
   #app .lb-room { width: 28px; height: 28px; font-size: 15px; }
-  #app .lb-deck { grid-template-columns: repeat(5, 38px); }
+  #app .lb-deck { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
 }
 @media (max-height: 400px) and (orientation: landscape) {
   #app .lb-art { height: 92px; }
