@@ -16,21 +16,45 @@ export const STUFF_LEVELS: Record<string, Rarity | null> = {
   'panoplie-legendaire': 'legendary',
 };
 
-/** Totaux de stats de référence pour la tranche T1 (maîtrise identique dans les quatre éléments). */
-export const STAT_PROFILES: Record<string, { hp: number; mastery: number }> = {
+/**
+ * Totaux de stats de référence pour la tranche T1. Ils comptent toutes les stats d'objets (résistances,
+ * dommages, PM, Concentration par salle), pas seulement PV et maîtrises : un profil sans elles sous-estime
+ * beaucoup un vrai stuff. `faible` ≈ panoplie T1 complète en Commune, `fort` ≈ panoplie complète en Mythique
+ * (fil « Ajouter des stats aux items », 2026-11-10).
+ */
+export interface StatProfile {
+  hp: number;
+  /** Maîtrise identique dans les quatre éléments. */
+  mastery: number;
+  /** Résistance identique dans les quatre éléments. */
+  resistance?: number;
+  damage?: number;
+  pm?: number;
+  range?: number;
+  concentration?: number;
+}
+
+export const STAT_PROFILES: Record<string, StatProfile> = {
   aucun: { hp: 0, mastery: 0 },
   /** Début d'équipement : D10 doit rester hors de portée. */
-  faible: { hp: 90, mastery: 40 },
-  moyen: { hp: 120, mastery: 52 },
+  faible: { hp: 93, mastery: 19, resistance: 11, damage: 4, pm: 1, concentration: 1 },
+  moyen: { hp: 110, mastery: 24, resistance: 14, damage: 4, pm: 1, concentration: 1 },
   /** Équipement presque parfait : D10 doit passer, de justesse. */
-  fort: { hp: 150, mastery: 65 },
+  fort: { hp: 126, mastery: 25, resistance: 15, damage: 6, pm: 1, concentration: 1 },
 };
 
 export function statProfileBonus(name: string): EquipmentBonus {
   const p = STAT_PROFILES[name];
   const b = emptyBonus();
   b.hp = p.hp;
-  for (const e of ['fire', 'water', 'earth', 'air'] as const) b.masteries[e] = p.mastery;
+  b.damage = p.damage ?? 0;
+  b.pm = p.pm ?? 0;
+  b.range = p.range ?? 0;
+  b.concentration = p.concentration ?? 0;
+  for (const e of ['fire', 'water', 'earth', 'air'] as const) {
+    b.masteries[e] = p.mastery;
+    b.resistances[e] = p.resistance ?? 0;
+  }
   return b;
 }
 
@@ -41,7 +65,8 @@ export function stuffBonus(trancheId: number, name: string): EquipmentBonus {
 }
 
 function score(b: EquipmentBonus): number {
-  return b.hp + Object.values(b.masteries).reduce((s, v) => s + v, 0) + 50 * (b.pa + b.pm);
+  const sum = (r: Record<string, number>) => Object.values(r).reduce((s, v) => s + v, 0);
+  return b.hp + sum(b.masteries) + 0.8 * sum(b.resistances) + 8 * b.damage + 15 * (b.range + b.concentration) + 50 * (b.pa + b.pm);
 }
 
 /**

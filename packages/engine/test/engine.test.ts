@@ -76,7 +76,7 @@ describe('combat', () => {
     expect(computeDamage(s, 10, 'fire', player, ronceau, true)).toBe(26);
     const hard = createRun({ ...config, difficulty: 3 });
     expect(computeDamage(hard, 10, 'neutral', getMonsters(hard)[0], getPlayer(hard))).toBe(13);
-    expect(getMonsters(hard)[0].maxHp).toBe(31); // Ronceau : 24 PV × 1,3
+    expect(getMonsters(hard)[0].maxHp).toBe(32); // Ronceau : 24 PV × 1,316
   });
 
   it('le déplacement coûte 1 Concentration par PM', () => {

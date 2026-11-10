@@ -52,9 +52,10 @@ describe('stats des objets', () => {
   });
 
   it('décrit les stats dans un ordre stable', () => {
-    const b = itemStats('amulette_braise', 'common');
-    expect(describeBonus(b, LABELS)).toEqual(['+6 PV', '+6 % Maîtrise Feu', '+6 % Maîtrise Eau', '+1 Concentration par salle', '+4 % Résistance Feu'].filter((x) => describeBonus(b, LABELS).includes(x)));
-    expect(describeBonus(b, LABELS).at(-1)).toContain('Résistance');
+    const lines = describeBonus(itemStats('amulette_braise', 'common'), LABELS);
+    expect(lines[0]).toMatch(/PV$/);
+    expect(lines.findIndex((l) => l.includes('Maîtrise'))).toBeLessThan(lines.findIndex((l) => l.includes('Concentration')));
+    expect(lines.at(-1)).toContain('Résistance Feu');
   });
 });
 

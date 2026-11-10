@@ -35,7 +35,7 @@ describe('objets et raretés', () => {
     expect(itemStats('plastron_ecorce', 'common').hp).toBe(25);
     expect(itemStats('plastron_ecorce', 'rare').hp).toBe(30);
     expect(itemStats('plastron_ecorce', 'legendary').hp).toBe(38); // 37,5 arrondi
-    expect(itemStats('arc_racineux', 'mythic').masteries.fire).toBe(14); // 13,5 arrondi
+    expect(itemStats('arc_racineux', 'mythic').masteries.fire).toBe(12); // 9 × 1,35 = 12,15
   });
 
   it('chaque objet des tables de drop existe', () => {
@@ -112,7 +112,7 @@ describe('inventaire et loadout', () => {
   it('additionne les bonus, compare et nettoie au retrait', () => {
     let inv = equipItem(base, 1, 'i4');
     expect(equipmentBonus(inv, 1).hp).toBe(34);
-    expect(compareWithEquipped(inv, 1, 'i2').masteries.fire).toBe(7);
+    expect(compareWithEquipped(inv, 1, 'i2').masteries.fire).toBe(6);
     inv = unequipSlot(inv, 1, 'plastron');
     expect(equipmentBonus(inv, 1).hp).toBe(0);
     inv = removeItems(equipItem(inv, 1, 'i4'), ['i4']);
@@ -129,7 +129,7 @@ describe('équipement en combat', () => {
     const run = createRun(config);
     const p = getPlayer(run);
     expect(p.maxHp).toBe(150 + 34 + 5);
-    expect(run.player.masteries.fire).toBe(7);
+    expect(run.player.masteries.fire).toBe(6);
     const after = replayRun(config, [{ type: 'endTurn' }]);
     expect(after.turn).toBeGreaterThan(run.turn);
     expect(verifyRun(config, [], 0).valid).toBe(false);

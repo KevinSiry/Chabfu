@@ -1,4 +1,5 @@
 import {
+  difficultyMultiplier,
   DUNGEONS,
   PASSIVES,
   SPELLS,
@@ -208,7 +209,7 @@ function renderSetup(): void {
           <h3>${dungeon?.name ?? 'Aucun donjon'}</h3>
           <label class="muted small" for="diff">Difficulté</label>
           <div class="difficulty"><input type="range" min="1" max="${MAX_DIFFICULTY}" value="${save.difficulty}" id="diff" /><strong id="diff-v">${save.difficulty}</strong></div>
-          <p class="muted small">+15 % de PV, de dégâts et d’XP des monstres par palier.</p>
+          <p class="muted small" id="diff-mult">PV, dégâts et XP des monstres : ×${difficultyMultiplier(save.difficulty).toFixed(2).replace('.', ',')} à cette difficulté (D5 ×1,66, D10 ×2,67).</p>
           ${deckStrip}
           <button class="ghost small-link" id="edit-deck">Modifier le grimoire ›</button>
           <button class="primary launch" id="start">Lancer le donjon</button>
@@ -351,6 +352,8 @@ function renderSetup(): void {
   };
   diff?.addEventListener('input', () => {
     app.querySelector('#diff-v')!.textContent = diff.value;
+    const mult = app.querySelector('#diff-mult');
+    if (mult) mult.textContent = `PV, dégâts et XP des monstres : ×${difficultyMultiplier(Number(diff.value)).toFixed(2).replace('.', ',')} à cette difficulté (D5 ×1,66, D10 ×2,67).`;
     keepDifficulty();
   });
   app.querySelector('#edit-deck')?.addEventListener('click', () => goTab('grimoire'));
