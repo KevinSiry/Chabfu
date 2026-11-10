@@ -5,14 +5,16 @@
 import {
   COLLISION_DAMAGE_PER_CELL,
   DAMAGE_FACTORS,
+  DISTANCE_BONUS_FROM,
+  DISTANCE_BONUS_MAX_CELLS,
+  distanceBonus,
   combinePassives,
   getCastError,
   getPassive,
   getSpell,
   isRangedShot,
-  spellConcentrationCost,
-  spellConcentrationLoss,
   spellDamageOn,
+  spellPaCost,
   spellPower,
   type CastPreview,
   type DamageBreakdown,
@@ -68,15 +70,12 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
   const power = spellPower(state, spellId);
   const color = EL_COLOR[s.element];
   const uses = state.player.spellUses[spellId] ?? 0;
-  const concCost = spellConcentrationCost(s, passives);
-  const concLoss = spellConcentrationLoss(s, passives);
+  const paCost = spellPaCost(s, passives);
   let err = opts.outOfCombat ? null : getCastError(state, spellId);
-  if (err === 'Pas assez de Concentration.') err = `Pas assez de Concentration : ${state.player.concentration} sur ${concCost}.`;
-  if (err === 'Pas assez de PA.') err = `Pas assez de PA : ${state.units.find((u) => u.team === 'player')!.pa} sur ${s.pa}.`;
+  if (err === 'Pas assez de PA.') err = `Pas assez de PA : ${state.units.find((u) => u.team === 'player')!.pa} sur ${paCost}.`;
 
   // Coûts
-  const costs = [`<span class="ss-cost pa"><b>${s.pa}</b> PA</span>`];
-  if (concCost) costs.push(`<span class="ss-cost conc"><b>${concCost}</b> Concentration</span>`);
+  const costs = [`<span class="ss-cost pa"><b>${paCost}</b> PA${paCost < s.pa ? ' <small class="pos">(passif)</small>' : ''}</span>`];
   if (s.maxPerTurn) costs.push(`<span class="ss-cost uses"><b>${opts.outOfCombat ? s.maxPerTurn : `${uses}/${s.maxPerTurn}`}</b> par tour</span>`);
 
   // Dégâts
@@ -85,10 +84,9 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
     const factors = [`${s.damage} de base`];
     if (power.flat) factors.push(`+ ${power.flat} <span class="muted">dommages (équipement)</span>`);
     if (power.mastery) factors.push(`× ${num(1 + power.mastery / 100)} <span class="muted">maîtrise ${ELEMENT_LABEL[s.element]} +${power.mastery} %</span>`);
-    if (power.doubled) factors.push('× 2 <span class="muted">Tir concentré</span>');
     damage = `
       <div class="ss-dmg" style="--c:${color}">
-        <div class="ss-dmg-main"><b>${power.damage.normal}</b><span>dégâts ${el(s.element)}${s.zone ? `<br><small>sur chaque ennemi de la zone</small>` : ''}</span></div>
+        <div class="ss-dmg-main"><b>${power.damage.normal}</b><span>dégâts ${el(s.element)} à ${DISTANCE_BONUS_FROM} cases ou moins${s.zone ? `<br><small>sur chaque ennemi de la zone</small>` : ''}</span><b class="ss-far">${power.damageFar.normal}</b><span>à ${DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS} cases ou plus<br><small class="pos">+${pct(power.maxDistanceBonus)}${power.aimed ? ', tir visé' : ''}</small></span></div>
         ${
           s.element !== 'neutral'
             ? `<div class="ss-dmg-cases">
@@ -133,23 +131,16 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
     fx.push({
       icon: icon('conc'),
       cls: 'conc',
-      html: `<b>Prochain tir doublé</b> : votre prochain sort de dégâts inflige <b>×2</b> dégâts directs (sur chaque cible s’il a une zone). <span class="muted">Le bonus reste actif d’un tour et d’une salle à l’autre jusqu’à ce tir, et ne se cumule pas.</span>`,
+      html: `<b>Tir visé</b> : votre prochain sort de dégâts double son bonus de distance, jusqu’à <b>+${pct(distanceBonus(state, DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS, true))}</b> à ${DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS} cases. <span class="muted">Sans effet sur un tir à ${DISTANCE_BONUS_FROM} cases ou moins. Reste actif d’un tour et d’une salle à l’autre jusqu’à ce tir.</span>`,
     });
   }
-  if (s.damage !== undefined && !power.doubled && state.player.deck.includes('tir_concentre') && !s.buffNextShot) {
-    fx.push({ icon: icon('conc'), cls: 'conc muted-fx', html: `<span class="muted">Doublé par Tir concentré : <b>${power.damage.normal * 2}</b> dégâts.</span>` });
-  }
-
-  // Concentration
+  // Portée = puissance
   const conc: string[] = [];
-  if (concCost) conc.push(`Coûte <b>${concCost}</b> Concentration, et il faut l’avoir pour lancer le sort${concCost < (s.concentrationCost ?? 0) ? ' <span class="pos">(réduit par un passif)</span>' : ''}.`);
-  if (concLoss) conc.push(`Fait perdre <b class="neg">${concLoss}</b> Concentration.`);
-  else if (s.concentrationLoss) conc.push('<span class="pos">Ne fait plus perdre de Concentration (passif).</span>');
-  if (s.concentrationGain)
-    conc.push(
-      `Rapporte <b class="pos">+${s.concentrationGain}</b> Concentration${s.concentrationGainMinDistance ? ` si la cible est à <b>${s.concentrationGainMinDistance} cases ou plus</b> de l’Archer` : ''}.`,
-    );
-  if (s.damage !== undefined && mods.killConcentration) conc.push(`<b class="pos">+${mods.killConcentration}</b> Concentration par ennemi achevé (passif).`);
+  if (s.damage !== undefined && s.target !== 'self') {
+    const steps = [4, 6, 8].map((d) => `${d} cases <b class="pos">+${pct(distanceBonus(state, d, power.aimed))}</b>`);
+    conc.push(`Plus la cible est loin, plus ce sort frappe fort : ${steps.join(' · ')}. <span class="muted">Brûlure et collisions ne sont pas concernées.</span>`);
+  }
+  if (s.damage !== undefined && mods.killPm) conc.push(`<b class="pos">+${mods.killPm} PM</b> par ennemi achevé pendant votre tour (passif).`);
 
   // Passifs qui modifient ce sort
   const affecting = passives
@@ -159,9 +150,9 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
       return (
         (m.burnExtraTurns && s.burn) ||
         (m.rangeBonus && isRangedShot(s)) ||
-        m.noConcentrationLoss?.includes(s.id) ||
-        (m.concentrationCostReduction && m.concentrationCostReduction[s.id]) ||
-        (m.killConcentration && s.damage !== undefined)
+        (m.paCostReduction && m.paCostReduction[s.id]) ||
+        (m.distanceBonusPerCell && s.damage !== undefined) ||
+        (m.killPm && s.damage !== undefined)
       );
     })
     .map((p) => p.name);
@@ -185,9 +176,9 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
         ${s.damage !== undefined ? `<span>Zone</span><b>${zoneDiagram(s.zone)} ${zoneLabel(s.zone)}</b>` : ''}
         <span>Utilisations</span><b>${s.maxPerTurn ? `${plural(s.maxPerTurn, 'fois')} par tour` : 'Illimitées'} <span class="muted">· pas de temps de recharge</span></b>
       </div>
-      ${conc.length ? `<div class="ss-conc"><div class="ss-sec">Concentration</div>${conc.map((c) => `<p>${c}</p>`).join('')}</div>` : ''}
+      ${conc.length ? `<div class="ss-conc"><div class="ss-sec">Portée = puissance</div>${conc.map((c) => `<p>${c}</p>`).join('')}</div>` : ''}
       ${affecting.length ? `<div class="ss-passives">Modifié par : ${affecting.map((n) => `<span class="chip">${esc(n)}</span>`).join(' ')}</div>` : ''}
-      ${power.doubled ? '<div class="ss-note pos">Tir concentré actif : ce tir est doublé et consomme le bonus.</div>' : ''}
+      ${power.aimed ? '<div class="ss-note pos">Tir concentré actif : ce tir double son bonus de distance et consomme le Tir concentré.</div>' : ''}
       ${err ? `<div class="ss-note neg">${esc(err)}</div>` : ''}
     </div>`;
 }
@@ -206,7 +197,7 @@ function briefEffects(state: RunState, s: SpellDef): string[] {
   if (s.pmRemoval) out.push(`−${s.pmRemoval} PM à la cible`);
   if (s.jump) out.push('Saut sur la case');
   if (s.gainPm) out.push(`+${s.gainPm} PM`);
-  if (s.buffNextShot) out.push('Prochain tir ×2');
+  if (s.buffNextShot) out.push('Prochain tir : bonus de distance ×2');
   return out;
 }
 
@@ -219,19 +210,18 @@ export function spellBrief(state: RunState, spellId: string, opts: { slot?: numb
   const passives = state.player.passives ?? [];
   const power = spellPower(state, spellId);
   const color = EL_COLOR[s.element];
-  const concCost = spellConcentrationCost(s, passives);
-  let err = getCastError(state, spellId);
-  if (err === 'Pas assez de Concentration.') err = `Pas assez de Concentration : ${state.player.concentration} sur ${concCost}.`;
+  void passives;
+  const err = getCastError(state, spellId);
   const range = s.target === 'self' ? 'Sur soi' : s.minRange === power.maxRange ? plural(s.minRange, 'case') : `${s.minRange} à ${power.maxRange} cases`;
   const main: string[] = [];
-  if (s.damage !== undefined) main.push(`<b class="sb-dmg">${power.damage.normal}</b> <span>${el(s.element)}</span>`);
+  if (s.damage !== undefined) main.push(`<b class="sb-dmg">${power.damage.normal}–${power.damageFar.normal}</b> <span>${el(s.element)}</span> <span class="muted">de près / à ${DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS}+ cases</span>`);
   main.push(`<span class="sb-range">${icon('range')}${range}</span>`);
   const fx = briefEffects(state, s);
   return `
     <div class="sb" style="--c:${color}">
       <span class="sb-icon">${spellIconImg(spellId)}</span>
       <div class="sb-body">
-        <div class="sb-title"><b>${s.name}</b>${power.doubled ? '<span class="sb-tag pos">×2</span>' : ''}</div>
+        <div class="sb-title"><b>${s.name}</b>${power.aimed ? '<span class="sb-tag pos">Visé</span>' : ''}</div>
         <div class="sb-main">${main.join('')}</div>
         ${fx.length ? `<div class="sb-fx">${fx.map((f) => `<span>${esc(f)}</span>`).join('')}</div>` : ''}
         ${err ? `<div class="sb-err neg">${esc(err)}</div>` : ''}
@@ -252,7 +242,8 @@ function factorLine(d: DamageBreakdown): string {
   if (d.mastery) f.push(`maîtrise +${d.mastery} %`);
   if (d.weakness) f.push(`<span class="pos">faiblesse ×${num(DAMAGE_FACTORS.weakness)}</span>`);
   if (d.resistance) f.push(`<span class="neg">résistance ×${num(DAMAGE_FACTORS.resistance)}</span>`);
-  if (d.doubled) f.push('<span class="pos">Tir concentré ×2</span>');
+  if (d.distanceBonus) f.push(`<span class="pos">${d.distance} cases +${pct(d.distanceBonus)}${d.aimed ? ' (visé)' : ''}</span>`);
+  else f.push(`<span class="muted">${d.distance} cases, pas de bonus</span>`);
   return f.join(' · ');
 }
 
@@ -303,7 +294,7 @@ function errorDetail(p: CastPreview): string {
 /** Carte affichée près du curseur quand un sort est pointé sur une case. */
 export function castTargetCard(state: RunState, p: CastPreview, hovered: Unit | undefined): string {
   const spell = getSpell(p.spellId);
-  const head = `<div class="tp-head" style="--c:${EL_COLOR[spell.element]}"><span class="tp-icon">${spellIconImg(spell.id)}</span><b>${spell.name}</b><span class="tp-pa">${spell.pa} PA</span></div>`;
+  const head = `<div class="tp-head" style="--c:${EL_COLOR[spell.element]}"><span class="tp-icon">${spellIconImg(spell.id)}</span><b>${spell.name}</b><span class="tp-pa">${spellPaCost(spell, state.player.passives ?? [])} PA</span></div>`;
   if (!p.valid) {
     let ghost = '';
     if (hovered && hovered.team === 'monster' && spell.damage !== undefined) {
@@ -318,11 +309,13 @@ export function castTargetCard(state: RunState, p: CastPreview, hovered: Unit | 
   if (p.zone.length > 1) foot.push(`<span>${plural(p.zone.length, 'case')} touchée${p.zone.length > 1 ? 's' : ''} · ${plural(p.targets.filter((t) => !t.hitByCollision).length, 'ennemi')}</span>`);
   if (p.playerMovedTo) foot.push('<span>L’Archer saute sur cette case</span>');
   if (spell.gainPm) foot.push(`<span class="pos">+${spell.gainPm} PM pour l’Archer</span>`);
-  const dc = p.concentrationAfter - p.concentrationBefore;
-  if (dc) foot.push(`<span>Concentration ${p.concentrationBefore} → <b class="${dc > 0 ? 'pos' : 'neg'}">${p.concentrationAfter}</b></span>`);
-  if (p.concentrationGainMissed)
-    foot.push(`<span class="muted">Pas de +${p.concentrationGainMissed.gain} Concentration : cible à ${p.concentrationGainMissed.distance} cases, il en faut ${p.concentrationGainMissed.needed}</span>`);
-  if (p.consumesDouble) foot.push('<span class="pos">Consomme le Tir concentré (×2)</span>');
+  if (spell.damage !== undefined)
+    foot.push(p.distanceBonus ? `<span class="pos">Tir à ${plural(p.distance, 'case')} : +${pct(p.distanceBonus)}</span>` : `<span class="muted">Tir à ${plural(p.distance, 'case')} : pas de bonus de distance</span>`);
+  if (p.consumesAimed) foot.push('<span class="pos">Consomme le Tir concentré</span>');
   if (p.clearsRoom) foot.push('<span class="pos">La salle sera vidée</span>');
   return `<div class="tp">${head}${rows || (spell.damage !== undefined ? '<div class="tp-empty">Aucun ennemi touché.</div>' : '')}${foot.length ? `<div class="tp-foot">${foot.join('')}</div>` : ''}</div>`;
+}
+
+function pct(f: number): string {
+  return `${Math.round(f * 100)} %`;
 }

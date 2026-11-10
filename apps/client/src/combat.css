@@ -259,3 +259,8 @@
 .sb-more:hover { background: rgba(255, 255, 255, 0.12); }
 .sb-more[aria-pressed='true'] { background: var(--c-gold-a, #f6c544); color: var(--c-ink, #1b1033); box-shadow: var(--outline-2, none); }
 :root:not([data-input='pointer']) .sb-more kbd { display: none; }
+
+/* Portée = puissance : réglette des cases 4 à 8 (remplace la jauge de Concentration). */
+#app .cb-player .conc.dist { grid-template-columns: repeat(5, 1fr); }
+#app .cb-player .conc.dist div.on { background: linear-gradient(180deg, #ffe08a, #f2b632); }
+#app .cb-gem.conc { background: linear-gradient(180deg, #ffd66b 0 50%, #e09a1f 50%); }

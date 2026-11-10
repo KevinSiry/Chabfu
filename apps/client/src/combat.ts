@@ -4,14 +4,16 @@
  * réimplémente aucune règle.
  */
 import {
-  MAX_CONCENTRATION,
+  DISTANCE_BONUS_FROM,
+  DISTANCE_BONUS_MAX_CELLS,
   PLAYER_ID,
   applyAction,
   combinePassives,
   combinedThreat,
-  spellConcentrationCost,
-  spellConcentrationLoss,
+  distanceBonus,
+  maxDistanceBonus,
   spellMaxRange,
+  spellPaCost,
   equipmentRange,
   getCastError,
   getDungeon,
@@ -28,7 +30,6 @@ import {
   samePos,
   turnOrder,
   unitAt,
-  willGainConcentrationNextTurn,
   type Action,
   type EnemyTurnPreview,
   type GameEvent,
@@ -90,9 +91,9 @@ interface Overlay {
   intents: Map<string, { text: string; color: string }>;
   tooltip: string | null;
   inspector: string;
-  /** Concentration prévue après l'action survolée. */
-  concPreview: number | null;
-  concReason: string | null;
+  /** Distance de tir et bonus de distance de la case visée (sort de dégâts). */
+  aimDistance: number | null;
+  aimBonus: number | null;
   /** PV prévus après le sort visé, par unité (barres de vie du plateau). */
   hpPreview: Map<string, HpPreview>;
 }
@@ -653,8 +654,8 @@ function openPauseMenu(): void {
 function legendHtml(): string {
   const row = (cls: string, title: string, text: string) => `<li><i class="lg-sw ${cls}"></i><span><b>${title}</b>${text}</span></li>`;
   return `<ul class="cb-legend">
-    ${row('move', 'Déplacement', 'Cases atteignables avec vos PM. Chaque PM dépensé fait perdre 1 de Concentration.')}
-    ${row('range', 'Portée du sort', 'Cases où vous pouvez lancer le sort choisi.')}
+    ${row('move', 'Déplacement', 'Cases atteignables avec vos PM.')}
+    ${row('range', 'Portée du sort', 'Cases où vous pouvez lancer le sort choisi. Plus la case est dorée, plus le tir frappe fort (+6 % par case au-delà de 3).')}
     ${row('nolos', 'Sans ligne de vue', 'À portée, mais un obstacle ou une unité bloque le tir (hachures).')}
     ${row('zone', 'Zone d’effet', 'Cases touchées par le sort sur la cible visée.')}
     ${row('enemy', 'Déplacement ennemi', 'Où le monstre choisi peut aller à son tour.')}
@@ -943,9 +944,6 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
     v.log.push({ cls, html });
     renderLog();
   };
-  let lastCause = '';
-  let lastTarget: Pos | null = null;
-  let lastKill = false;
   const findUnit = (id: string): Unit | undefined => before.units.find((x) => x.id === id) ?? v.state.units.find((x) => x.id === id);
   for (const ev of events) {
     if (view !== v) return;
@@ -958,7 +956,6 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
           log('turn', `Tour ${ev.turn}`);
           sfx('turn');
           yourTurn();
-          lastCause = 'immobile au tour précédent';
         } else {
           if (u) u.pmMalus = 0;
           log('actor', `Tour de ${esc(unitName(v, before, ev.unitId))}`);
@@ -968,7 +965,6 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
       case 'move':
         if (ev.unitId === PLAYER_ID) {
           log('', `Archer se déplace de ${ev.path.length} case${ev.path.length > 1 ? 's' : ''}`);
-          lastCause = 'déplacement';
         }
         if (u)
           for (const step of ev.path) {
@@ -988,9 +984,13 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
       }
       case 'cast': {
         const s = getSpell(ev.spellId);
-        lastCause = s.name;
-        lastTarget = ev.target;
-        log('cast', `Archer lance ${el(s.element)} <b>${s.name}</b>`);
+        let far = '';
+        if (s.damage !== undefined) {
+          const d = Math.abs(getPlayer(before).pos.x - ev.target.x) + Math.abs(getPlayer(before).pos.y - ev.target.y);
+          const b = distanceBonus(before, d, before.player.nextShotAimed);
+          far = b ? ` <span class="pos">à ${d} cases, +${pct(b)}</span>` : ` <span class="muted">à ${d} cases</span>`;
+        }
+        log('cast', `Archer lance ${el(s.element)} <b>${s.name}</b>${far}`);
         sfx('cast');
         const p = v.display.get(PLAYER_ID);
         if (p && s.target !== 'self' && !s.jump) await shoot(v, p, ev.target, ELEMENT_COLORS[s.element]);
@@ -1045,16 +1045,7 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
         log('sub', `${esc(unitName(v, before, ev.unitId))} : ${esc(ev.text)}`);
         break;
       }
-      case 'concentration': {
-        const p = v.display.get(PLAYER_ID);
-        if (p) v.floats.push({ x: p.x, y: p.y, text: `${ev.delta > 0 ? '+' : ''}${ev.delta} Conc.`, color: '#b67ee8', born: performance.now() + 250, size: 14 });
-        const cause = lastKill ? 'ennemi vaincu' : lastCause === 'Flèche ardente' && ev.delta > 0 && lastTarget ? 'tir à 5 cases ou plus' : lastCause;
-        lastKill = false;
-        log('sub concl', `Concentration <b>${ev.value - ev.delta} → ${ev.value}</b> <span class="muted">(${esc(cause)})</span>`);
-        break;
-      }
       case 'death':
-        lastKill = true;
         log('death', `${esc(unitName(v, before, ev.unitId))} est vaincu`);
         if (u && ev.unitId !== PLAYER_ID) {
           sfx('kill');
@@ -1112,7 +1103,7 @@ function refreshOverlay(): void {
     view.overlayKey = k;
     view.overlay = computeOverlay(view);
     renderInspector();
-    renderConcentration();
+    renderDistance();
   }
   positionCursorTip();
 }
@@ -1141,7 +1132,7 @@ function playerCard(v: RunView): string {
   const p = getPlayer(v.state);
   const st: string[] = [];
   if (p.burn) st.push(`<span class="chip fire">Brûlure ${p.burn.damage} × ${p.burn.turns}</span>`);
-  if (v.state.player.nextShotDouble) st.push('<span class="chip conc">Prochain tir ×2</span>');
+  if (v.state.player.nextShotAimed) st.push('<span class="chip conc">Prochain tir visé</span>');
   return `<div class="card-head"><b>Archer</b></div>
     <div class="hp-line"><span>${p.hp} / ${p.maxHp} PV</span></div>
     <div class="bar"><div style="width:${(100 * p.hp) / p.maxHp}%;background:var(--hp)"></div></div>
@@ -1164,8 +1155,8 @@ function computeOverlay(v: RunView): Overlay {
     intents: intentBadges(v),
     tooltip: null,
     inspector: defaultInspector(),
-    concPreview: null,
-    concReason: null,
+    aimDistance: null,
+    aimBonus: null,
     hpPreview: new Map(),
   };
   const s = v.state;
@@ -1192,8 +1183,16 @@ function computeOverlay(v: RunView): Overlay {
 
   const spellId = v.selectedSpell ?? v.hoverSpell;
   if (spellId && getSpell(spellId).target !== 'self') {
+    // Portée = puissance : plus la case est loin, plus elle tire vers l'or (bonus de distance).
+    const hits = getSpell(spellId).damage !== undefined;
+    const maxB = maxDistanceBonus(s, s.player.nextShotAimed) || 1;
     for (const c of getSpellRange(s, spellId)) {
-      o.highlights.push(c.los ? { pos: c.pos, color: COLORS.range } : { pos: c.pos, color: COLORS.rangeNoLos, hatch: 'rgba(20, 20, 30, 0.55)' });
+      if (!c.los) {
+        o.highlights.push({ pos: c.pos, color: COLORS.rangeNoLos, hatch: 'rgba(20, 20, 30, 0.55)' });
+        continue;
+      }
+      const b = hits ? distanceBonus(s, Math.abs(c.pos.x - player.pos.x) + Math.abs(c.pos.y - player.pos.y), s.player.nextShotAimed) : 0;
+      o.highlights.push({ pos: c.pos, color: b ? `rgba(246, 190, 60, ${(0.22 + 0.4 * (b / maxB)).toFixed(2)})` : COLORS.range });
     }
   } else if (!v.selectedSpell) {
     for (const p of v.analysis.reach.values()) o.highlights.push({ pos: p[p.length - 1], color: COLORS.move });
@@ -1232,8 +1231,10 @@ function computeOverlay(v: RunView): Overlay {
         o.ghosts.push({ x: preview.playerMovedTo.x, y: preview.playerMovedTo.y, templateId: player.templateId, team: player.team, isBoss: false, name: player.name });
         o.arrows.push({ points: [player.pos, preview.playerMovedTo], color: 'rgba(216, 255, 216, 0.9)' });
       }
-      o.concPreview = preview.concentrationAfter;
-      o.concReason = spell.name;
+      if (spell.damage !== undefined) {
+        o.aimDistance = preview.distance;
+        o.aimBonus = preview.distanceBonus;
+      }
     } else if (preview.error === 'Pas de ligne de vue.') {
       o.arrows.push({ points: [player.pos, v.hover], color: 'rgba(224, 84, 79, 0.9)', dashed: true, head: false, width: 2 });
     }
@@ -1248,10 +1249,7 @@ function computeOverlay(v: RunView): Overlay {
     const path = v.analysis.reach.get(key(v.hover));
     if (path) {
       o.path = path;
-      const concAfter = Math.max(0, s.player.concentration - path.length);
-      o.concPreview = concAfter;
-      o.concReason = `déplacement de ${path.length} PM`;
-      o.tooltip = `<b>${path.length} PM</b>${concAfter !== s.player.concentration ? ` · Concentration ${s.player.concentration} → <span class="neg">${concAfter}</span>` : ''}`;
+      o.tooltip = `<b>${path.length} PM</b>`;
     } else if (hovered?.id === PLAYER_ID && !subjectId) {
       o.inspector = playerCard(v);
     }
@@ -1385,12 +1383,12 @@ function renderHud(): void {
     <div class="cb-res">
       <span class="cb-gem pa" title="Points d'action">${icon('pa')}<b>${player.pa}</b><small>PA</small></span>
       <span class="cb-gem pm" title="Points de mouvement">${icon('pm')}<b>${player.pm}</b><small>PM</small></span>
-      <span class="cb-gem conc" title="Concentration">${icon('conc')}<b id="conc-value">${state.player.concentration}</b><small>Conc.</small></span>
+      <span class="cb-gem conc" title="Bonus de distance du tir visé">${icon('range')}<b id="conc-value">+0 %</b><small>Dist.</small></span>
     </div>
     <div class="conc-wrap" id="conc"></div>
     <div class="dock-states">
       ${player.burn ? `<span class="ui-chip ui-chip--danger">${icon('burn')} Brûlure ${player.burn.damage} × ${player.burn.turns}</span>` : ''}
-      ${state.player.nextShotDouble ? `<span class="ui-chip ui-chip--gold">${icon('conc')} Prochain tir ×2</span>` : ''}
+      ${state.player.nextShotAimed ? `<span class="ui-chip ui-chip--gold">${icon('conc')} Prochain tir visé : bonus de distance ×2</span>` : ''}
     </div>`;
 
   const bar = document.getElementById('spellbar')!;
@@ -1400,14 +1398,13 @@ function renderHud(): void {
       const err = getCastError(state, id);
       const uses = state.player.spellUses[id] ?? 0;
       const disabled = !!err || v.busy;
-      const cc = spellConcentrationCost(s, state.player.passives ?? []);
+      const pa = spellPaCost(s, state.player.passives ?? []);
       const mr = spellMaxRange(s, state.player.passives ?? [], equipmentRange(state));
       const range = mr === 0 ? 'soi' : s.minRange === mr ? `${s.minRange}` : `${s.minRange}–${mr}`;
       return `<button class="spell-btn el-${s.element} ${v.selectedSpell === id ? 'active' : ''} ${disabled ? 'off' : ''}" data-spell="${id}" ${disabled ? 'aria-disabled="true"' : ''} aria-label="${esc(s.name)}">
         <span class="slot-icon">${spellGlyph(s.name)}${spellIconImg(id)}</span>
         <kbd class="slot-key">${esc(slotKeyLabel(i))}</kbd>
-        <span class="slot-pa">${s.pa}</span>
-        ${cc ? `<span class="slot-conc">${cc}</span>` : ''}
+        <span class="slot-pa">${pa}</span>
         ${s.maxPerTurn ? `<span class="slot-uses">${uses}/${s.maxPerTurn}</span>` : ''}
         <span class="slot-name">${s.name}</span>
         <span class="slot-range">${icon('range')}${range}</span>
@@ -1423,7 +1420,7 @@ function renderHud(): void {
   renderEndPreview();
   renderTurnOrder();
   renderLog();
-  renderConcentration();
+  renderDistance();
   renderSelection();
 }
 
@@ -1478,47 +1475,32 @@ function renderTurnOrder(): void {
       .join('<span class="to-sep">›</span>');
 }
 
-function renderConcentration(): void {
+/** Règle de portée = puissance : réglette des cases 4 à 8 et bonus du tir visé. */
+function renderDistance(): void {
   if (!view) return;
   const v = view;
   const el = document.getElementById('conc');
   if (!el) return;
-  const now = v.state.player.concentration;
-  const preview = v.busy ? null : (v.overlay?.concPreview ?? null);
-  const passives = v.state.player.passives ?? [];
-  const mods = combinePassives(passives);
-  const costs = v.state.player.deck
-    .map(getSpell)
-    .map((s) => ({ name: s.name, cost: spellConcentrationCost(s, passives) }))
-    .filter((s) => s.cost);
-  const segs = Array.from({ length: MAX_CONCENTRATION }, (_, i) => {
-    let cls = i < now ? 'on' : '';
-    if (preview !== null && preview < now && i >= preview && i < now) cls = 'on lose';
-    if (preview !== null && preview > now && i >= now && i < preview) cls = 'gain';
-    const mark = costs.some((s) => s.cost === i + 1) ? 'mark' : '';
-    return `<div class="${cls} ${mark}"></div>`;
+  const aimed = v.state.player.nextShotAimed;
+  const d = v.busy ? null : (v.overlay?.aimDistance ?? null);
+  const bonus = v.busy ? null : (v.overlay?.aimBonus ?? null);
+  const segs = Array.from({ length: DISTANCE_BONUS_MAX_CELLS }, (_, i) => {
+    const cells = DISTANCE_BONUS_FROM + 1 + i;
+    return `<div class="${d !== null && d >= cells ? 'on' : ''}" title="${cells} cases : +${pct(distanceBonus(v.state, cells, aimed))}"></div>`;
   }).join('');
   const lines: string[] = [];
-  if (preview !== null && preview !== now) lines.push(`<b class="${preview > now ? 'pos' : 'neg'}">${now} → ${preview}</b> (${esc(v.overlay?.concReason ?? '')})`);
-  if (v.state.player.nextShotDouble) lines.push('<span class="pos">Prochain tir doublé.</span>');
-  lines.push(
-    willGainConcentrationNextTurn(v.state)
-      ? `<span class="pos">+${1 + mods.stillConcentrationBonus}</span> au début du prochain tour si vous ne bougez pas.`
-      : `Vous avez bougé ce tour : pas de <span class="pos">+${1 + mods.stillConcentrationBonus}</span> au prochain tour.`,
-  );
-  const gains = v.state.player.deck
-    .map(getSpell)
-    .filter((s) => s.concentrationGain || spellConcentrationLoss(s, passives))
-    .map((s) => (s.concentrationGain ? `${s.name} <span class="pos">+${s.concentrationGain}</span>${s.concentrationGainMinDistance ? ` (cible à ${s.concentrationGainMinDistance}+ cases)` : ''}` : `${s.name} <span class="neg">−${spellConcentrationLoss(s, passives)}</span>`));
-  const rules = [
-    `Chaque PM dépensé <span class="neg">−1</span>`,
-    ...gains,
-    ...(mods.killConcentration ? [`Chaque ennemi vaincu <span class="pos">+${mods.killConcentration}</span>`] : []),
-    ...costs.map((s) => `${s.name} coûte ${s.cost}`),
-  ];
-  el.innerHTML = `<div class="conc">${segs}</div><div class="conc-info">${lines.map((l) => `<div>${l}</div>`).join('')}<div class="muted">${rules.join(' · ')}</div></div>`;
+  if (d !== null && bonus !== null)
+    lines.push(bonus ? `Tir à <b>${d} cases</b> : <b class="pos">+${pct(bonus)}</b> de dégâts.` : `Tir à <b>${d} cases</b> : pas de bonus, reculez au-delà de ${DISTANCE_BONUS_FROM} cases.`);
+  if (aimed) lines.push('<span class="pos">Prochain tir visé : bonus de distance doublé.</span>');
+  const per = distanceBonus(v.state, DISTANCE_BONUS_FROM + 1);
+  const rule = `Portée = puissance : <b>+${pct(per)}</b> de dégâts par case au-delà de ${DISTANCE_BONUS_FROM}, jusqu’à <b>+${pct(maxDistanceBonus(v.state, aimed))}</b> à ${DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS} cases ou plus. Se déplacer ne coûte que des PM.`;
+  el.innerHTML = `<div class="conc dist">${segs}</div><div class="conc-info">${lines.map((l) => `<div>${l}</div>`).join('')}<div class="muted">${rule}</div></div>`;
   const val = document.getElementById('conc-value');
-  if (val) val.textContent = String(now);
+  if (val) val.textContent = `+${pct(bonus ?? 0)}`;
+}
+
+function pct(f: number): string {
+  return `${Math.round(f * 100)} %`;
 }
 
 function renderInspector(): void {
