@@ -34,9 +34,13 @@ import { bindHubTabs, hubBarHtml, type HubTab } from './ui/hub';
 import { renderRunEndSections } from './character/run-end';
 import { getCharacter, saveCharacter } from './character/store';
 import { bindCharacterBanner, renderCharacterCreation } from './character/ui';
-// Habillages : peint (bois et or), puis « new gen » (verre nocturne) qui le remplace quand html[data-skin] est posé.
-import './ui/skin.css';
+// Habillage « Verre nocturne » (actif par html[data-skin="nuit"]), jetons dans ui/tokens.css.
+import './ui/legacy.css';
 import './ui/skin-ng.css';
+import './ui/components.css';
+import { trackInputMode } from './ui/components';
+import { applySettings } from './ui/settings';
+import { elementIcon, icon } from './ui/icons';
 
 
 const app = document.getElementById('app')!;
@@ -94,7 +98,7 @@ function dungeonListHtml(dungeons: DungeonDef[], selected: DungeonDef | undefine
             <div class="head">${d.name}</div>
             <div class="meta"><span class="el el-${d.dominantElement}"></span>${ELEMENT_LABEL[d.dominantElement]} · craint ${ELEMENT_LABEL[d.weakElement]} <span class="el el-${d.weakElement}"></span></div>
             <div class="meta">${d.rooms.length - 1} salle${d.rooms.length > 2 ? 's' : ''} + ${boss?.name ?? 'boss'}</div>
-            <div class="record ${best ? 'done' : ''}">${best ? `★ Diff. ${best.difficulty} · ${best.turns} tours` : 'Pas encore terminé'}</div>
+            <div class="record ${best ? 'done' : ''}">${best ? `${icon('trophy')} Diff. ${best.difficulty} · ${best.turns} tours` : 'Pas encore terminé'}</div>
           </div>
         </button>`;
         })
@@ -102,7 +106,7 @@ function dungeonListHtml(dungeons: DungeonDef[], selected: DungeonDef | undefine
     </div>`;
 }
 
-const ELEMENT_SIGIL: Record<string, string> = { fire: '🜂', water: '🜄', earth: '🜃', air: '🜁', neutral: '◈' };
+const ELEMENT_SIGIL: Record<string, string> = { fire: elementIcon('fire'), water: elementIcon('water'), earth: elementIcon('earth'), air: elementIcon('air'), neutral: elementIcon('neutral') };
 
 // ---------------------------------------------------------------------------
 // Hub (personnage, donjons, grimoire)
@@ -193,7 +197,7 @@ function renderSetup(): void {
                   ${dungeon.rooms
                     .map((r, i) => {
                       const isBoss = i === dungeon.rooms.length - 1;
-                      return `<div class="room-step ${isBoss ? 'boss' : ''}"><b>${isBoss ? '☠' : i + 1}</b><span>${r.name}</span><small>${r.monsters.length} monstre${r.monsters.length > 1 ? 's' : ''}</small></div>`;
+                      return `<div class="room-step ${isBoss ? 'boss' : ''}"><b>${isBoss ? icon('skull') : i + 1}</b><span>${r.name}</span><small>${r.monsters.length} monstre${r.monsters.length > 1 ? 's' : ''}</small></div>`;
                     })
                     .join('<span class="room-link"></span>')}
                 </div>
@@ -241,7 +245,7 @@ function renderSetup(): void {
                 return `
               <button class="spell-card el-theme-${s.element} ${locked ? 'locked' : ''}" data-spell="${s.id}" ${locked ? 'disabled' : ''}>
                 <span class="spell-card-icon">${spellIconImg(s.id)}</span>
-                <div class="head"><span><span class="el el-${s.element}"></span>${s.name}</span><span class="cost">${locked ? `🔒 Niv. ${s.level}` : `${s.pa} PA`}</span></div>
+                <div class="head"><span><span class="el el-${s.element}"></span>${s.name}</span><span class="cost">${locked ? `${icon('lock')} Niv. ${s.level}` : `${s.pa} PA`}</span></div>
                 <div class="meta">Niv. ${s.level} · ${ELEMENT_LABEL[s.element]} · ${rangeLabel(s.minRange, s.maxRange)}${s.maxPerTurn ? ` · ${s.maxPerTurn}/tour` : ''}</div>
                 <div class="desc">${s.description}</div>
               </button>`;
@@ -257,7 +261,7 @@ function renderSetup(): void {
                 const locked = p.level > effLevel;
                 return `
               <button class="passive-card ${locked ? 'locked' : ''}" data-passive="${p.id}" ${locked ? 'disabled' : ''}>
-                <div class="head"><span>${p.name}</span><span class="muted">${locked ? '🔒 ' : ''}Niv. ${p.level}</span></div>
+                <div class="head"><span>${p.name}</span><span class="muted">${locked ? icon('lock') + ' ' : ''}Niv. ${p.level}</span></div>
                 <div class="desc">${p.description}</div>
               </button>`;
               })
@@ -466,8 +470,8 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
   overlay.innerHTML = `
     <div class="card${rewards ? ' with-loot' : ''}">
       <div class="end-banner ${won ? 'ok' : 'ko'}"><h2>${won ? 'Victoire !' : abandoned ? 'Run abandonné' : 'Défaite'}</h2></div>
-      <div class="end-stats"><span>Difficulté ${v.config.difficulty}</span><span>${v.state.turn} tours</span><span>⏱ ${formatTime(timeMs)}</span></div>
-      ${check ? `<p class="${check.valid ? 'ok' : 'ko'}">${check.valid ? '✓ Replay validé (même moteur que le serveur)' : `✗ Replay invalide : ${check.reason}`}</p>` : `<p class="muted">Salle ${v.state.roomIndex + 1} atteinte.</p>`}
+      <div class="end-stats"><span>Difficulté ${v.config.difficulty}</span><span>${v.state.turn} tours</span><span>${icon('clock')} ${formatTime(timeMs)}</span></div>
+      ${check ? `<p class="${check.valid ? 'ok' : 'ko'}">${check.valid ? `${icon('check')} Score vérifié` : `${icon('cross')} Score non vérifié : ${check.reason}`}</p>` : `<p class="muted">Salle ${v.state.roomIndex + 1} atteinte.</p>`}
       ${loot.length ? lootPanelHtml(loot, v.config) : ''}
       ${rewards ? rewardsPanelHtml(rewards) : ''}
       <div class="row">
@@ -510,7 +514,7 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     const payload = JSON.stringify({ config: v.config, actions: v.state.actionLog, turns: v.state.turn });
     try {
       await navigator.clipboard.writeText(payload);
-      (overlay.querySelector('#copy') as HTMLButtonElement).textContent = 'Copié ✓';
+      (overlay.querySelector('#copy') as HTMLButtonElement).innerHTML = `Copié ${icon('check')}`;
     } catch {
       console.log(payload);
     }
@@ -525,4 +529,10 @@ document.addEventListener('keydown', (e) => {
   if (top && top.querySelector('[data-close]')) top.remove();
 });
 
-renderSetup();
+applySettings();
+trackInputMode();
+if (new URLSearchParams(location.search).get('dev') === 'ui') {
+  void import('./ui/gallery').then((m) => m.renderGallery(app));
+} else {
+  renderSetup();
+}

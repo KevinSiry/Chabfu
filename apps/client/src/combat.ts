@@ -59,6 +59,7 @@ import {
   type Projectile,
   type Scene,
 } from './render';
+import { icon } from './ui/icons';
 
 export interface RunHooks {
   onExit(): void;
@@ -447,7 +448,7 @@ function act(action: Action): void {
   try {
     result = applyAction(view.state, action);
   } catch (e) {
-    view.log.push({ cls: 'warn', html: `⚠ ${esc((e as Error).message)}` });
+    view.log.push({ cls: 'warn', html: `${icon('info')} ${esc((e as Error).message)}` });
     renderHud();
     return;
   }
@@ -677,8 +678,8 @@ function intentBadges(v: RunView): Map<string, { text: string; color: string }> 
   const out = new Map<string, { text: string; color: string }>();
   if (v.busy || !v.analysis.enemy) return out;
   for (const i of v.analysis.enemy.intents) {
-    if (i.diesFromBurn) out.set(i.unitId, { text: '☠ brûlure', color: '#f2c14e' });
-    else if (i.damageToPlayer) out.set(i.unitId, { text: `⚔ ${i.damageToPlayer}`, color: '#ff8a80' });
+    if (i.diesFromBurn) out.set(i.unitId, { text: 'Brûlure fatale', color: '#f2c14e' });
+    else if (i.damageToPlayer) out.set(i.unitId, { text: `−${i.damageToPlayer}`, color: '#ff8a80' });
   }
   return out;
 }
@@ -777,8 +778,8 @@ function computeOverlay(v: RunView): Overlay {
       for (const t of preview.targets) {
         const u = s.units.find((x) => x.id === t.unitId)!;
         o.hpPreview.set(u.id, { hpAfter: t.hpAfter, burn: t.killed || !t.burn ? 0 : t.burn.damage * t.burn.turns, killed: t.killed });
-        if (t.killed) o.markers.push({ x: u.pos.x, y: u.pos.y, text: '☠ Vaincu', color: '#ff6b62', row: 0 });
-        else if (t.burnKillsIn) o.markers.push({ x: u.pos.x, y: u.pos.y, text: '☠ brûlure', color: '#ff9b4a', row: 0 });
+        if (t.killed) o.markers.push({ x: u.pos.x, y: u.pos.y, text: 'Vaincu', color: '#ff6b62', row: 0 });
+        else if (t.burnKillsIn) o.markers.push({ x: u.pos.x, y: u.pos.y, text: 'Brûlure fatale', color: '#ff9b4a', row: 0 });
         if (t.push && t.push.cells) {
           o.arrows.push({ points: [t.push.from, t.push.to], color: 'rgba(255, 255, 255, 0.9)' });
           o.ghosts.push({ x: t.push.to.x, y: t.push.to.y, templateId: u.templateId, team: u.team, isBoss: !!u.isBoss, name: u.name });
@@ -892,7 +893,7 @@ function showSpellTip(btn: HTMLElement): void {
 function updateClock(): void {
   if (!view) return;
   const el = document.getElementById('clock');
-  if (el) el.textContent = `⏱ ${formatTime((view.endedAt ?? performance.now()) - view.startedAt)}`;
+  if (el) el.innerHTML = `${icon('clock')} ${formatTime((view.endedAt ?? performance.now()) - view.startedAt)}`;
 }
 
 export function formatTime(ms: number): string {
@@ -1011,7 +1012,7 @@ function renderTurnOrder(): void {
         return `<div class="to-chip ${now ? 'now' : ''} ${v.pinned === u.id ? 'pinned' : ''}" data-unit="${u.id}" title="${esc(u.name)}">
           <span class="to-dot" style="background:${unitColor(u.templateId)}">${u.id === PLAYER_ID ? 'A' : esc(u.name[0])}${unitPortraitImg(u.id === PLAYER_ID ? 'archer' : u.templateId)}</span>
           <span class="to-info"><span class="to-name">${esc(u.name)}</span><span class="to-hp"><i style="width:${(100 * hp) / u.maxHp}%"></i></span></span>
-          ${!v.busy && intent?.damageToPlayer ? `<span class="to-intent">⚔${intent.damageToPlayer}</span>` : ''}
+          ${!v.busy && intent?.damageToPlayer ? `<span class="to-intent">${icon('sword')}${intent.damageToPlayer}</span>` : ''}
         </div>`;
       })
       .join('<span class="to-sep">›</span>');

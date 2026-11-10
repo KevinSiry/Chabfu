@@ -26,6 +26,7 @@ import '../stuff/stuff.css';
 import './craft.css';
 import { itemIconImg } from '../ui/assets';
 import { getCrafting, setCrafting } from './store';
+import { icon } from '../ui/icons';
 
 export interface WorkshopScreenOptions {
   trancheId: number;
@@ -54,7 +55,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
   app.innerHTML = `
     <div class="setup stuff">
       <header><h1>Atelier</h1><p>Tranche T${o.trancheId} · craft et recyclage</p>
-        <button class="secondary" id="craft-back" style="margin-left:auto">← Retour</button></header>
+        <button class="secondary" id="craft-back" style="margin-left:auto">${icon('back')} Retour</button></header>
       <div class="craft-grid">
         <div class="side">
           <div class="card">
@@ -195,7 +196,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
       const res = craft(getInventory(), getCrafting(), b.dataset.craft!);
       setInventory(res.inventory);
       setCrafting(res.crafting);
-      flash = `✓ ${getItem(res.item.itemId).name} (${RARITIES[res.item.rarity].label}) ajouté au sac.`;
+      flash = `${icon('check')} ${getItem(res.item.itemId).name} (${RARITIES[res.item.rarity].label}) ajouté au sac.`;
       rerender();
     }),
   );
@@ -204,7 +205,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     setInventory(res.inventory);
     setCrafting(res.crafting);
     const gained = res.shardsGained[o.trancheId] ?? 0;
-    flash = res.recycled.length ? `♻ ${res.recycled.length} objet${res.recycled.length > 1 ? 's' : ''} recyclé${res.recycled.length > 1 ? 's' : ''} : +${gained} éclats.` : '';
+    flash = res.recycled.length ? `${icon('recycle')} ${res.recycled.length} objet${res.recycled.length > 1 ? 's' : ''} recyclé${res.recycled.length > 1 ? 's' : ''} : +${gained} éclats.` : '';
     rerender();
   };
   app.querySelectorAll<HTMLButtonElement>('[data-recycle]').forEach((b) => b.addEventListener('click', () => recycle([b.dataset.recycle!])));

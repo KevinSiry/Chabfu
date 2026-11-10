@@ -3,9 +3,6 @@
  * Actif quand <html data-skin="nuit"> (posé dans index.html). Remplace les cadres peints en 9-slice
  * par des surfaces lisses (verre dépoli, aplats, dégradés doux) et une typographie nette.
  */
-@import '@fontsource/outfit/500.css';
-@import '@fontsource/outfit/600.css';
-@import '@fontsource/outfit/700.css';
 
 /* ---------- Jetons ---------- */
 :root[data-skin='nuit'] {

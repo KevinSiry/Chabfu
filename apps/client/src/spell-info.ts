@@ -26,6 +26,7 @@ import { slotKeyLabel } from './keys';
 import { spellIconImg } from './ui/assets';
 import { ELEMENT_LABEL, el, esc } from './info';
 import './ui/spell-info.css';
+import { icon } from './ui/icons';
 
 const EL_COLOR: Record<Element, string> = { fire: '#ff7a4d', water: '#4fb0ff', earth: '#d1a060', air: '#7fe08a', neutral: '#c9d2e3' };
 const num = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -108,7 +109,7 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
   if (s.burn && power.burn) {
     const b = power.burn;
     fx.push({
-      icon: '🔥',
+      icon: icon('burn'),
       cls: 'fire',
       html: `<b>Brûlure</b> : <b>${b.perTurn.normal}</b> dégâts Feu au début de chacun de ses <b>${b.turns}</b> prochains tours, soit <b>${b.perTurn.normal * b.turns}</b> au total${
         b.turns > s.burn.turns ? ` <span class="pos">(+${b.turns - s.burn.turns} tour, passif)</span>` : ''
@@ -117,25 +118,25 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
   }
   if (s.push) {
     fx.push({
-      icon: '➜',
+      icon: icon('push'),
       cls: 'earth',
       html: `<b>Poussée</b> : repousse la cible de <b>${plural(s.push, 'case')}</b>, à l’opposé de l’Archer. Contre un rocher ou une unité : <b>${COLLISION_DAMAGE_PER_CELL}</b> dégâts par case non parcourue, et la moitié à l’unité heurtée.`,
     });
   }
   if (s.pmRemoval) {
-    fx.push({ icon: '❄', cls: 'water', html: `<b>Ralentit</b> : retire <b>${s.pmRemoval} PM</b> à la cible pour son prochain tour. <span class="muted">Se cumule si vous le relancez.</span>` });
+    fx.push({ icon: icon('slow'), cls: 'water', html: `<b>Ralentit</b> : retire <b>${s.pmRemoval} PM</b> à la cible pour son prochain tour. <span class="muted">Se cumule si vous le relancez.</span>` });
   }
-  if (s.jump) fx.push({ icon: '⤴', cls: 'neutral', html: `<b>Saut</b> : l’Archer atterrit sur la case visée, par-dessus rochers et unités. <span class="muted">Ne coûte pas de PM.</span>` });
-  if (s.gainPm) fx.push({ icon: '👣', cls: 'air', html: `<b>Élan</b> : rend <b>${s.gainPm} PM</b> à l’Archer, utilisable tout de suite.` });
+  if (s.jump) fx.push({ icon: icon('jump'), cls: 'neutral', html: `<b>Saut</b> : l’Archer atterrit sur la case visée, par-dessus rochers et unités. <span class="muted">Ne coûte pas de PM.</span>` });
+  if (s.gainPm) fx.push({ icon: icon('pm'), cls: 'air', html: `<b>Élan</b> : rend <b>${s.gainPm} PM</b> à l’Archer, utilisable tout de suite.` });
   if (s.buffNextShot) {
     fx.push({
-      icon: '◎',
+      icon: icon('conc'),
       cls: 'conc',
       html: `<b>Prochain tir doublé</b> : votre prochain sort de dégâts inflige <b>×2</b> dégâts directs (sur chaque cible s’il a une zone). <span class="muted">Le bonus reste actif d’un tour et d’une salle à l’autre jusqu’à ce tir, et ne se cumule pas.</span>`,
     });
   }
   if (s.damage !== undefined && !power.doubled && state.player.deck.includes('tir_concentre') && !s.buffNextShot) {
-    fx.push({ icon: '◎', cls: 'conc muted-fx', html: `<span class="muted">Doublé par Tir concentré : <b>${power.damage.normal * 2}</b> dégâts.</span>` });
+    fx.push({ icon: icon('conc'), cls: 'conc muted-fx', html: `<span class="muted">Doublé par Tir concentré : <b>${power.damage.normal * 2}</b> dégâts.</span>` });
   }
 
   // Concentration
@@ -219,22 +220,22 @@ function outcomeRow(o: TargetOutcome, spell: SpellDef, compact: boolean): string
   const fx: string[] = [];
   if (o.burn && !o.killed)
     fx.push(
-      `<li class="fire"><i>🔥</i><span>Brûlure <b>${o.burn.damage}</b> × ${plural(o.burn.turns, 'tour')}${
+      `<li class="fire"><i>${icon('burn')}</i><span>Brûlure <b>${o.burn.damage}</b> × ${plural(o.burn.turns, 'tour')}${
         o.burnKillsIn ? ` : <b class="kill-txt">l’achève ${o.burnKillsIn === 1 ? 'au début de son prochain tour' : `au début de son ${o.burnKillsIn}e tour`}</b>` : ` <span class="muted">(−${burnLoss} au total)</span>`
       }</span></li>`,
     );
   if (o.pmRemoved && !o.killed)
-    fx.push(`<li class="water"><i>❄</i><span>−${o.pmRemoved} PM : <b>${o.pmNextTurn}</b> PM à son prochain tour <span class="muted">(au lieu de ${o.pmNextTurn + o.pmRemoved})</span></span></li>`);
+    fx.push(`<li class="water"><i>${icon('slow')}</i><span>−${o.pmRemoved} PM : <b>${o.pmNextTurn}</b> PM à son prochain tour <span class="muted">(au lieu de ${o.pmNextTurn + o.pmRemoved})</span></span></li>`);
   if (o.push) {
     const moved = o.push.cells ? `Poussé de <b>${plural(o.push.cells, 'case')}</b>` : 'Bloqué, ne bouge pas';
     fx.push(
-      `<li class="earth"><i>➜</i><span>${moved}${o.push.blocked ? ` : choc <b class="neg">−${o.collisionDamage}</b> <span class="muted">(${o.push.wanted - o.push.cells} case${o.push.wanted - o.push.cells > 1 ? 's' : ''} non parcourue${o.push.wanted - o.push.cells > 1 ? 's' : ''})</span>` : ''}</span></li>`,
+      `<li class="earth"><i>${icon('push')}</i><span>${moved}${o.push.blocked ? ` : choc <b class="neg">−${o.collisionDamage}</b> <span class="muted">(${o.push.wanted - o.push.cells} case${o.push.wanted - o.push.cells > 1 ? 's' : ''} non parcourue${o.push.wanted - o.push.cells > 1 ? 's' : ''})</span>` : ''}</span></li>`,
     );
   }
-  if (o.hitByCollision) fx.push(`<li class="earth"><i>💥</i><span>Heurté par un ennemi poussé : <b class="neg">−${o.collisionDamage}</b></span></li>`);
+  if (o.hitByCollision) fx.push(`<li class="earth"><i>${icon('impact')}</i><span>Heurté par un ennemi poussé : <b class="neg">−${o.collisionDamage}</b></span></li>`);
   return `
     <div class="tp-unit ${o.killed ? 'dead' : ''} ${compact ? 'compact' : ''}">
-      <div class="tp-line"><b class="tp-name">${esc(o.name)}</b>${o.killed ? '<span class="tp-kill">☠ Vaincu</span>' : ''}<b class="tp-dmg" style="color:${o.spellDamage ? color : '#fff'}">−${total}</b></div>
+      <div class="tp-line"><b class="tp-name">${esc(o.name)}</b>${o.killed ? `<span class="tp-kill">${icon('skull')} Vaincu</span>` : ''}<b class="tp-dmg" style="color:${o.spellDamage ? color : '#fff'}">−${total}</b></div>
       ${hpBar(o.hpBefore, o.hpAfter, o.maxHp, o.killed ? 0 : burnLoss)}
       <div class="tp-hp"><span>${o.hpBefore} → <b>${o.hpAfter}</b> / ${o.maxHp} PV</span>${o.breakdown && !compact ? `<span class="tp-factors">${factorLine(o.breakdown)}</span>` : ''}</div>
       ${fx.length ? `<ul class="tp-fx">${fx.join('')}</ul>` : ''}
