@@ -91,8 +91,8 @@ export function createRun(config: RunConfig): RunState {
     turn: 0,
     status: 'playing',
     actionLog: [],
-    challengeIds: pickChallenges(config),
-    challenges: [],
+    // Défis de combat seulement avec une graine (le solveur et les anciens replays n'en ont pas).
+    ...(config.challengeSeed !== undefined ? { challengeIds: pickChallenges(config), challenges: [] } : {}),
   };
   const player: Unit = {
     id: PLAYER_ID,
