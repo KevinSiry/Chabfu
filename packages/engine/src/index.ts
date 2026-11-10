@@ -4,6 +4,7 @@ export * from './combat.js';
 export * from './progression.js';
 export * from './loot.js';
 export * from './replay.js';
+export * from './challenges.js';
 export * from './equipment.js';
 export * from './stats.js';
 export * from './preview.js';

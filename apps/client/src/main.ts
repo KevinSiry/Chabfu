@@ -26,6 +26,7 @@ import {
 import { renderEquipmentScreen } from './stuff/equipment-screen';
 import { bindLootPanel, lootPanelHtml } from './stuff/loot-panel';
 import { getInventory, withEquipment } from './stuff/store';
+import { challengeEndRow } from './challenge-ui';
 import { rewardsPanelHtml } from './craft/rewards-panel';
 import { grantRunRewards, type RunRewards } from './craft/store';
 import { renderWorkshopScreen } from './craft/workshop-screen';
@@ -473,7 +474,8 @@ function openWorkshop(): void {
 
 function startRun(baseConfig: RunConfig): void {
   // L'équipement porté au lancement fait partie de la config : le replay le rejoue à l'identique.
-  const config = withEquipment(baseConfig);
+  // Même chose pour la graine des défis de combat, tirée ici, hors combat : un nouveau tirage à chaque run.
+  const config = withEquipment({ ...baseConfig, challengeSeed: Math.floor(Math.random() * 2 ** 32) });
   startCombat(config, createRun(config), {
     onExit: renderSetup,
     // Fin du run, ou abandon après au moins une action (l'XP des monstres vaincus est gagnée).
@@ -496,12 +498,12 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     save.scores = save.scores.sort(compareScores).slice(0, 50);
     writeSave(save);
   }
-  // Butin : uniquement pour une victoire au replay validé.
-  // Recyclage automatique et ressources du donjon : voir craft/store.ts.
-  const rewards = won && check?.valid ? grantRunRewards(v.config, v.state.actionLog) : null;
-  const loot = rewards?.kept ?? [];
-  // XP et montée de niveau : recalculées en rejouant le run, comme le fera le serveur.
+  // XP, défis et montée de niveau : recalculés en rejouant le run, comme le fera le serveur.
   const summary = summarizeRun(v.config, v.state.actionLog);
+  // Butin : uniquement pour une victoire au replay validé, avec le bonus des défis réussis.
+  // Recyclage automatique et ressources du donjon : voir craft/store.ts.
+  const rewards = won && check?.valid ? grantRunRewards(v.config, v.state.actionLog, summary.challengeBonus) : null;
+  const loot = rewards?.kept ?? [];
   const before = getCharacter();
   let sections: HTMLElement[] = [];
   if (before) {
@@ -509,7 +511,7 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     saveCharacter(character);
     sections = renderRunEndSections({ config: v.config, state: v.state, summary, report, character, validated: !!check?.valid });
   }
-  showRunEnd({ config, state, timeMs, check, loot, rewards, sections });
+  showRunEnd({ config, state: { ...state, challenges: summary.challenges }, timeMs, check, loot, rewards, sections });
 }
 
 // Aperçu de l'écran de fin (outils de développement uniquement) : window.__devRunEnd('won' | 'lost').
@@ -519,11 +521,17 @@ if (import.meta.env.DEV) {
     if (!c) return;
     const dungeon = DUNGEONS.find((d) => d.tranche === c.trancheId)!;
     const config = withEquipment(characterRunConfig(c, dungeon.id, 6));
-    const state = { ...createRun(config), status, turn: 14 } as RunState;
+    const base = { startTurn: 0, turns: 4, pmSpent: 2, hpLost: 0, elements: [], killsThisTurn: 0 };
+    const challenges = [
+      { ...base, id: 'racines', roomIndex: 0, status: 'success' },
+      { ...base, id: 'double', roomIndex: 1, status: 'failed' },
+      { ...base, id: 'elan', roomIndex: 2, status: status === 'won' ? 'success' : 'failed', turnLimit: 6 },
+    ] as RunState['challenges'];
+    const state = { ...createRun(config), status, turn: 14, challenges } as RunState;
     const loot = status === 'won' ? getInventory().items.filter((i) => !Object.values(getInventory().loadouts?.[c.trancheId] ?? {}).includes(i.uid)).slice(-drops) : [];
     const summary = { ...summarizeRun(config, []), status, kills: [{ name: 'Ronceux', xp: 40 }, { name: 'Guêpe', xp: 30 }, { name: 'Gardien racineux', xp: 220 }] } as RunSummary;
     const { character, report } = applyRunSummary(c, { ...summary, xpTotal: 900, xpFromKills: 290, xpVictoryBonus: 610 });
-    const sections = renderRunEndSections({ config, state, summary: { ...summary, xpVictoryBonus: 610 }, report: { ...report, xpGained: 900 }, character, validated: status === 'won' });
+    const sections = renderRunEndSections({ config, state, summary: { ...summary, xpVictoryBonus: 610, challengeBonus: 0.2, xpChallengeBonus: 180 }, report: { ...report, xpGained: 1080 }, character, validated: status === 'won' });
     const rewards: RunRewards | null =
       status === 'won' ? { kept: loot, autoRecycled: [{ uid: 'dev-r', itemId: loot[0]?.itemId ?? 'arc_racineux', rarity: 'common' }], shardsGained: { [c.trancheId]: 6 }, resources: Object.fromEntries(dungeonResources(dungeon.id).map((r, i) => [r.id, 3 - (i % 3)])), trancheId: c.trancheId } : null;
     showRunEnd({ config, state, timeMs: 83000, check: status === 'won' ? { valid: true } as ReturnType<typeof verifyRun> : null, loot, rewards, sections });
@@ -557,6 +565,7 @@ function showRunEnd(o: {
         <span class="ui-chip">${icon('clock')} ${formatTime(timeMs)}</span>
         ${check ? `<span class="ui-chip ${check.valid ? 'end-ok' : 'end-ko'}">${check.valid ? `${icon('check')} Score vérifié` : `${icon('cross')} Non vérifié : ${check.reason}`}</span>` : `<span class="ui-chip">Salle ${v.state.roomIndex + 1} atteinte</span>`}
       </div>
+      ${challengeEndRow(v.state.challenges)}
       <div class="end-body">
         ${loot.length ? lootPanelHtml(loot, v.config) : ''}
         ${rewards ? rewardsPanelHtml(rewards) : ''}
