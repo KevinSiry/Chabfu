@@ -7,6 +7,7 @@ COPY package.json package-lock.json ./
 COPY packages/engine/package.json packages/engine/
 COPY packages/solver/package.json packages/solver/
 COPY apps/client/package.json apps/client/
+COPY apps/server/package.json apps/server/
 RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
 # --- Dev (Vite avec rechargement à chaud, sources montées en volume) ---------
@@ -19,6 +20,22 @@ CMD ["npm", "run", "dev", "-w", "@chabfu/client", "--", "--host", "0.0.0.0"]
 FROM deps AS build
 COPY . .
 RUN npm test && npm run build
+
+# --- API de sauvegarde (Node, PostgreSQL) -------------------------------------
+FROM node:22-alpine AS api
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package.json package-lock.json ./
+COPY packages/engine/package.json packages/engine/
+COPY packages/solver/package.json packages/solver/
+COPY apps/client/package.json apps/client/
+COPY apps/server/package.json apps/server/
+RUN npm ci --legacy-peer-deps --no-audit --no-fund --omit=dev -w @chabfu/server
+COPY apps/server/src apps/server/src
+EXPOSE 3000
+USER node
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1
+CMD ["node", "--experimental-strip-types", "--no-warnings", "apps/server/src/main.ts"]
 
 # --- Production : fichiers statiques servis par Nginx -------------------------
 FROM nginx:1.27-alpine AS prod

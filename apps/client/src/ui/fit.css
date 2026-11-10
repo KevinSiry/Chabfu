@@ -340,6 +340,12 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   .st-sheet .st-switch[aria-checked='true'] i { transform: translateX(22px); }
   .st-sheet .ui-btn { min-height: 40px; font-size: 15px; }
   .st-sheet .st-foot { font-size: 11px; }
+  .st-sheet .st-save-btns .ui-btn { min-height: 34px; font-size: 14px; }
+}
+@media (max-height: 430px) and (orientation: landscape) {
+  .st-sheet .st-foot { display: none; }
+  .st-sheet .ui-btn { min-height: 34px; font-size: 14px; }
+  .st-sheet .st-save-btns .ui-btn { min-height: 30px; }
 }
 .ui-pmodal.st-sheet { height: auto; max-height: min(640px, calc((100dvh - 20px - var(--safe-t) - var(--safe-b)) / var(--ui-zoom))); }
 .st-sheet .ui-pmodal__body { flex: none; }
