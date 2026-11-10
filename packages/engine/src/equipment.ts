@@ -304,10 +304,10 @@ export function rarityWeights(difficulty: number): Record<Rarity, number> {
   const d = difficulty - 1;
   return {
     common: 60,
-    uncommon: 25 * (1 + 0.15 * d),
-    rare: 10 * (1 + 0.25 * d),
-    mythic: 4 * (1 + 0.35 * d),
-    legendary: difficulty >= LEGENDARY_MIN_DIFFICULTY ? 0.5 * (1 + 0.5 * (difficulty - LEGENDARY_MIN_DIFFICULTY)) : 0,
+    uncommon: 22 * (1 + 0.12 * d),
+    rare: 6 * (1 + 0.22 * d),
+    mythic: 1 * (1 + 0.35 * d),
+    legendary: difficulty >= LEGENDARY_MIN_DIFFICULTY ? 0.15 * (1 + 0.5 * (difficulty - LEGENDARY_MIN_DIFFICULTY)) : 0,
   };
 }
 

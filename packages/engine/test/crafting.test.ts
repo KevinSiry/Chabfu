@@ -27,7 +27,7 @@ const D = 'bosquet_des_ronces';
 function rich(): CraftingState {
   const all: Record<string, number> = {};
   for (const r of RESOURCES) all[r.id] = 100;
-  return { ...addResources(createCraftingState(), all), shards: { 1: 100 } };
+  return { ...addResources(createCraftingState(), all), shards: { 1: 500 } };
 }
 
 describe('ressources par donjon', () => {
@@ -45,14 +45,17 @@ describe('ressources par donjon', () => {
 
   it('applique la règle de drop : rien sous réf. − 1, garanti au-dessus', () => {
     const d1 = rollResourceDrops(D, 1, 42);
-    expect(d1.epine_de_ronceau).toBe(3);
+    expect(d1.epine_de_ronceau).toBe(2);
     expect(d1.seve_racineuse).toBeUndefined();
     expect(d1.ecorce_du_gardien).toBeUndefined();
-    // Difficulté 4 : la sève (réf. 4) tombe au moins une fois, l'épine tombe davantage (+25 %/palier).
+    // Difficulté 4 : la sève (réf. 4) peut tomber, l'épine tombe davantage (+25 %/palier).
     const d4 = rollResourceDrops(D, 4, 42);
-    expect(d4.seve_racineuse).toBeGreaterThanOrEqual(1);
-    expect(d4.epine_de_ronceau).toBeGreaterThanOrEqual(5);
+    expect(d4.epine_de_ronceau).toBeGreaterThanOrEqual(3);
     expect(d4.coeur_de_racine).toBeUndefined();
+    let seve = 0;
+    for (let seed = 0; seed < 1000; seed++) seve += rollResourceDrops(D, 4, seed).seve_racineuse ?? 0;
+    expect(seve / 1000).toBeGreaterThan(0.5);
+    expect(seve / 1000).toBeLessThan(0.7);
   });
 
   it('est reproductible à graine égale', () => {
@@ -90,7 +93,7 @@ describe('craft', () => {
     expect(res.item).toMatchObject({ itemId: 'cape_feuilles', rarity: 'rare' });
     expect(res.inventory.items).toHaveLength(1);
     for (const [id, n] of Object.entries(recipe.resources)) expect(res.crafting.resources[id]).toBe(100 - n);
-    expect(res.crafting.shards[1]).toBe(100 - recipe.shards);
+    expect(res.crafting.shards[1]).toBe(500 - recipe.shards);
     expect(state.resources.epine_de_ronceau).toBe(100); // l'ancien état n'est pas modifié
   });
 
@@ -109,8 +112,8 @@ describe('recyclage', () => {
     ({ inventory: inv, crafting: state } = craft(inv, state, 'arc_racineux:mythic'));
     const before = state.shards[1];
     const res = recycleItems(inv, state, inv.items.map((i) => i.uid));
-    expect(res.shardsGained).toEqual({ 1: 21 });
-    expect(res.crafting.shards[1]).toBe(before + 21);
+    expect(res.shardsGained).toEqual({ 1: 13 });
+    expect(res.crafting.shards[1]).toBe(before + 13);
     expect(res.inventory.items).toHaveLength(0);
     expect(res.crafting.recycled.arc_racineux).toBe(2);
   });
@@ -132,7 +135,7 @@ describe('recyclage', () => {
     ]);
     expect(res.kept.map((i) => i.rarity)).toEqual(['rare']);
     expect(res.inventory.items).toHaveLength(1);
-    expect(res.crafting.shards[1]).toBe(4);
+    expect(res.crafting.shards[1]).toBe(3);
   });
 
   it('sans recyclage automatique, garde tout', () => {
