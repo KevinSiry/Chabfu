@@ -246,7 +246,7 @@ function renderSetup(): void {
         <section class="card">
           <div class="panel-title">Barre de sorts</div>
           ${deckStrip}
-          <button class="primary launch" id="start">Lancer ${dungeon ? dungeon.name : 'le donjon'}</button>
+          <button class="primary launch" id="start">Lancer le donjon</button>
           <p class="muted" id="deck-error"></p>
         </section>
         <section class="card hint">

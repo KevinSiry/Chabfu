@@ -94,3 +94,5 @@ body { background: linear-gradient(180deg, rgba(14, 10, 7, 0.55), rgba(14, 10, 7
 
 /* Plateau : cadre peint */
 .board { border: 12px solid transparent; border-image: var(--img-panel) 72 / 24px stretch; border-radius: 0; box-shadow: none; background-clip: padding-box; }
+.deck-slot:has(> img) span { display: none; }
+.deck-slot kbd { top: 6px; left: 6px; }
