@@ -24,6 +24,7 @@ import {
 import { getInventory, setInventory } from '../stuff/store';
 import '../stuff/stuff.css';
 import './craft.css';
+import { itemIconImg } from '../ui/assets';
 import { getCrafting, setCrafting } from './store';
 
 export interface WorkshopScreenOptions {
@@ -102,7 +103,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
                 const ok = canCraft(st, r);
                 const def = getItem(r.itemId);
                 return `<div class="recipe rarity-${r.rarity}">
-                  <div><b>${def.name}</b><br><span class="rarity-label">${RARITIES[r.rarity].label}</span></div>
+                  <div class="recipe-head"><span class="item-icon kind-${def.kind}">${itemIconImg(def.kind)}</span><div><b>${def.name}</b><br><span class="rarity-label">${RARITIES[r.rarity].label}</span></div></div>
                   ${Object.entries(r.resources)
                     .map(
                       ([id, n]) =>
@@ -144,7 +145,7 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
                       .map((it) => {
                         const eq = isEquipped(inv, it.uid);
                         return `<div class="bag-row rarity-${it.rarity}">
-                          <span>${getItem(it.itemId).name}<br><span class="rarity-label">${RARITIES[it.rarity].label}</span></span>
+                          <span class="bag-name"><span class="item-icon small kind-${getItem(it.itemId).kind}">${itemIconImg(getItem(it.itemId).kind)}</span><span>${getItem(it.itemId).name}<br><span class="rarity-label">${RARITIES[it.rarity].label}</span></span></span>
                           ${eq ? '<span class="eq-note">Équipé</span>' : `<button class="secondary" data-recycle="${it.uid}">+${SHARDS_BY_RARITY[it.rarity]} éclats</button>`}
                         </div>`;
                       })

@@ -29,12 +29,12 @@ import { formatTime, leaveRun, startRun as startCombat } from './combat';
 import { ELEMENT_LABEL, rangeLabel } from './info';
 import { slotKeyLabel, slotKeysRange } from './keys';
 import { dungeonBannerImg, spellIconImg } from './ui/assets';
-// Habillage peint : chargé en dernier pour passer devant les styles de base.
-import './ui/skin.css';
 import { bindHubTabs, hubBarHtml, type HubTab } from './ui/hub';
 import { renderRunEndSections } from './character/run-end';
 import { getCharacter, saveCharacter } from './character/store';
 import { bindCharacterBanner, renderCharacterCreation } from './character/ui';
+// Habillage peint : importé en dernier pour passer devant les styles de base.
+import './ui/skin.css';
 
 const app = document.getElementById('app')!;
 const STORAGE_KEY = 'chabfu.v1';
@@ -408,8 +408,8 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
   overlay.className = 'overlay';
   overlay.innerHTML = `
     <div class="card${rewards ? ' with-loot' : ''}">
-      <h2 class="${won ? 'ok' : 'ko'}">${won ? 'Donjon terminé !' : abandoned ? 'Run abandonné' : 'Défaite'}</h2>
-      <p>Difficulté ${v.config.difficulty} · ${v.state.turn} tours · ${formatTime(timeMs)}</p>
+      <div class="end-banner ${won ? 'ok' : 'ko'}"><h2>${won ? 'Victoire !' : abandoned ? 'Run abandonné' : 'Défaite'}</h2></div>
+      <div class="end-stats"><span>Difficulté ${v.config.difficulty}</span><span>${v.state.turn} tours</span><span>⏱ ${formatTime(timeMs)}</span></div>
       ${check ? `<p class="${check.valid ? 'ok' : 'ko'}">${check.valid ? '✓ Replay validé (même moteur que le serveur)' : `✗ Replay invalide : ${check.reason}`}</p>` : `<p class="muted">Salle ${v.state.roomIndex + 1} atteinte.</p>`}
       ${loot.length ? lootPanelHtml(loot, v.config) : ''}
       ${rewards ? rewardsPanelHtml(rewards) : ''}

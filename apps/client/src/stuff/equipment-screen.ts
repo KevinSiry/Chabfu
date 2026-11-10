@@ -16,6 +16,7 @@ import {
 } from '@chabfu/engine';
 import { ELEMENT_LABEL, KIND_LABEL, itemCardHtml } from './item-view';
 import { getInventory, setInventory } from './store';
+import { itemIconImg } from '../ui/assets';
 import './stuff.css';
 
 export interface EquipmentScreenOptions {
@@ -50,8 +51,9 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
           <div class="slots">
             ${SLOTS.map((s) => {
               const item = loadout[s.id] ? findItem(inv, loadout[s.id]!) : undefined;
-              if (!item) return `<div class="slot empty"><span class="slot-label">${s.label}</span><span class="muted">vide</span></div>`;
+              if (!item) return `<div class="slot empty"><span class="item-icon kind-${s.kind}">${itemIconImg(s.kind)}</span><span class="slot-label">${s.label}</span><span class="muted">vide</span></div>`;
               return `<div class="slot rarity-${item.rarity}" data-slot="${s.id}" title="Cliquer pour retirer">
+                  <span class="item-icon kind-${s.kind}">${itemIconImg(s.kind)}</span>
                   <span class="slot-label">${s.label}</span>
                   <span class="item-name">${getItem(item.itemId).name}</span>
                   <span class="rarity-label">${RARITIES[item.rarity].label}</span>

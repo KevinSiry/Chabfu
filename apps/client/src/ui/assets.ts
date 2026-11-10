@@ -16,3 +16,4 @@ export function assetImg(path: string, cls: string, alt = ''): string {
 export const spellIconImg = (spellId: string, cls = 'asset-icon') => assetImg(`icons/${spellId}.webp`, cls);
 export const unitPortraitImg = (templateId: string, cls = 'asset-portrait') => assetImg(`units/${templateId}.png`, cls);
 export const dungeonBannerImg = (dungeonId: string, cls = 'asset-banner') => assetImg(`dungeons/${dungeonId}.webp`, cls);
+export const itemIconImg = (kind: string, cls = 'asset-item') => assetImg(`items/${kind}.webp`, cls);
