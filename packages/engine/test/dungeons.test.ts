@@ -145,8 +145,8 @@ describe('monstres : comportements', () => {
     let s = duel('caldeira_des_cendres', 'brasero_vivant', { x: 2, y: 4 }, { x: 2, y: 0 }, tiles);
     s = applyAction(s, { type: 'endTurn' }).state;
     const p = getPlayer(s);
-    // 7 dégâts de braises, puis la brûlure (3) tombe au début du tour du joueur.
-    expect(p.hp).toBe(150 - 7 - 3);
+    // 10 dégâts de braises, puis la brûlure (3) tombe au début du tour du joueur.
+    expect(p.hp).toBe(150 - 10 - 3);
     expect(p.burn).toEqual({ damage: 3, turns: 1 });
   });
 
@@ -162,9 +162,9 @@ describe('monstres : comportements', () => {
     let s = duel('falaises_hurlantes', 'harpie', { x: 2, y: 0 }, { x: 4, y: 0 }, tiles);
     s = applyAction(s, { type: 'endTurn' }).state;
     const p = getPlayer(s);
-    // Poussé d'une case vers la gauche, le rocher arrête la seconde : 7 + 8 de collision.
+    // Poussé d'une case vers la gauche, le rocher arrête la seconde : 8 + 8 de collision.
     expect(p.pos).toEqual({ x: 1, y: 0 });
-    expect(p.hp).toBe(150 - 7 - 8);
+    expect(p.hp).toBe(150 - 8 - 8);
   });
 
   it('la salle se vide si le dernier monstre meurt de brûlure pendant son tour', () => {

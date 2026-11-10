@@ -1,8 +1,9 @@
 /**
  * Vérification des cibles d'équilibrage fixées par Kevin (2026-11-10) :
  * - début de partie (niveau 1, sans stuff) : D1 gagnable ;
- * - sans stuff : D4 gagnable, D5 perdue ;
- * - D10 : perdue en stuff rare, gagnée en stuff mythique mais avec peu de marge ;
+ * - sans stuff : D3 gagnable, D5 perdue (D4 est la zone grise : selon le donjon et le joueur) ;
+ * - D10 : perdue avec un stuff faible, gagnée avec un stuff fort (presque parfait) mais avec peu de marge.
+ *   Les stuffs sont des totaux de stats (stuff.ts), pas des raretés.
  * - toute victoire en moins de 3 minutes (estimation).
  *
  * « Perdue » veut dire que le bot ne trouve aucune victoire, quel que soit le deck testé.
@@ -24,10 +25,10 @@ export interface CheckTarget {
 
 export const CHECK_TARGETS: CheckTarget[] = [
   { id: 'debut', label: 'Niveau 1 sans stuff, D1', level: 1, stuff: 'aucun', difficulty: 1, expect: 'win' },
-  { id: 'nu-d4', label: 'Sans stuff, D4', stuff: 'aucun', difficulty: 4, expect: 'win' },
+  { id: 'nu-d3', label: 'Sans stuff, D3', stuff: 'aucun', difficulty: 3, expect: 'win' },
   { id: 'nu-d5', label: 'Sans stuff, D5', stuff: 'aucun', difficulty: 5, expect: 'lose' },
-  { id: 'rare-d10', label: 'Stuff rare, D10', stuff: 'rare', difficulty: 10, expect: 'lose' },
-  { id: 'mythique-d10', label: 'Stuff mythique, D10 (serré)', stuff: 'mythique', difficulty: 10, expect: 'win', maxMinHpRatio: 0.35 },
+  { id: 'faible-d10', label: 'Stuff faible, D10', stuff: 'faible', difficulty: 10, expect: 'lose' },
+  { id: 'fort-d10', label: 'Stuff fort, D10 (serré)', stuff: 'fort', difficulty: 10, expect: 'win', maxMinHpRatio: 0.35 },
 ];
 
 export interface CheckOutcome {

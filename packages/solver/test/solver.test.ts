@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRun, verifyRun, type RunConfig } from '@chabfu/engine';
 import { compareResults, estimateDurationSeconds, solve, stateKey } from '../src/solver.js';
-import { fullSetBonus } from '../src/stuff.js';
+import { fullSetBonus, stuffBonus } from '../src/stuff.js';
 
 const DECK = ['fleche_ardente', 'bond_arriere', 'fleche_fracassante', 'tir_concentre', 'coup_de_pied'];
 const config: RunConfig = { dungeonId: 'bosquet_des_ronces', difficulty: 1, deck: DECK };
@@ -31,9 +31,10 @@ describe('solveur', () => {
   });
 
   it('construit une panoplie complète de la tranche', () => {
-    expect(fullSetBonus(1, 'aucun').hp).toBe(0);
-    const commun = fullSetBonus(1, 'commun');
-    const mythique = fullSetBonus(1, 'mythique');
+    expect(stuffBonus(1, 'aucun').hp).toBe(0);
+    expect(stuffBonus(1, 'fort').masteries.water).toBeGreaterThan(stuffBonus(1, 'faible').masteries.water);
+    const commun = fullSetBonus(1, 'panoplie-commun');
+    const mythique = fullSetBonus(1, 'panoplie-mythique');
     expect(commun.hp).toBeGreaterThan(0);
     expect(mythique.hp).toBeGreaterThan(commun.hp);
     expect(() => fullSetBonus(1, 'inconnu')).toThrow();

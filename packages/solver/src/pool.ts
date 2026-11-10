@@ -24,13 +24,18 @@ export function availableCpus(): number {
 
 let appliedOverrides: string | null = null;
 
-export function runJob(job: Job): JobResult {
-  // Chaque worker applique les réglages une seule fois (tous les calculs d'un lancement partagent les mêmes).
-  const key = JSON.stringify(job.overrides);
+/** Applique les réglages dans le processus courant (une seule fois). */
+export function ensureOverrides(overrides: string[]): void {
+  const key = JSON.stringify(overrides);
   if (appliedOverrides === null) {
-    applyOverrides(job.overrides);
+    applyOverrides(overrides);
     appliedOverrides = key;
   } else if (appliedOverrides !== key) throw new Error('Réglages différents dans un même processus.');
+}
+
+export function runJob(job: Job): JobResult {
+  // Chaque worker applique les réglages une seule fois (tous les calculs d'un lancement partagent les mêmes).
+  ensureOverrides(job.overrides);
   return { ...solveBest(job.config, job.options), deckName: job.deckName, stuffName: job.stuffName, noWalk: job.noWalk, checkId: job.checkId };
 }
 

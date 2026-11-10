@@ -3,13 +3,16 @@
  *
  *   --set monster.ronceau.hp=30            valeur absolue
  *   --set monster.*.hp=x0.7                multiplicateur (arrondi), sur tous les monstres
+ *   --set monster.*.pm=+1                  ajout
  *   --set monster.gardien_racineux.attacks.etreinte.damage=12
  *   --set spell.tir_concentre.concentrationCost=3
+ *   --set item.*.stats.masteries.fire=x2   objets (data/items.ts)
+ *   --set rarity.mythic.power=1.6          puissance des raretés (loot.ts)
  *
  * Les tables du moteur (MONSTERS, SPELLS) sont modifiées en mémoire dans le processus du solveur
  * uniquement ; rien n'est écrit sur disque.
  */
-import { MONSTERS, SPELLS } from '@chabfu/engine';
+import { ITEMS, MONSTERS, RARITIES, SPELLS } from '@chabfu/engine';
 
 export function applyOverrides(specs: string[]): void {
   for (const spec of specs) applyOverride(spec);
@@ -21,8 +24,15 @@ function applyOverride(spec: string): void {
   const path = spec.slice(0, eq).split('.');
   const raw = spec.slice(eq + 1);
   const [kind, id, ...fieldPath] = path;
-  const table: { id: string }[] = kind === 'monster' ? MONSTERS : kind === 'spell' ? SPELLS : [];
-  if (!table.length) throw new Error(`Réglage invalide (monster.* ou spell.*) : ${spec}`);
+  const tables: Record<string, () => { id: string }[]> = {
+    monster: () => MONSTERS,
+    spell: () => SPELLS,
+    item: () => ITEMS,
+    // Les raretés sont un dictionnaire : on présente chaque entrée avec son identifiant (même objet, modifié en place).
+    rarity: () => Object.entries(RARITIES).map(([rid, def]) => new Proxy(def, { get: (t, k) => (k === 'id' ? rid : t[k as keyof typeof t]) }) as unknown as { id: string }),
+  };
+  const table = tables[kind]?.();
+  if (!table) throw new Error(`Réglage invalide (monster.*, spell.*, item.* ou rarity.*) : ${spec}`);
   const targets = id === '*' ? table : table.filter((t) => t.id === id);
   if (!targets.length) throw new Error(`Identifiant inconnu dans ${spec}`);
   let touched = 0;
@@ -44,6 +54,12 @@ function walk(node: unknown, fields: string[], raw: string, spec: string): numbe
 }
 
 function setValue(obj: Record<string, unknown>, field: string, raw: string, spec: string): boolean {
+  if (raw.startsWith('+')) {
+    const current = obj[field];
+    if (typeof current !== 'number') return false;
+    obj[field] = current + Number(raw.slice(1));
+    return true;
+  }
   if (raw.startsWith('x')) {
     const current = obj[field];
     if (typeof current !== 'number') return false; // champ absent sur cette cible : ignoré pour les jokers

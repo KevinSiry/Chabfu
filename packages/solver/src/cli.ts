@@ -9,8 +9,8 @@
  *   --deck <nom|sorts>    Nom d'un deck prédéfini, ou liste d'identifiants de sorts séparés par des virgules.
  *                         Répétable. Défaut : les decks prédéfinis.
  *   --all-decks           Tous les decks possibles de la tranche (long).
- *   --stuff <liste>       Panoplie complète de la tranche par rareté : aucun, commun, inhabituel, rare,
- *                         mythique, legendaire. Ex. "aucun,rare,mythique" (défaut : aucun).
+ *   --stuff <liste>       Totaux de stats de référence : aucun, faible, moyen, fort (voir stuff.ts), ou panoplie
+ *                         réelle des objets de la tranche : panoplie-commun … panoplie-legendaire (défaut : aucun).
  *   --set <réglage>       Essaie une valeur sans modifier le code (répétable), ex. monster.*.hp=x0.7,
  *                         spell.tir_concentre.concentrationCost=3. Voir overrides.ts.
  *   --level <n>           Niveau du personnage (défaut : niveau de redéfinition de la tranche). Les decks
@@ -23,10 +23,10 @@
  *   --jobs <n>            Calculs en parallèle (défaut : nombre de cœurs - 1).
  *   --out <dossier>       Dossier du rapport (défaut : reports). Écrit equilibrage.md, resultats.json et les routes.
  */
-import { availableCpus, runJobs, type Job } from './pool.js';
+import { availableCpus, ensureOverrides, runJobs, type Job } from './pool.js';
 import { DUNGEONS, getDungeon, getTranche, availableSpells, effectiveLevel, validateDeck } from '@chabfu/engine';
 import { buildReport, byQuality, type JobResult } from './report.js';
-import { fullSetBonus } from './stuff.js';
+import { stuffBonus } from './stuff.js';
 import { CHECK_TARGETS, checkReport, evaluateChecks } from './check.js';
 import { DEFAULT_OPTIONS, estimateDurationSeconds } from './solver.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -126,6 +126,8 @@ function decksFor(dungeonTranche: number, args: ReturnType<typeof parseArgs>): R
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  // Avant de construire les panoplies : les réglages d'objets et de raretés doivent s'y appliquer.
+  ensureOverrides(args.overrides);
   const jobs: Job[] = [];
   const allDecks: Record<string, string[]> = {};
   for (const dungeonId of args.dungeons) {
@@ -136,7 +138,7 @@ async function main() {
     if (args.check) {
       for (const target of CHECK_TARGETS) {
         const checkDecks = decksFor(dungeon.tranche, { ...args, level: target.level });
-        const equipment = fullSetBonus(dungeon.tranche, target.stuff);
+        const equipment = stuffBonus(dungeon.tranche, target.stuff);
         for (const [deckName, deck] of Object.entries(checkDecks)) {
           jobs.push({
             config: { dungeonId, difficulty: target.difficulty, deck, equipment, level: target.level, passives: args.passives },
@@ -152,7 +154,7 @@ async function main() {
       if (!args.explicitRuns) continue;
     }
     for (const stuffName of args.stuffs) {
-      const equipment = fullSetBonus(dungeon.tranche, stuffName);
+      const equipment = stuffBonus(dungeon.tranche, stuffName);
       for (const [deckName, deck] of Object.entries(decks)) {
         for (const difficulty of args.difficulties) {
           jobs.push({ config: { dungeonId, difficulty, deck, equipment, level: args.level, passives: args.passives }, deckName, stuffName, noWalk: false, options: { beamWidth: args.beam }, overrides: args.overrides });

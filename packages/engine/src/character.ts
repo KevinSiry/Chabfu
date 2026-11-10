@@ -49,10 +49,15 @@ export function levelProgress(xp: number): { level: number; into: number; needed
 // Bilan d'un run
 // ---------------------------------------------------------------------------
 
-/** XP de base d'un monstre : la moitié de ses PV de base, doublée pour un boss. */
+/**
+ * XP de base par PV de base d'un monstre (doublée pour un boss). Les PV des monstres ont baissé de 40 %
+ * à l'équilibrage du 2026-11-10 : 1/1,2 au lieu de 1/2 garde le même rythme de montée en niveau.
+ */
+export const XP_PER_MONSTER_HP = 1 / 1.2;
+
 export function monsterXp(templateId: string): number {
   const m = getMonster(templateId);
-  return Math.round((m.hp / 2) * (m.isBoss ? 2 : 1));
+  return Math.round(m.hp * XP_PER_MONSTER_HP * (m.isBoss ? 2 : 1));
 }
 
 /** Bonus de victoire : 50 % de l'XP des monstres. */
