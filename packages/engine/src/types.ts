@@ -1,4 +1,5 @@
 import type { EquipmentConfig } from './equipment.js';
+import type { ChallengeId, ChallengeProgress } from './challenges.js';
 
 export type Element = 'fire' | 'water' | 'earth' | 'air' | 'neutral';
 
@@ -94,6 +95,8 @@ export interface RunConfig {
   equipment?: EquipmentConfig;
   /** Passifs équipés, limités par les emplacements de la tranche et le niveau effectif. */
   passives?: string[];
+  /** Graine des défis de combat, tirée au lancement du run (voir challenges.ts). Absente : pas de défi. */
+  challengeSeed?: number;
 }
 
 export interface RunState {
@@ -106,4 +109,8 @@ export interface RunState {
   turn: number;
   status: RunStatus;
   actionLog: Action[];
+  /** Défi tiré pour chaque salle (vide sans graine). */
+  challengeIds?: ChallengeId[];
+  /** Suivi des défis des salles déjà ouvertes. */
+  challenges?: ChallengeProgress[];
 }

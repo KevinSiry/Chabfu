@@ -339,7 +339,8 @@ function renderXpSection(ctx: RunEndContext): HTMLElement {
     ${
       summary.kills.length
         ? `<ul class="xp-detail">${[...killsByName].map(([name, e]) => `<li><span>${name} × ${e.n}</span><span>+${e.xp}</span></li>`).join('')}
-           ${summary.xpVictoryBonus ? `<li class="bonus"><span>Bonus de victoire</span><span>+${summary.xpVictoryBonus}</span></li>` : ''}</ul>`
+           ${summary.xpVictoryBonus ? `<li class="bonus"><span>Bonus de victoire</span><span>+${summary.xpVictoryBonus}</span></li>` : ''}
+           ${summary.xpChallengeBonus ? `<li class="bonus"><span>Défis réussis (+${Math.round(summary.challengeBonus * 100)} %)</span><span>+${summary.xpChallengeBonus}</span></li>` : ''}</ul>`
         : '<p class="muted">Aucun monstre vaincu.</p>'
     }
     <div class="xp-level"><span>Niv. <b id="xp-lvl">${report.levelBefore}</b></span>${xpBar(before, 'animated')}</div>

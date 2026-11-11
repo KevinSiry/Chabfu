@@ -5,6 +5,7 @@
 import { getItem, getBossDropTable, type ItemDef, type ItemKind, type ItemStats } from './data/items.js';
 import { RARITIES, dropRate, seededRandom, type Rarity } from './loot.js';
 import type { Element } from './types.js';
+import { getRune, parseRuneKey, type RuneKey } from './data/runes.js';
 
 export type SlotId = 'arc' | 'carquois' | 'coiffe' | 'cape' | 'plastron' | 'bottes' | 'amulette' | 'anneau1' | 'anneau2';
 
@@ -29,6 +30,8 @@ export interface ItemInstance {
   uid: string;
   itemId: string;
   rarity: Rarity;
+  /** Runes serties, un élément par emplacement (null : emplacement vide). Absent : aucune rune. */
+  runes?: (RuneKey | null)[];
 }
 
 export interface LootDrop {
@@ -261,9 +264,69 @@ export function equippedItems(inv: Inventory, trancheId: number): { slot: SlotId
   return out;
 }
 
-/** Somme des caractéristiques du loadout d'une tranche. */
+// ---------------------------------------------------------------------------
+// Runes serties
+// ---------------------------------------------------------------------------
+
+/** Nombre d'emplacements de runes d'un objet (selon sa rareté). */
+export function runeSlotCount(item: Pick<ItemInstance, 'rarity'>): number {
+  return RARITIES[item.rarity].runeSlots;
+}
+
+/** Runes serties d'un objet, une case par emplacement (null : vide). */
+export function itemRunes(item: ItemInstance): (RuneKey | null)[] {
+  const n = runeSlotCount(item);
+  return Array.from({ length: n }, (_, i) => item.runes?.[i] ?? null);
+}
+
+/** Bonus d'une liste de runes. */
+export function runesBonus(keys: (RuneKey | null | undefined)[]): EquipmentBonus {
+  const b = emptyBonus();
+  for (const k of keys) {
+    if (!k) continue;
+    const { def, value } = parseRuneKey(k);
+    const e = def.effect;
+    if (e.stat === 'mastery') b.masteries[e.element] += value;
+    else if (e.stat === 'resistanceAll') for (const el of ['fire', 'water', 'earth', 'air'] as const) b.resistances[el] += value;
+    else if (e.stat !== 'none') b[e.stat] += value;
+  }
+  return b;
+}
+
+/** Caractéristiques d'un objet précis : stats de sa rareté et runes serties. */
+export function instanceStats(item: ItemInstance): EquipmentBonus {
+  return addBonus(itemStats(item.itemId, item.rarity), runesBonus(itemRunes(item)));
+}
+
+/**
+ * Runes qui comptent sur l'équipement porté : une rune « unique » (Mire, Focus) ne compte qu'une fois,
+ * les exemplaires en trop sont ignorés.
+ */
+export function activeLoadoutRunes(items: ItemInstance[]): { active: RuneKey[]; ignored: RuneKey[] } {
+  const seen = new Set<string>();
+  const active: RuneKey[] = [];
+  const ignored: RuneKey[] = [];
+  for (const it of items)
+    for (const k of itemRunes(it)) {
+      if (!k) continue;
+      const type = k.split(':')[0];
+      if (getRune(parseRuneKey(k).type).unique) {
+        if (seen.has(type)) {
+          ignored.push(k);
+          continue;
+        }
+        seen.add(type);
+      }
+      active.push(k);
+    }
+  return { active, ignored };
+}
+
+/** Somme des caractéristiques du loadout d'une tranche (objets et runes serties). */
 export function equipmentBonus(inv: Inventory, trancheId: number): EquipmentBonus {
-  return equippedItems(inv, trancheId).reduce((acc, { item }) => addBonus(acc, itemStats(item.itemId, item.rarity)), emptyBonus());
+  const items = equippedItems(inv, trancheId).map((e) => e.item);
+  const base = items.reduce((acc, item) => addBonus(acc, itemStats(item.itemId, item.rarity)), emptyBonus());
+  return addBonus(base, runesBonus(activeLoadoutRunes(items).active));
 }
 
 /** Écart de caractéristiques si l'on équipait cet objet (à la place de ce qu'il remplacerait). */
@@ -328,12 +391,12 @@ export function rollRarity(rng: () => number, difficulty: number): Rarity {
 /**
  * Butin du boss d'un donjon gagné. Chaque objet de la table est tiré avec `dropRate` (branché sur la difficulté),
  * puis sa rareté est tirée. Un objet au moins est garanti pour qu'aucune victoire ne reparte les mains vides.
- * Même graine => même butin.
+ * Même graine => même butin. `bonus` : bonus de loot des défis réussis (multiplie les taux, pas la rareté).
  */
-export function rollBossLoot(dungeonId: string, difficulty: number, seed: number): LootDrop[] {
+export function rollBossLoot(dungeonId: string, difficulty: number, seed: number, bonus = 0): LootDrop[] {
   const rng = seededRandom(seed);
   const table = getBossDropTable(dungeonId)
-    .map((e) => ({ ...e, rate: Math.min(1, dropRate(e.baseRate, e.refDifficulty, difficulty)) }))
+    .map((e) => ({ ...e, rate: Math.min(1, dropRate(e.baseRate, e.refDifficulty, difficulty, bonus)) }))
     .filter((e) => e.rate > 0);
   const drops: LootDrop[] = [];
   for (const e of table) {

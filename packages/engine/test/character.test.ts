@@ -152,7 +152,7 @@ describe('bilan de run et XP', () => {
     const c = createCharacter('  Kevin  ', '2026-11-10T00:00:00.000Z');
     expect(c.name).toBe('Kevin');
     expect(characterLevel(c)).toBe(1);
-    const summary = { dungeonId: 'bosquet_des_ronces', difficulty: 1, status: 'won' as const, turns: 10, roomsCleared: 3, kills: [{ unitId: 'x', templateId: 'gardien_racineux', name: 'G', isBoss: true, xp: 170 }], xpFromKills: 170, xpVictoryBonus: 85, xpTotal: 255 };
+    const summary = { dungeonId: 'bosquet_des_ronces', difficulty: 1, status: 'won' as const, turns: 10, roomsCleared: 3, kills: [{ unitId: 'x', templateId: 'gardien_racineux', name: 'G', isBoss: true, xp: 170 }], xpFromKills: 170, xpVictoryBonus: 85, challenges: [], challengeBonus: 0, xpChallengeBonus: 0, xpTotal: 255 };
     const { character, report } = applyRunSummary(c, summary);
     expect(report.levelBefore).toBe(1);
     expect(report.levelAfter).toBe(levelFromXp(255));

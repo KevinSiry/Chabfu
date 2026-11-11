@@ -6,7 +6,7 @@
  * objets. Les noms `panoplie-<rareté>` calculent au contraire la panoplie réelle des objets de la tranche,
  * pour vérifier où tombent les objets par rapport aux profils.
  */
-import { ITEMS, SLOTS, addBonus, emptyBonus, itemStats, type EquipmentBonus, type Rarity } from '@chabfu/engine';
+import { ITEMS, SLOTS, addBonus, emptyBonus, itemStats, runesBonus, type EquipmentBonus, type Rarity, type RuneKey } from '@chabfu/engine';
 
 export const STUFF_LEVELS: Record<string, Rarity | null> = {
   'panoplie-commun': 'common',
@@ -42,7 +42,22 @@ export const STAT_PROFILES: Record<string, StatProfile> = {
  * `moyen` = en Rare, `fort` = en Mythique (presque parfait). Ce sont des totaux de stats : le solveur ne lit
  * que les stats, jamais la rareté.
  */
-export const REAL_PROFILES: Record<string, string> = { faible: 'panoplie-commun', moyen: 'panoplie-rare', fort: 'panoplie-mythique' };
+export const REAL_PROFILES: Record<string, string> = { faible: 'panoplie-commun', moyen: 'panoplie-rare', fort: 'panoplie-mythique', parfait: 'panoplie-mythique' };
+
+const rep = (key: RuneKey, n: number): RuneKey[] => Array.from({ length: n }, () => key);
+
+/**
+ * Runes serties dans chaque profil (fil « Ajouter les runes sur les objets », 2026-11-11) :
+ * - `moyen` (panoplie Rare, 9 emplacements) : des Brutes ;
+ * - `fort` (presque parfait, panoplie Mythique, 18 emplacements) : 18 Taillées réparties ;
+ * - `parfait` : 18 Parfaites, avec Mire et Focus (le jeu visé par `npm run economy`).
+ * `faible` (Commune) n'a aucun emplacement.
+ */
+export const PROFILE_RUNES: Record<string, RuneKey[]> = {
+  moyen: [...rep('seve:brute', 3), ...rep('rempart:brute', 2), 'braise:brute', 'maree:brute', 'racine:brute', 'rafale:brute'],
+  fort: [...rep('pointe:taillee', 4), ...rep('seve:taillee', 4), ...rep('rempart:taillee', 2), ...rep('braise:taillee', 2), ...rep('maree:taillee', 2), ...rep('racine:taillee', 2), ...rep('rafale:taillee', 2)],
+  parfait: ['mire:parfaite', 'focus:parfaite', ...rep('pointe:parfaite', 4), ...rep('seve:parfaite', 4), ...rep('rempart:parfaite', 2), ...rep('braise:parfaite', 3), ...rep('maree:parfaite', 1), ...rep('racine:parfaite', 1), ...rep('rafale:parfaite', 1)],
+};
 
 export function statProfileBonus(name: string): EquipmentBonus {
   const p = STAT_PROFILES[name];
@@ -61,7 +76,7 @@ export function statProfileBonus(name: string): EquipmentBonus {
 /** Bonus d'un nom de stuff : profil de stats ou panoplie réelle. */
 export function stuffBonus(trancheId: number, name: string): EquipmentBonus {
   if (name in STAT_PROFILES) return statProfileBonus(name);
-  if (name in REAL_PROFILES) return fullSetBonus(trancheId, REAL_PROFILES[name]);
+  if (name in REAL_PROFILES) return addBonus(fullSetBonus(trancheId, REAL_PROFILES[name]), runesBonus(PROFILE_RUNES[name] ?? []));
   return fullSetBonus(trancheId, name);
 }
 
