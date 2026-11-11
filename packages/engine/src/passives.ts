@@ -26,6 +26,10 @@ export interface CombinedMods {
   burnExtraTurns: number;
   paCostReduction: Record<string, number>;
   rangeBonus: number;
+  fireVsBurningPct: number;
+  frozenBonusPct: number;
+  collisionBonusPct: number;
+  airLongShotPm: number;
   distanceBonusPerCell: number;
 }
 
@@ -35,6 +39,10 @@ export function combinePassives(passives: readonly string[] | undefined): Combin
     burnExtraTurns: 0,
     paCostReduction: {},
     rangeBonus: 0,
+    fireVsBurningPct: 0,
+    frozenBonusPct: 0,
+    collisionBonusPct: 0,
+    airLongShotPm: 0,
     distanceBonusPerCell: 0,
   };
   for (const id of passives ?? []) {
@@ -45,6 +53,10 @@ export function combinePassives(passives: readonly string[] | undefined): Combin
       out.paCostReduction[s] = (out.paCostReduction[s] ?? 0) + v;
     }
     out.rangeBonus += m.rangeBonus ?? 0;
+    out.fireVsBurningPct += m.fireVsBurningPct ?? 0;
+    out.frozenBonusPct += m.frozenBonusPct ?? 0;
+    out.collisionBonusPct += m.collisionBonusPct ?? 0;
+    out.airLongShotPm += m.airLongShotPm ?? 0;
     out.distanceBonusPerCell += m.distanceBonusPerCell ?? 0;
   }
   return out;

@@ -95,7 +95,7 @@
 #app .lb-steps button.done { color: #fff; text-shadow: var(--stroke-sm); background: #2fc4a8; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), 0 0 0 2px var(--c-ink); }
 #app .lb-steps button.on { color: #fff; text-shadow: var(--stroke-sm); background: linear-gradient(180deg, var(--c-cta-a), var(--c-cta-b)); box-shadow: 0 0 0 3px var(--c-ink), inset 0 2px 0 rgba(255, 255, 255, 0.6); transform: scale(1.14); }
 #app .lb-note { margin: 10px 0 0; font-size: 13px; font-weight: 800; color: var(--c-text-2); }
-#app .lb-deck { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+#app .lb-deck { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
 #app .lb-card { position: relative; aspect-ratio: 1; border-radius: 14px; background: var(--c-well); box-shadow: 0 0 0 3px var(--c-ink), 0 4px 0 3px rgba(0, 0, 0, 0.35); }
 #app .lb-card img { width: 100%; height: 100%; display: block; border-radius: 12px; object-fit: cover; }
 #app .lb-card.empty { background: rgba(20, 12, 56, 0.35); box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.18); }
@@ -127,7 +127,7 @@
   #app .lb-deck { gap: 8px; }
   #app .lb-card { width: auto; }
   #app .lb-deck-panel { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
-  #app .lb-deck { grid-template-columns: repeat(5, 40px); }
+  #app .lb-deck { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
   #app .lb-deck-actions { grid-template-columns: 1fr; gap: 6px; margin-top: 0; }
   #app .lb-go { min-height: 54px; font-size: 24px; }
 }
