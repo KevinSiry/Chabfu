@@ -41,9 +41,10 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
   const inv = getInventory();
   const loadout = getLoadout(inv, o.trancheId);
   const totalBonus = equipmentBonus(inv, o.trancheId);
-  const bag = sortItems(inv.items.filter((i) => getItem(i.itemId).tranche === o.trancheId)).filter(
-    (i) => filter === 'all' || getItem(i.itemId).kind === filter,
-  );
+  // Le sac ne montre que les objets non portés : les objets équipés se voient sur le personnage.
+  const wornUids = new Set(Object.values(loadout).filter(Boolean));
+  const unworn = inv.items.filter((i) => getItem(i.itemId).tranche === o.trancheId && !wornUids.has(i.uid));
+  const bag = sortItems(unworn).filter((i) => filter === 'all' || getItem(i.itemId).kind === filter);
   const kinds = [...new Set(SLOTS.map((s) => s.kind))];
   const chances = rarityChances(o.difficulty);
   const rates = bossDropRates(o.dungeonId, o.difficulty);
@@ -58,7 +59,7 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
       : `<div class="eq-slot empty" title="${s.label}"><span class="eq-tile empty">${kindIconImg(s.kind)}</span><span>${s.label}</span></div>`;
   };
   const worn = Object.values(loadout).filter(Boolean).length;
-  const bagCount = inv.items.filter((i) => getItem(i.itemId).tranche === o.trancheId).length;
+  const bagCount = unworn.length;
 
   app.innerHTML = `
     <div class="setup stuff eq" data-pager-scope>
@@ -88,13 +89,16 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
           bag.length
             ? `<div class="eq-grid" data-paged="eq-bag-${o.trancheId}-${filter}">${bag
                 .map((i) => {
-                  const eq = Object.values(loadout).includes(i.uid);
                   const def = getItem(i.itemId);
-                  const up = !eq && bonusScore(compareWithEquipped(inv, o.trancheId, i.uid)) > 0;
-                  return tile(i.uid, i.itemId, i.rarity, def.kind, `${eq ? 'worn' : ''} ${up ? 'up' : ''}`);
+                  const up = bonusScore(compareWithEquipped(inv, o.trancheId, i.uid)) > 0;
+                  return tile(i.uid, i.itemId, i.rarity, def.kind, up ? 'up' : '');
                 })
                 .join('')}</div>`
-            : `<div class="ui-empty eq-empty">${icon('bag')}<b>Sac vide</b><p>Battez le boss d’un donjon pour obtenir du butin.</p></div>`
+            : unworn.length
+              ? `<div class="ui-empty eq-empty">${icon('bag')}<b>Rien de ce type dans le sac</b><p>Les objets portés se voient sur le personnage.</p></div>`
+              : worn
+                ? `<div class="ui-empty eq-empty">${icon('bag')}<b>Sac vide</b><p>Tout est porté. Battez le boss d’un donjon pour obtenir d’autres objets.</p></div>`
+                : `<div class="ui-empty eq-empty">${icon('bag')}<b>Sac vide</b><p>Battez le boss d’un donjon pour obtenir du butin.</p></div>`
         }`
         }
       </section>
