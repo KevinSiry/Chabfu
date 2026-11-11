@@ -9,11 +9,12 @@
  *   --set item.*.stats.masteries.fire=x2   objets (data/items.ts)
  *   --set rarity.mythic.power=1.6          puissance des raretés (loot.ts)
  *   --set mechanic.roots.damage=10         mécaniques de boss et traits (data/mechanics.ts)
+ *   --set dungeon.caldeira_des_cendres.difficultyCurve.high=0.3   courbe de difficulté d'un donjon
  *
  * Les tables du moteur (MONSTERS, SPELLS) sont modifiées en mémoire dans le processus du solveur
  * uniquement ; rien n'est écrit sur disque.
  */
-import { ITEMS, MECHANICS, MONSTERS, RARITIES, SPELLS } from '@chabfu/engine';
+import { DUNGEONS, ITEMS, MECHANICS, MONSTERS, RARITIES, SPELLS } from '@chabfu/engine';
 
 export function applyOverrides(specs: string[]): void {
   for (const spec of specs) applyOverride(spec);
@@ -27,6 +28,7 @@ function applyOverride(spec: string): void {
   const [kind, id, ...fieldPath] = path;
   const tables: Record<string, () => { id: string }[]> = {
     monster: () => MONSTERS,
+    dungeon: () => DUNGEONS,
     spell: () => SPELLS,
     item: () => ITEMS,
     // Les raretés sont un dictionnaire : on présente chaque entrée avec son identifiant (même objet, modifié en place).

@@ -11,6 +11,7 @@ export const FALAISES_HURLANTES: DungeonDef = {
   tranche: 1,
   dominantElement: 'air',
   weakElement: 'earth',
+  difficultyCurve: { mid: 0.06, high: 0, highDamage: 0 },
   description: 'Harpies et bouquetins qui vous repoussent contre les rochers, vautours à longue portée, puis la Harpie matriarche. Les monstres craignent la Terre.',
   rooms: [
     {

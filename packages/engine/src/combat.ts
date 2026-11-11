@@ -5,7 +5,7 @@ import { MECHANICS } from './data/mechanics.js';
 import { getMonster, type MonsterAttack } from './data/monsters.js';
 import { getSpell, type SpellDef } from './data/spells.js';
 import { DIRS, distance, hasLineOfSight, isFree, isWall, key, reachable, samePos, unitAt } from './grid.js';
-import { MAX_DIFFICULTY, MIN_DIFFICULTY, difficultyMultiplier } from './loot.js';
+import { MAX_DIFFICULTY, MIN_DIFFICULTY, dungeonDifficultyMultiplier, highDifficultyRamp } from './loot.js';
 import { MAX_RESISTANCE } from './equipment.js';
 import { combinePassives, spellMaxRange, spellPaCost, validatePassives } from './passives.js';
 import { effectiveLevel, getTranche, validateDeck } from './progression.js';
@@ -133,10 +133,21 @@ function enterRoom(state: RunState, index: number, events: GameEvent[]): void {
   startPlayerTurn(state, events);
 }
 
+/** PV et dégâts des monstres : courbe de difficulté commune et réglage du donjon. */
+export function monsterMultiplier(state: RunState): number {
+  return dungeonDifficultyMultiplier(getDungeon(state.config.dungeonId).difficultyCurve, state.config.difficulty);
+}
+
+/** Dégâts des monstres : multiplicateur des monstres et réglage `highDamage` du donjon. */
+export function monsterDamageMultiplier(state: RunState): number {
+  const extra = (getDungeon(state.config.dungeonId).difficultyCurve.highDamage ?? 0) * highDifficultyRamp(state.config.difficulty);
+  return monsterMultiplier(state) * (1 + extra);
+}
+
 /** Nouvelle unité de monstre, PV mis à l'échelle de la difficulté. */
 export function createMonsterUnit(state: RunState, templateId: string, id: string, pos: Pos): Unit {
   const t = getMonster(templateId);
-  const hp = Math.round(t.hp * difficultyMultiplier(state.config.difficulty));
+  const hp = Math.round(t.hp * monsterMultiplier(state));
   const unit: Unit = {
     id,
     team: 'monster',
@@ -177,6 +188,11 @@ export function equipmentRange(state: RunState): number {
 }
 
 /** Dégâts fixes ajoutés à chaque coup de sort de l'Archer (pas aux brûlures). */
+/** Cases d'avance du bonus de distance données par l'équipement (rune d'Horizon). */
+export function equipmentHorizon(state: RunState): number {
+  return state.config.equipment?.horizon ?? 0;
+}
+
 export function equipmentFlatDamage(state: RunState): number {
   return state.config.equipment?.damage ?? 0;
 }
@@ -299,7 +315,9 @@ export function getSpellZone(state: RunState, spellId: string, target: Pos, cast
  * Un tir visé (Tir concentré) double le bonus. Les passifs peuvent augmenter le bonus par case.
  */
 export function distanceBonus(state: RunState, cells: number, aimed = false): number {
-  const counted = Math.max(0, Math.min(DISTANCE_BONUS_MAX_CELLS, cells - DISTANCE_BONUS_FROM));
+  // Rune d'Horizon : le bonus démarre `h` cases plus tôt et compte `h` cases de plus.
+  const h = equipmentHorizon(state);
+  const counted = Math.max(0, Math.min(DISTANCE_BONUS_MAX_CELLS + h, cells - DISTANCE_BONUS_FROM + h));
   const perCell = DISTANCE_BONUS_PER_CELL + combinePassives(state.player.passives).distanceBonusPerCell;
   return Math.round(counted * perCell * (aimed ? 2 : 1) * 100) / 100;
 }
@@ -322,7 +340,7 @@ export function computeDamage(
 ): number {
   let dmg = base * mult;
   if (attacker?.team === 'player') dmg *= 1 + (state.player.masteries[element] ?? 0) / 100;
-  if (attacker?.team === 'monster') dmg *= difficultyMultiplier(state.config.difficulty);
+  if (attacker?.team === 'monster') dmg *= monsterDamageMultiplier(state);
   if (target.team === 'player') dmg *= 1 - playerResistance(state, element) / 100;
   if (attacker?.team === 'monster' && target.team === 'player' && isFinishing(attacker, target)) dmg *= MECHANICS.finisher.bonus;
   if (target.team === 'monster' && isThornGuarded(state, target)) dmg *= MECHANICS.thornGuard.damageTaken;

@@ -4,12 +4,12 @@
  * mêmes fonctions que le moteur. Les aperçus sont donc exacts (le combat est déterministe).
  */
 import { canUseAttack } from './ai.js';
-import { PLAYER_ID, applyAction, computeDamage, distanceBonus, DISTANCE_BONUS_FROM, DISTANCE_BONUS_MAX_CELLS, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, spellHitMultiplier, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
+import { PLAYER_ID, applyAction, computeDamage, distanceBonus, DISTANCE_BONUS_FROM, DISTANCE_BONUS_MAX_CELLS, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, spellHitMultiplier, WEAKNESS_BONUS, RESISTANCE_MALUS, monsterDamageMultiplier } from './combat.js';
 import { getMonster, monsterBehavior } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
 import { distance, isWall, key, reachable, samePos } from './grid.js';
 import { combinePassives, spellMaxRange } from './passives.js';
-import { difficultyMultiplier } from './loot.js';
+
 import type { Action, Burn, Element, GameEvent, Pos, RunState, Unit } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -419,7 +419,7 @@ export function monsterAttacks(state: RunState, monster: Unit): AttackInfo[] {
 }
 
 export function difficultyFactor(state: RunState): number {
-  return difficultyMultiplier(state.config.difficulty);
+  return monsterDamageMultiplier(state);
 }
 
 // ---------------------------------------------------------------------------

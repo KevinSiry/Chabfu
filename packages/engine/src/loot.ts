@@ -23,6 +23,18 @@ export const LOOT_RATE_SCALE = 0.9;
  * Au-dessus de la référence : +25 % du taux de base par palier. À référence - 1 : taux / 10. En dessous : 0.
  * `bonus` : bonus des défis réussis (0,2 = taux ×1,2).
  */
+/** Multiplicateur des monstres d'un donjon : courbe commune × réglage du donjon (voir DungeonDef.difficultyCurve). */
+/** Montée des réglages « high » : 0 jusqu'à la D7, 1 en D10. */
+export function highDifficultyRamp(difficulty: number): number {
+  return Math.max(0, Math.min(1, (difficulty - 7) / 3));
+}
+
+export function dungeonDifficultyMultiplier(curve: { mid: number; high: number } | undefined, difficulty: number): number {
+  const mid = difficulty >= 4 ? (curve?.mid ?? 0) : 0;
+  const high = (curve?.high ?? 0) * highDifficultyRamp(difficulty);
+  return difficultyMultiplier(difficulty) * (1 + mid + high);
+}
+
 export function dropRate(baseRate0: number, refDifficulty: number, difficulty: number, bonus = 0): number {
   const baseRate = baseRate0 * LOOT_RATE_SCALE * (1 + bonus);
   if (difficulty >= refDifficulty) return baseRate * (1 + 0.25 * (difficulty - refDifficulty));

@@ -52,6 +52,8 @@ export interface EquipmentBonus {
   resistances: Record<Element, number>;
   damage: number;
   range: number;
+  /** Cases d'avance du bonus de distance (rune d'Horizon) : il démarre plus tôt et va plus loin. */
+  horizon: number;
 }
 
 /** Bonus accepté par `RunConfig.equipment` : les stats ajoutées après coup peuvent manquer (elles valent 0). */
@@ -78,11 +80,11 @@ const STAT_ELEMENTS: Element[] = ['fire', 'water', 'earth', 'air', 'neutral'];
 const zeroElements = (): Record<Element, number> => ({ fire: 0, water: 0, earth: 0, air: 0, neutral: 0 });
 
 /** Stats scalaires de l'équipement, dans l'ordre d'affichage. */
-const SCALAR_KEYS = ['hp', 'pa', 'pm', 'damage', 'range'] as const;
+const SCALAR_KEYS = ['hp', 'pa', 'pm', 'damage', 'range', 'horizon'] as const;
 type ScalarKey = (typeof SCALAR_KEYS)[number];
 
 export function emptyBonus(): EquipmentBonus {
-  return { hp: 0, pa: 0, pm: 0, masteries: zeroElements(), resistances: zeroElements(), damage: 0, range: 0 };
+  return { hp: 0, pa: 0, pm: 0, masteries: zeroElements(), resistances: zeroElements(), damage: 0, range: 0, horizon: 0 };
 }
 
 /** Complète un bonus partiel (ancien format, bonus écrit à la main) avec des zéros. */
@@ -155,6 +157,7 @@ const SCALAR_LABEL: Record<ScalarKey, string> = {
   pm: 'PM',
   damage: 'Dommages',
   range: 'Portée',
+  horizon: 'Horizon',
 };
 
 /** Lignes non nulles d'un bonus, dans un ordre stable. */
@@ -288,7 +291,7 @@ export function runesBonus(keys: (RuneKey | null | undefined)[]): EquipmentBonus
     const e = def.effect;
     if (e.stat === 'mastery') b.masteries[e.element] += value;
     else if (e.stat === 'resistanceAll') for (const el of ['fire', 'water', 'earth', 'air'] as const) b.resistances[el] += value;
-    else if (e.stat !== 'none') b[e.stat] += value;
+    else b[e.stat] += value;
   }
   return b;
 }

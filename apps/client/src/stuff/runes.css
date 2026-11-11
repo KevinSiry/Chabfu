@@ -7,7 +7,7 @@
 .rune-rempart { --rc: #d5dbe6; --rc2: #7a8599; }
 .rune-pointe { --rc: #ffd84a; --rc2: #d18a12; }
 .rune-mire { --rc: #b8a4ff; --rc2: #6a4ae0; }
-.rune-focus { --rc: #7ff0d0; --rc2: #1fa384; }
+.rune-horizon { --rc: #7ff0d0; --rc2: #1fa384; }
 
 .rune-gem { position: relative; display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; }
 .rune-gem.rune-sm { width: 28px; height: 28px; }

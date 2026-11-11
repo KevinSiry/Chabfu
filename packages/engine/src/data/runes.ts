@@ -5,7 +5,7 @@
  */
 import type { Element } from '../types.js';
 
-export type RuneType = 'braise' | 'maree' | 'racine' | 'rafale' | 'seve' | 'rempart' | 'pointe' | 'mire' | 'focus';
+export type RuneType = 'braise' | 'maree' | 'racine' | 'rafale' | 'seve' | 'rempart' | 'pointe' | 'mire' | 'horizon';
 export type RuneGrade = 'brute' | 'taillee' | 'parfaite';
 
 export const RUNE_GRADES: RuneGrade[] = ['brute', 'taillee', 'parfaite'];
@@ -18,7 +18,7 @@ export type RuneEffect =
   | { stat: 'damage' }
   | { stat: 'range' }
   /** Sans effet : rune de Focus neutralisée depuis le retrait de la Concentration (gardée pour les sauvegardes). */
-  | { stat: 'none' };
+  | { stat: 'horizon' };
 
 export interface RuneDef {
   type: RuneType;
@@ -41,10 +41,14 @@ export const RUNES: RuneDef[] = [
   { type: 'rempart', name: 'Rune de Rempart', effect: { stat: 'resistanceAll' }, values: { brute: 1, taillee: 1, parfaite: 2 }, dropWeight: 1 },
   { type: 'pointe', name: 'Rune de Pointe', effect: { stat: 'damage' }, values: { brute: null, taillee: 1, parfaite: 2 }, dropWeight: 0.6 },
   { type: 'mire', name: 'Rune de Mire', effect: { stat: 'range' }, values: { brute: null, taillee: null, parfaite: 1 }, unique: true, dropWeight: 0.5 },
-  { type: 'focus', name: 'Rune de Focus', effect: { stat: 'none' }, values: { brute: null, taillee: null, parfaite: 1 }, unique: true, dropWeight: 0 },
+  // Horizon (choix de Kevin, 2026-11-11) : le bonus de distance démarre une case plus tôt et va une case plus loin.
+  { type: 'horizon', name: 'Rune d’Horizon', effect: { stat: 'horizon' }, values: { brute: null, taillee: null, parfaite: 1 }, unique: true, dropWeight: 0.5 },
 ];
 
-const BY_TYPE = new Map(RUNES.map((r) => [r.type, r]));
+const BY_TYPE = new Map<string, RuneDef>(RUNES.map((r) => [r.type, r]));
+/** Anciens types renommés : la rune de Focus (Concentration, retirée) est devenue la rune d'Horizon. */
+export const RUNE_TYPE_ALIASES: Record<string, RuneType> = { focus: 'horizon' };
+for (const [old, now] of Object.entries(RUNE_TYPE_ALIASES)) BY_TYPE.set(old, BY_TYPE.get(now)!);
 
 export function getRune(type: RuneType): RuneDef {
   const r = BY_TYPE.get(type);
@@ -64,7 +68,13 @@ export function parseRuneKey(key: string): { type: RuneType; grade: RuneGrade; d
   const def = getRune(type);
   const value = def.values[grade];
   if (value === null || value === undefined) throw new Error(`Rune inexistante : ${key}`);
-  return { type, grade, def, value };
+  return { type: def.type, grade, def, value };
+}
+
+/** Clé d'une rune avec son type à jour (« focus:parfaite » → « horizon:parfaite »). */
+export function canonicalRuneKey(key: string): RuneKey {
+  const [type, grade] = key.split(':');
+  return `${RUNE_TYPE_ALIASES[type] ?? type}:${grade}` as RuneKey;
 }
 
 export function runeExists(type: RuneType, grade: RuneGrade): boolean {

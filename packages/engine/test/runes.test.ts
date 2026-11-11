@@ -12,6 +12,7 @@ import {
   canFuse,
   createCraftingState,
   createInventory,
+  normalizeRuneSave,
   equipItem,
   equipmentBonus,
   fuseRunes,
@@ -126,6 +127,16 @@ describe('runes', () => {
     expect(r.inventory.items).toHaveLength(2);
     expect(r.crafting.shards[1] ?? 0).toBe(0);
     expect(r.crafting.recycled.arc_roseau).toBe(1);
+  });
+
+  it('les anciennes runes de Focus deviennent des runes d’Horizon', () => {
+    const { inventory } = addItems(createInventory(), [{ itemId: 'arc_racineux', rarity: 'mythic' }]);
+    const inv = { ...inventory, items: [{ ...inventory.items[0], runes: ['focus:parfaite' as never, null] }] };
+    const st = { ...createCraftingState(), runes: { 'focus:parfaite': 2, 'braise:brute': 1 } };
+    const n = normalizeRuneSave(st, inv);
+    expect(n.crafting.runes).toEqual({ 'horizon:parfaite': 2, 'braise:brute': 1 });
+    expect(n.inventory.items[0].runes).toEqual(['horizon:parfaite', null]);
+    expect(instanceStats(n.inventory.items[0]).horizon).toBe(1);
   });
 
   it('chaque objet a une rune liée qui existe en Brute', () => {

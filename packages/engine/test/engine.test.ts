@@ -94,6 +94,11 @@ describe('combat', () => {
     expect(distanceBonus(s, 8, true)).toBeCloseTo(0.6);
   });
 
+  it('la rune d’Horizon fait démarrer le bonus une case plus tôt et le prolonge d’une case', () => {
+    const s = createRun({ ...config, equipment: { hp: 0, pa: 0, pm: 0, masteries: {} as never, horizon: 1 } });
+    expect([2, 3, 4, 8, 9, 12].map((d) => distanceBonus(s, d))).toEqual([0, 0.06, 0.12, 0.36, 0.36, 0.36]);
+  });
+
   it('un tir lointain fait plus mal qu’un tir proche', () => {
     const shot = (x: number) => {
       const s = withUnits(createRun(config), (st) => (st.units[1].pos = { x, y: 3 }));
