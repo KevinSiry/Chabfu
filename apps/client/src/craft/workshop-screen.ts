@@ -59,6 +59,8 @@ const RARITY_SHORT: Record<Rarity, string> = { common: 'Commune', uncommon: 'Inh
 let dungeonFilter: string | null = null;
 let selectedItem: string | null = null;
 let selectedRarity: CraftRarity | null = null;
+/** Rareté choisie par le joueur : elle reste la même quand il passe d'un objet à l'autre. */
+let preferredRarity: CraftRarity | null = null;
 let flash = '';
 let mode: 'craft' | 'recycle' | 'runes' = 'craft';
 /** Objets cochés pour le recyclage (uids). */
@@ -97,7 +99,6 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
   if (mode === 'craft') {
     if (!selectedItem || !itemIds.includes(selectedItem)) {
       selectedItem = itemIds[0] ?? null;
-      selectedRarity = null;
     }
     const recipesOf = (id: string) => allRecipes.filter((r) => r.itemId === id);
     const tiles = itemIds
@@ -118,7 +119,13 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
     if (selectedItem) {
       const def = getItem(selectedItem);
       const rs = recipesOf(selectedItem);
-      if (!selectedRarity || !rs.some((r) => r.rarity === selectedRarity)) {
+      if (preferredRarity) {
+        // Garde la rareté choisie ; si l'objet ne l'a pas, prend la plus proche.
+        const want = RARITY_ORDER.indexOf(preferredRarity);
+        selectedRarity = rs.reduce((a, b) =>
+          Math.abs(RARITY_ORDER.indexOf(b.rarity) - want) < Math.abs(RARITY_ORDER.indexOf(a.rarity) - want) ? b : a,
+        ).rarity;
+      } else if (!selectedRarity || !rs.some((r) => r.rarity === selectedRarity)) {
         const ready = rs.filter((r) => canCraft(st, r));
         selectedRarity = (ready[ready.length - 1] ?? rs[0]).rarity;
       }
@@ -281,13 +288,13 @@ export function renderWorkshopScreen(app: HTMLElement, o: WorkshopScreenOptions)
   app.querySelectorAll<HTMLButtonElement>('[data-item]').forEach((b) =>
     b.addEventListener('click', () => {
       selectedItem = b.dataset.item!;
-      selectedRarity = null;
       rerender();
     }),
   );
   app.querySelectorAll<HTMLButtonElement>('[data-rar]').forEach((b) =>
     b.addEventListener('click', () => {
       selectedRarity = b.dataset.rar as CraftRarity;
+      preferredRarity = selectedRarity;
       rerender();
     }),
   );
