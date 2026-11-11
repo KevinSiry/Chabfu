@@ -31,6 +31,12 @@ export interface MonsterAttack {
  */
 export type MonsterBehavior = 'aggressive' | 'kiter' | 'sentinel';
 
+/** Mécanique propre à un boss (voir data/mechanics.ts pour les valeurs et le rythme). */
+export type BossMechanic = 'roots' | 'brood' | 'overheat' | 'gale';
+
+/** Trait propre aux monstres d'un donjon (voir data/mechanics.ts). */
+export type MonsterTrait = 'thornGuard' | 'lifesteal' | 'deathBlast' | 'finisher';
+
 export interface MonsterTemplate {
   id: string;
   name: string;
@@ -46,6 +52,10 @@ export interface MonsterTemplate {
   /** Une phrase pour le joueur : ce que fait le monstre et comment le gérer. */
   description?: string;
   attacks: MonsterAttack[];
+  mechanic?: BossMechanic;
+  trait?: MonsterTrait;
+  /** Œuf : monstre qui sort à l'éclosion. */
+  hatchInto?: string;
 }
 
 /** Chaque donjon déclare ses monstres dans son propre fichier (data/monsters/<donjon>.ts). */

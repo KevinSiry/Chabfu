@@ -95,7 +95,7 @@ export interface RouteStats {
  */
 export const KEYED_PLAYER_FIELDS = ['nextShotAimed', 'spellUses'];
 export const STATIC_PLAYER_FIELDS = ['deck', 'masteries', 'passives'];
-export const KEYED_UNIT_FIELDS = ['id', 'pos', 'hp', 'pa', 'pm', 'pmMalus', 'burn', 'attackUses'];
+export const KEYED_UNIT_FIELDS = ['id', 'pos', 'hp', 'pa', 'pm', 'pmMalus', 'burn', 'attackUses', 'turnsPlayed', 'telegraph', 'heat', 'cooled', 'hatchIn', 'waterTurn'];
 export const STATIC_UNIT_FIELDS = ['team', 'templateId', 'name', 'maxHp', 'basePa', 'basePm', 'weakness', 'resistance', 'isBoss'];
 
 export function stateKey(s: RunState): string {
@@ -106,6 +106,9 @@ export function stateKey(s: RunState): string {
     if (u.hp <= 0) continue;
     parts.push(u.id, u.pos.x, u.pos.y, u.hp, u.pa, u.pm, u.pmMalus, u.burn ? `${u.burn.damage}/${u.burn.turns}` : '');
     for (const a in u.attackUses) parts.push(a, u.attackUses[a]);
+    // Mécaniques de donjon (data/mechanics.ts) : rythme, annonce, chaleur, œuf.
+    if (u.turnsPlayed !== undefined) parts.push(u.turnsPlayed, u.heat ?? '', u.cooled ? 1 : 0, u.hatchIn ?? '', u.waterTurn ?? '');
+    if (u.telegraph) parts.push(u.telegraph.kind, u.telegraph.dir ? `${u.telegraph.dir.x}/${u.telegraph.dir.y}` : '', u.telegraph.cells.map((c) => `${c.x},${c.y}`).join(';'));
   }
   return parts.join('|');
 }

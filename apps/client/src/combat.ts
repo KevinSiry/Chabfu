@@ -17,7 +17,9 @@ import {
   equipmentRange,
   getCastError,
   getDungeon,
+  MECHANICS,
   getMonster,
+  isWall,
   getPlayer,
   getReachableCells,
   getSpell,
@@ -43,7 +45,7 @@ import {
 import { slotFromKey, slotKeyLabel } from './keys';
 import { getCharacter } from './character/store';
 import { assetUrl, spellIconImg, unitPortraitImg } from './ui/assets';
-import { ELEMENT_LABEL, el, esc, monsterCard } from './info';
+import { ELEMENT_LABEL, dirArrow, el, esc, monsterCard } from './info';
 import { castTargetCard, spellBrief, spellSheet } from './spell-info';
 import {
   CANVAS_H,
@@ -1052,7 +1054,7 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
             vibrate(10);
           }
         }
-        const src = { spell: ELEMENT_LABEL[ev.element], attack: ELEMENT_LABEL[ev.element], burn: 'brûlure', collision: 'collision' }[ev.source];
+        const src = { spell: ELEMENT_LABEL[ev.element], attack: ELEMENT_LABEL[ev.element], burn: 'brûlure', collision: 'collision', mechanic: ELEMENT_LABEL[ev.element] }[ev.source];
         const who = ev.unitId === PLAYER_ID ? 'player' : 'enemy';
         log(`sub dmg ${who}`, `${esc(unitName(v, before, ev.unitId))} <b style="color:${ev.source === 'collision' ? '#fff' : ELEMENT_COLORS[ev.element]}">−${ev.amount} PV</b> <span class="muted">(${src})</span>`);
         await wait(140);
@@ -1066,6 +1068,51 @@ async function animate(v: RunView, before: RunState, events: GameEvent[]): Promi
           v.floats.push({ x: u.x, y: u.y, text: ev.text, color: '#f2c14e', born: performance.now() + 150, size: 14 });
         }
         log('sub', `${esc(unitName(v, before, ev.unitId))} : ${esc(ev.text)}`);
+        break;
+      }
+      case 'heal': {
+        if (u) {
+          u.hp = Math.min(u.maxHp, u.hp + ev.amount);
+          v.floats.push({ x: u.x, y: u.y, text: `+${ev.amount}`, color: '#7fe08a', born: performance.now(), size: 18 });
+          v.board?.burst?.(u, '#7fe08a', 12, 1);
+        }
+        log('sub', `${esc(unitName(v, before, ev.unitId))} <b class="pos">+${ev.amount} PV</b> <span class="muted">(vol de vie)</span>`);
+        await wait(160);
+        break;
+      }
+      case 'spawn':
+      case 'hatch': {
+        const born = v.state.units.find((x) => x.id === ev.unitId);
+        if (born) {
+          const d = buildDisplay({ ...v.state, units: [{ ...born, hp: born.maxHp }] }).get(born.id);
+          if (d) {
+            if (u) d.hp = Math.min(d.maxHp, d.hp);
+            v.display.set(born.id, d);
+            v.board?.burst?.(d, ev.type === 'spawn' ? '#9fc7a8' : '#5b7d3a', 18, 1.2);
+            v.floats.push({ x: d.x, y: d.y, text: ev.type === 'spawn' ? 'Œuf pondu !' : 'Éclosion !', color: '#f2c14e', born: performance.now(), size: 16 });
+          }
+        }
+        log('attack', ev.type === 'spawn' ? 'La Reine pond un <b>œuf</b>' : `Un œuf éclot : <b>${esc(born?.name ?? 'monstre')}</b>`);
+        sfx('cast');
+        await wait(350);
+        break;
+      }
+      case 'telegraph': {
+        const text = ev.telegraph.kind === 'roots' ? 'Racines !' : ev.telegraph.kind === 'blast' ? 'Va exploser !' : `Grand vent ${dirArrow(ev.telegraph.dir)}`;
+        if (u) v.floats.push({ x: u.x, y: u.y, text, color: '#ff8a5c', born: performance.now(), size: 18 });
+        log('attack', `${esc(unitName(v, before, ev.unitId))} prépare <b>${esc(text.replace(' !', ''))}</b> pour son prochain tour`);
+        await wait(300);
+        break;
+      }
+      case 'mechanic': {
+        const color = ev.kind === 'roots' ? ELEMENT_COLORS.earth : ev.kind === 'gale' ? ELEMENT_COLORS.air : ELEMENT_COLORS.fire;
+        const label = { roots: 'Racines', blast: 'Explosion', gale: 'Grand vent', deathBlast: 'Explosion' }[ev.kind];
+        if (u) v.floats.push({ x: u.x, y: u.y, text: `${label} !`, color, born: performance.now(), size: 20 });
+        for (const c of ev.cells) v.board?.burst?.(c, color, 8, 0.9);
+        v.board?.shake?.(ev.kind === 'gale' ? 5 : 8, 220);
+        log('attack', `${esc(unitName(v, before, ev.unitId))} : <b>${label}</b>`);
+        sfx('hit');
+        await wait(260);
         break;
       }
       case 'death':
@@ -1171,6 +1218,39 @@ function playerCard(v: RunView): string {
 function defaultInspector(): string {
   return `<p class="muted">Survolez un monstre pour voir sa fiche, ses déplacements et ce qu’il fera à son tour. Cliquez dessus pour l’épingler.</p>
     <p class="muted">Survolez un sort pour voir exactement ce qu’il fait. Sort sélectionné, survolez un ennemi pour voir les dégâts, les PV restants et les effets.</p>`;
+}
+
+/** Mécaniques annoncées : cases marquées (racines, explosion), flèches du grand vent, chaleur, œufs. */
+function mechanicOverlay(s: RunState, o: Overlay): void {
+  for (const m of s.units) {
+    if (m.team !== 'monster' || m.hp <= 0) continue;
+    const t = m.telegraph;
+    if (t && (t.kind === 'roots' || t.kind === 'blast')) {
+      const color = t.kind === 'roots' ? 'rgba(214, 120, 40, 0.6)' : 'rgba(240, 90, 50, 0.55)';
+      for (const c of t.cells) o.highlights.push({ pos: c, color, outline: 'rgba(255, 60, 40, 1)', hatch: 'rgba(90, 30, 10, 0.55)' });
+      o.markers.push({ x: m.pos.x, y: m.pos.y, text: t.kind === 'roots' ? 'Racines au prochain tour' : 'Explosion au prochain tour', color: '#fff', background: '#c0392b', row: 1 });
+    }
+    if (t?.kind === 'gale' && t.dir) {
+      const dir = t.dir;
+      for (const u of s.units) {
+        if (u.id === m.id || u.hp <= 0) continue;
+        // Jusqu'au premier rocher ou bord ; une collision est signalée par une pointe rouge.
+        let end = u.pos;
+        for (let i = 0; i < MECHANICS.gale.push; i++) {
+          const next = { x: end.x + dir.x, y: end.y + dir.y };
+          if (isWall(s.room, next)) break;
+          end = next;
+        }
+        const blocked = !samePos(end, { x: u.pos.x + dir.x * MECHANICS.gale.push, y: u.pos.y + dir.y * MECHANICS.gale.push });
+        if (samePos(end, u.pos)) o.markers.push({ x: u.pos.x, y: u.pos.y, text: 'Collision', color: '#fff', background: '#c0392b', row: 2 });
+        else o.arrows.push({ points: [u.pos, end], color: blocked ? 'rgba(255, 110, 80, 1)' : 'rgba(150, 240, 160, 1)', width: 5 });
+      }
+      o.markers.push({ x: m.pos.x, y: m.pos.y, text: `Grand vent ${dirArrow(dir)} au prochain tour`, color: '#fff', background: '#2f7d4a', row: 1 });
+    }
+    if (m.cooled) o.markers.push({ x: m.pos.x, y: m.pos.y, text: 'Refroidi +50 %', color: '#fff', background: '#2b6cb0', row: 1 });
+    else if (m.heat !== undefined && !t) o.markers.push({ x: m.pos.x, y: m.pos.y, text: `Chaleur ${m.heat}/${MECHANICS.overheat.max}`, color: '#fff', background: '#b5481f', row: 1 });
+    if (m.hatchIn !== undefined) o.markers.push({ x: m.pos.x, y: m.pos.y, text: `Éclot dans ${m.hatchIn}`, color: '#fff', background: '#3d7a52', row: 1 });
+  }
 }
 
 function computeOverlay(v: RunView): Overlay {
@@ -1287,6 +1367,7 @@ function computeOverlay(v: RunView): Overlay {
   if (!o.tooltip && hoveredMonster && !v.selectedSpell) {
     o.tooltip = `<b>${esc(hoveredMonster.name)}</b> · ${hoveredMonster.hp}/${hoveredMonster.maxHp} PV`;
   }
+  mechanicOverlay(s, o);
   return o;
 }
 

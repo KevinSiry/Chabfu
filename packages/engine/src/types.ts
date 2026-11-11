@@ -15,6 +15,15 @@ export interface Burn {
   turns: number;
 }
 
+/** Mécanique de boss annoncée : elle se déclenche au début du prochain tour du monstre. */
+export interface Telegraph {
+  kind: 'roots' | 'gale' | 'blast';
+  /** Cases touchées (racines, explosion). Vide pour le vent, qui pousse tout le monde. */
+  cells: Pos[];
+  /** Sens de la poussée du vent. */
+  dir?: Pos;
+}
+
 export interface Unit {
   id: string;
   team: Team;
@@ -35,6 +44,18 @@ export interface Unit {
   isBoss?: boolean;
   /** Utilisations des attaques ce tour (monstres). */
   attackUses: Record<string, number>;
+  /** Mécanique de boss annoncée pour son prochain tour (voir data/mechanics.ts). */
+  telegraph?: Telegraph;
+  /** Nombre de tours joués par le monstre (rythme des mécaniques). */
+  turnsPlayed?: number;
+  /** Chaleur du Golem de magma (Surchauffe). */
+  heat?: number;
+  /** Refroidi après une explosion : ne joue pas et subit plus de dégâts jusqu'à son prochain tour. */
+  cooled?: boolean;
+  /** Tour du joueur où un coup d'Eau a déjà fait baisser la chaleur (une fois par tour). */
+  waterTurn?: number;
+  /** Œuf : tours restants avant l'éclosion. */
+  hatchIn?: number;
 }
 
 export interface PlayerState {
@@ -74,8 +95,13 @@ export type GameEvent =
   | { type: 'push'; unitId: string; from: Pos; to: Pos }
   | { type: 'cast'; unitId: string; spellId: string; target: Pos }
   | { type: 'attack'; unitId: string; attackId: string; targetId: string }
-  | { type: 'damage'; unitId: string; amount: number; element: Element; source: 'spell' | 'burn' | 'collision' | 'attack' }
+  | { type: 'damage'; unitId: string; amount: number; element: Element; source: 'spell' | 'burn' | 'collision' | 'attack' | 'mechanic' }
   | { type: 'status'; unitId: string; text: string }
+  | { type: 'heal'; unitId: string; amount: number }
+  | { type: 'spawn'; unitId: string }
+  | { type: 'hatch'; unitId: string }
+  | { type: 'telegraph'; unitId: string; telegraph: Telegraph }
+  | { type: 'mechanic'; unitId: string; kind: 'roots' | 'gale' | 'blast' | 'deathBlast'; cells: Pos[] }
   | { type: 'death'; unitId: string }
   | { type: 'roomCleared'; roomIndex: number }
   | { type: 'roomEnter'; roomIndex: number; name: string }
