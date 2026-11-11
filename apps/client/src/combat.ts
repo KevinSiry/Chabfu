@@ -1324,6 +1324,11 @@ function computeOverlay(v: RunView): Overlay {
     const spell = getSpell(v.selectedSpell);
     const preview = previewCastDetailed(s, v.selectedSpell, v.hover);
     o.tooltip = castTargetCard(s, preview, hovered);
+    // Réglette de distance : toute case à portée (même vide) montre le bonus d'un tir à cette distance.
+    if (getSpell(v.selectedSpell).damage !== undefined && preview.error !== 'Hors de portée.') {
+      o.aimDistance = preview.distance;
+      o.aimBonus = distanceBonus(s, preview.distance, s.player.nextShotAimed);
+    }
     if (preview.valid) {
       for (const z of preview.zone) o.highlights.push({ pos: z, color: COLORS.zone });
       for (const t of preview.targets) {
@@ -1495,7 +1500,7 @@ function renderHud(): void {
     <div class="cb-res">
       <span class="cb-gem pa" title="Points d'action">${icon('pa')}<b>${player.pa}</b><small>PA</small></span>
       <span class="cb-gem pm" title="Points de mouvement">${icon('pm')}<b>${player.pm}</b><small>PM</small></span>
-      <span class="cb-gem conc" title="Bonus de distance du tir visé">${icon('range')}<b id="conc-value">+0 %</b><small>Dist.</small></span>
+      <span class="cb-gem conc" title="Bonus de distance du tir visé">${icon('range')}<b id="conc-value">+0%</b><small>Dist.</small></span>
     </div>
     <div class="conc-wrap" id="conc"></div>
     <div class="dock-states">
@@ -1608,7 +1613,7 @@ function renderDistance(): void {
   const rule = `Portée = puissance : <b>+${pct(per)}</b> de dégâts par case au-delà de ${DISTANCE_BONUS_FROM}, jusqu’à <b>+${pct(maxDistanceBonus(v.state, aimed))}</b> à ${DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS} cases ou plus. Se déplacer ne coûte que des PM.`;
   el.innerHTML = `<div class="conc dist">${segs}</div><div class="conc-info">${lines.map((l) => `<div>${l}</div>`).join('')}<div class="muted">${rule}</div></div>`;
   const val = document.getElementById('conc-value');
-  if (val) val.textContent = `+${pct(bonus ?? 0)}`;
+  if (val) val.textContent = `+${Math.round((bonus ?? 0) * 100)}%`;
 }
 
 function pct(f: number): string {

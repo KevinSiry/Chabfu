@@ -149,8 +149,9 @@ describe('fiche et aperçu détaillé des sorts', () => {
     const p = spellPower(s, 'fleche_ardente');
     expect(p.aimed).toBe(true);
     expect(p.damage.normal).toBe(12);
-    expect(p.maxDistanceBonus).toBeCloseTo(0.6);
-    expect(p.damageFar.normal).toBe(Math.floor(12 * 1.6));
+    expect(p.farDistance).toBe(6); // portée max de Flèche ardente
+    expect(p.farBonus).toBeCloseTo(0.36); // 3 cases comptées × 6 % × 2 (visé)
+    expect(p.damageFar.normal).toBe(Math.floor(12 * 1.36));
     expect(p.burn!.turns).toBe(3);
     expect(spellPower(s, 'bond_arriere').aimed).toBe(false);
   });

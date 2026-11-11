@@ -4,7 +4,7 @@
  * mêmes fonctions que le moteur. Les aperçus sont donc exacts (le combat est déterministe).
  */
 import { canUseAttack } from './ai.js';
-import { PLAYER_ID, applyAction, computeDamage, distanceBonus, maxDistanceBonus, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
+import { PLAYER_ID, applyAction, computeDamage, distanceBonus, DISTANCE_BONUS_FROM, DISTANCE_BONUS_MAX_CELLS, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
 import { getMonster, monsterBehavior } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
 import { distance, isWall, key, reachable, samePos } from './grid.js';
@@ -184,10 +184,12 @@ export interface SpellPower {
   mastery: number;
   /** Dégâts directs avec les stats actuelles du personnage, sans bonus de distance (tir à 3 cases ou moins). */
   damage: DamageSpread;
-  /** Dégâts directs avec le bonus de distance maximal (8 cases ou plus), Tir concentré compris s'il est actif. */
+  /** Dégâts directs au plus loin possible (portée maximale du sort, 8 cases au plus), Tir concentré compris s'il est actif. */
   damageFar: DamageSpread;
-  /** Bonus de distance maximal (fraction), Tir concentré compris s'il est actif. */
-  maxDistanceBonus: number;
+  /** Distance du tir le plus lointain qui compte (portée maximale réelle, plafonnée à 8 cases). */
+  farDistance: number;
+  /** Bonus de distance à `farDistance` (fraction), Tir concentré compris s'il est actif. */
+  farBonus: number;
   /** Tir concentré actif : le prochain tir double son bonus de distance. */
   aimed: boolean;
   /** Brûlure par tour avec les stats actuelles, et nombre de tours (passifs compris). */
@@ -232,7 +234,9 @@ function spread(state: RunState, base: number, element: Element, bonus = 0): Dam
 export function spellPower(state: RunState, spellId: string): SpellPower {
   const spell = getSpell(spellId);
   const aimed = spell.damage !== undefined && state.player.nextShotAimed;
-  const far = spell.damage !== undefined ? maxDistanceBonus(state, aimed) : 0;
+  const maxRange = spellMaxRange(spell, state.player.passives, equipmentRange(state));
+  const farDistance = Math.min(maxRange, DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS);
+  const far = spell.damage !== undefined ? distanceBonus(state, farDistance, aimed) : 0;
   const none = { normal: 0, weak: 0, resist: 0 };
   return {
     element: spell.element,
@@ -241,12 +245,13 @@ export function spellPower(state: RunState, spellId: string): SpellPower {
     mastery: state.player.masteries[spell.element] ?? 0,
     damage: spell.damage !== undefined ? spread(state, spell.damage + equipmentFlatDamage(state), spell.element) : none,
     damageFar: spell.damage !== undefined ? spread(state, spell.damage + equipmentFlatDamage(state), spell.element, far) : none,
-    maxDistanceBonus: far,
+    farDistance,
+    farBonus: far,
     aimed,
     burn: spell.burn
       ? { base: spell.burn.damage, perTurn: spread(state, spell.burn.damage, spell.element), turns: spell.burn.turns + combinePassives(state.player.passives).burnExtraTurns }
       : undefined,
-    maxRange: spellMaxRange(spell, state.player.passives, equipmentRange(state)),
+    maxRange,
   };
 }
 

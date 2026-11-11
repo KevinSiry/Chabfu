@@ -86,7 +86,7 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
     if (power.mastery) factors.push(`× ${num(1 + power.mastery / 100)} <span class="muted">maîtrise ${ELEMENT_LABEL[s.element]} +${power.mastery} %</span>`);
     damage = `
       <div class="ss-dmg" style="--c:${color}">
-        <div class="ss-dmg-main"><b>${power.damage.normal}</b><span>dégâts ${el(s.element)} à ${DISTANCE_BONUS_FROM} cases ou moins${s.zone ? `<br><small>sur chaque ennemi de la zone</small>` : ''}</span><b class="ss-far">${power.damageFar.normal}</b><span>à ${DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS} cases ou plus<br><small class="pos">+${pct(power.maxDistanceBonus)}${power.aimed ? ', tir visé' : ''}</small></span></div>
+        <div class="ss-dmg-main"><b>${power.damage.normal}</b><span>${el(s.element)} de près${s.zone ? `<br><small>sur chaque ennemi de la zone</small>` : ''}</span>${power.farBonus ? `<b class="ss-far">${power.damageFar.normal}</b><span>à ${plural(power.farDistance, 'case')}<br><small class="pos">+${pct(power.farBonus)}${power.aimed ? ', visé' : ''}</small></span>` : ''}</div>
         ${
           s.element !== 'neutral'
             ? `<div class="ss-dmg-cases">
@@ -112,7 +112,7 @@ export function spellSheet(state: RunState, spellId: string, opts: SheetOptions 
       cls: 'fire',
       html: `<b>Brûlure</b> : <b>${b.perTurn.normal}</b> dégâts Feu au début de chacun de ses <b>${b.turns}</b> prochains tours, soit <b>${b.perTurn.normal * b.turns}</b> au total${
         b.turns > s.burn.turns ? ` <span class="pos">(+${b.turns - s.burn.turns} tour, passif)</span>` : ''
-      }. <span class="muted">Ne se cumule pas : la plus forte est gardée. Jamais doublée par Tir concentré.</span>`,
+      }. <span class="muted">Ne se cumule pas : la plus forte est gardée. Pas de bonus de distance.</span>`,
     });
   }
   if (s.push) {
@@ -214,7 +214,10 @@ export function spellBrief(state: RunState, spellId: string, opts: { slot?: numb
   const err = getCastError(state, spellId);
   const range = s.target === 'self' ? 'Sur soi' : s.minRange === power.maxRange ? plural(s.minRange, 'case') : `${s.minRange} à ${power.maxRange} cases`;
   const main: string[] = [];
-  if (s.damage !== undefined) main.push(`<b class="sb-dmg">${power.damage.normal}–${power.damageFar.normal}</b> <span>${el(s.element)}</span> <span class="muted">de près / à ${DISTANCE_BONUS_FROM + DISTANCE_BONUS_MAX_CELLS}+ cases</span>`);
+  if (s.damage !== undefined)
+    main.push(
+      `<b class="sb-dmg" title="${power.damage.normal} de près, ${power.damageFar.normal} à ${power.farDistance} cases">${power.farBonus ? `${power.damage.normal}–${power.damageFar.normal}` : power.damage.normal}</b> <span>${el(s.element)}</span>`,
+    );
   main.push(`<span class="sb-range">${icon('range')}${range}</span>`);
   const fx = briefEffects(state, s);
   return `
@@ -301,7 +304,11 @@ export function castTargetCard(state: RunState, p: CastPreview, hovered: Unit | 
       const d = spellDamageOn(state, spell.id, hovered)!;
       ghost = `<div class="tp-ghost">S’il était à portée : <b>−${d.amount}</b> sur ${esc(hovered.name)}${d.amount >= hovered.hp ? ' <span class="tp-kill">☠</span>' : ''}<br><span class="muted">${factorLine(d)}</span></div>`;
     }
-    return `<div class="tp invalid">${head}<div class="tp-error">${esc(errorDetail(p))}</div>${ghost}</div>`;
+    const far =
+      spell.damage !== undefined && p.error !== 'Hors de portée.'
+        ? `<div class="tp-ghost">${p.distanceBonus ? `<span class="pos">Tir à ${plural(p.distance, 'case')} : +${pct(p.distanceBonus)} de dégâts</span>` : `<span class="muted">Tir à ${plural(p.distance, 'case')} : pas de bonus de distance</span>`}</div>`
+        : '';
+    return `<div class="tp invalid">${head}<div class="tp-error">${esc(errorDetail(p))}</div>${ghost}${far}</div>`;
   }
   const compact = p.targets.length > 2;
   const rows = p.targets.map((o) => outcomeRow(o, spell, compact)).join('');
