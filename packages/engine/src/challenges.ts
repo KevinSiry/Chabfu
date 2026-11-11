@@ -7,6 +7,7 @@
  * résultat. Sans graine, le run n'a pas de défi (solveur, anciens replays).
  */
 import { getDungeon } from './data/dungeons.js';
+import { getMonster } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
 import { distance } from './grid.js';
 import { seededRandom } from './loot.js';
@@ -277,7 +278,12 @@ export function trackChallenges(before: RunState, state: RunState, action: Actio
         if (!p) break;
         const u = units.get(ev.unitId);
         if (!u || u.team !== 'monster') break;
-        if (p.id === 'chef' && p.status === 'active') {
+        // Œufs de la Reine : à détruire, ils ne comptent ni pour « Le chef d'abord » ni pour « Doublé ».
+        if (getMonster(u.templateId).hatchInto) break;
+        const cause = lastDamage.get(ev.unitId)?.source;
+        // Morts causées par les monstres eux-mêmes (grand vent, collision pendant leur tour) : sans effet sur le chef.
+        const byMonsters = action.type === 'endTurn' && (cause === 'collision' || cause === 'mechanic');
+        if (p.id === 'chef' && p.status === 'active' && !byMonsters) {
           if (ev.unitId === p.targetId) succeed(p);
           else fail(p);
         }

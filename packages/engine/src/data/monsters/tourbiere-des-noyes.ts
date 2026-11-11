@@ -5,7 +5,7 @@ export const TOURBIERE_DES_NOYES_MONSTERS: MonsterTemplate[] = [
   {
     id: 'crapaud_vaseux',
     name: 'Crapaud vaseux',
-    hp: 20,
+    hp: 16,
     pa: 6,
     pm: 5,
     weakness: 'air',
@@ -14,13 +14,13 @@ export const TOURBIERE_DES_NOYES_MONSTERS: MonsterTemplate[] = [
     color: '#5b7d3a',
     description: 'Garde ses distances et englue (−1 PM). Coupez sa ligne de vue derrière un rocher.',
     attacks: [
-      { id: 'langue_gluante', name: 'Langue gluante', element: 'water', damage: 7, pa: 3, minRange: 2, maxRange: 4, los: true, maxPerTurn: 1, pmRemoval: 1 },
+      { id: 'langue_gluante', name: 'Langue gluante', element: 'water', damage: 8, pa: 3, minRange: 2, maxRange: 4, los: true, maxPerTurn: 1, pmRemoval: 1 },
     ],
   },
   {
     id: 'sangsue_geante',
     name: 'Sangsue géante',
-    hp: 28,
+    hp: 26,
     pa: 6,
     pm: 5,
     weakness: 'air',
@@ -49,7 +49,7 @@ export const TOURBIERE_DES_NOYES_MONSTERS: MonsterTemplate[] = [
   {
     id: 'reine_batracienne',
     name: 'Reine Batracienne',
-    hp: 108,
+    hp: 84,
     pa: 7,
     pm: 5,
     weakness: 'air',
@@ -60,14 +60,14 @@ export const TOURBIERE_DES_NOYES_MONSTERS: MonsterTemplate[] = [
     color: '#2f6b5e',
     description: 'Boss qui recule pour cracher de la vase de loin (−1 PM) et pond des œufs. Détruisez-les avant l’éclosion.',
     attacks: [
-      { id: 'coup_de_langue', name: 'Coup de langue', element: 'water', damage: 14, pa: 4, minRange: 1, maxRange: 2, los: true, maxPerTurn: 1 },
-      { id: 'jet_de_vase', name: 'Jet de vase', element: 'water', damage: 9, pa: 3, minRange: 3, maxRange: 6, los: true, maxPerTurn: 1, pmRemoval: 1 },
+      { id: 'coup_de_langue', name: 'Coup de langue', element: 'water', damage: 16, pa: 4, minRange: 1, maxRange: 2, los: true, maxPerTurn: 1 },
+      { id: 'jet_de_vase', name: 'Jet de vase', element: 'water', damage: 11, pa: 3, minRange: 3, maxRange: 6, los: true, maxPerTurn: 1, pmRemoval: 1 },
     ],
   },
   {
     id: 'oeuf_batracien',
     name: 'Œuf batracien',
-    hp: 14,
+    hp: 8,
     pa: 0,
     pm: 0,
     weakness: 'air',

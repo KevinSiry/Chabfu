@@ -168,3 +168,17 @@ describe('traits des monstres', () => {
     expect(low).toBe(Math.floor(full * 1.5));
   });
 });
+
+describe('mécaniques et défis', () => {
+  it('détruire un œuf ne fait pas rater « Le chef d’abord »', () => {
+    const s = arena('tourbiere_des_noyes', { x: 0, y: 5 }, [
+      { id: 'reine_batracienne', pos: { x: 9, y: 9 }, frozen: true },
+      { id: 'oeuf_batracien', pos: { x: 4, y: 5 } },
+    ]);
+    s.challenges = [{ id: 'chef', roomIndex: s.roomIndex, status: 'active', targetId: 't0', startTurn: 0, turns: 1, pmSpent: 0, hpLost: 0, elements: [], killsThisTurn: 0 }];
+    unit(s, 't1').hp = 1;
+    const r = applyAction(s, { type: 'cast', spellId: 'fleche_ardente', target: { x: 4, y: 5 } });
+    expect(unit(r.state, 't1').hp).toBe(0);
+    expect(r.state.challenges![0].status).toBe('active');
+  });
+});
