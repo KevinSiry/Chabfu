@@ -6,7 +6,7 @@ export const BOSQUET_DES_RONCES: DungeonDef = {
   tranche: 1,
   dominantElement: 'earth',
   weakElement: 'fire',
-  difficultyCurve: { mid: 0, high: 0.2 },
+  difficultyCurve: { mid: 0, high: 0.12, highDamage: 0 },
   description: 'Deux salles de ronces et de guêpes, puis le Gardien racineux. Les monstres craignent le feu.',
   rooms: [
     {

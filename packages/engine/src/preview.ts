@@ -4,7 +4,7 @@
  * mêmes fonctions que le moteur. Les aperçus sont donc exacts (le combat est déterministe).
  */
 import { canUseAttack } from './ai.js';
-import { PLAYER_ID, applyAction, computeDamage, distanceBonus, DISTANCE_BONUS_FROM, DISTANCE_BONUS_MAX_CELLS, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, spellHitMultiplier, WEAKNESS_BONUS, RESISTANCE_MALUS, monsterMultiplier } from './combat.js';
+import { PLAYER_ID, applyAction, computeDamage, distanceBonus, DISTANCE_BONUS_FROM, DISTANCE_BONUS_MAX_CELLS, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, spellHitMultiplier, WEAKNESS_BONUS, RESISTANCE_MALUS, monsterDamageMultiplier } from './combat.js';
 import { getMonster, monsterBehavior } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
 import { distance, isWall, key, reachable, samePos } from './grid.js';
@@ -419,7 +419,7 @@ export function monsterAttacks(state: RunState, monster: Unit): AttackInfo[] {
 }
 
 export function difficultyFactor(state: RunState): number {
-  return monsterMultiplier(state);
+  return monsterDamageMultiplier(state);
 }
 
 // ---------------------------------------------------------------------------

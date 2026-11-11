@@ -10,7 +10,7 @@ export const TOURBIERE_DES_NOYES: DungeonDef = {
   tranche: 1,
   dominantElement: 'water',
   weakElement: 'air',
-  difficultyCurve: { mid: 0, high: 0.25 },
+  difficultyCurve: { mid: 0, high: 0.25, highDamage: 0 },
   description: 'Crapauds qui engluent de loin, sangsues voraces, puis la Reine Batracienne. Les monstres craignent l’Air.',
   rooms: [
     {

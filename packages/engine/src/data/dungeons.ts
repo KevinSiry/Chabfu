@@ -16,9 +16,10 @@ export interface DungeonDef {
   /**
    * Réglage de la courbe de difficulté propre au donjon (PV et dégâts des monstres), en plus de `difficultyMultiplier` :
    * `mid` s'ajoute à partir de la D4, `high` monte de la D8 à la D10 (plein effet en D10). 0,1 = +10 %.
+   * `highDamage` (facultatif) monte de la même façon mais ne touche que les dégâts : la D10 frappe plus fort sans durer plus longtemps.
    * Sert à caler chaque donjon sur les cibles (D5 perdue sans stuff, D10 serrée avec un stuff presque parfait).
    */
-  difficultyCurve: { mid: number; high: number };
+  difficultyCurve: { mid: number; high: number; highDamage?: number };
   rooms: RoomTemplate[];
 }
 
