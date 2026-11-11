@@ -28,7 +28,6 @@ import { renderEquipmentScreen } from './stuff/equipment-screen';
 import { bindLootPanel, lootPanelHtml } from './stuff/loot-panel';
 import { getInventory, withEquipment } from './stuff/store';
 import { challengeEndRow } from './challenge-ui';
-import { rewardsPanelHtml } from './craft/rewards-panel';
 import { grantRunRewards, type RunRewards } from './craft/store';
 import { renderWorkshopScreen } from './craft/workshop-screen';
 import { formatTime, leaveRun, startRun as startCombat } from './combat';
@@ -577,8 +576,7 @@ function showRunEnd(o: {
       </div>
       ${challengeEndRow(v.state.challenges)}
       <div class="end-body">
-        ${loot.length ? lootPanelHtml(loot, v.config) : ''}
-        ${rewards ? rewardsPanelHtml(rewards) : ''}
+        ${lootPanelHtml(loot, v.config, rewards)}
       </div>
       <div class="end-foot">
         <div class="end-links">
@@ -605,7 +603,7 @@ function showRunEnd(o: {
     const c = getCharacter();
     startRun(c ? characterRunConfig(c, v.config.dungeonId, v.config.difficulty) : v.config);
   });
-  bindLootPanel(overlay, loot, v.config);
+  bindLootPanel(overlay, loot, v.config, rewards);
   overlay.querySelector('#equipment')!.addEventListener('click', () => {
     overlay.remove();
     leaveRun();

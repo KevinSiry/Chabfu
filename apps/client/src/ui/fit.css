@@ -480,7 +480,6 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .end-body:not(:has(> .loot)) { grid-template-columns: minmax(0, 560px); justify-content: center; }
 .end-body .loot h3 { flex: none; display: flex; align-items: center; gap: 8px; }
 .end-body .loot h3 .ui-pager { margin-left: auto; height: 30px; }
-.end-body .loot-list { flex: 1; min-height: 0; margin: 0; padding: 4px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; align-content: start; }
 .end-body .rewards { margin: 0; }
 .end-foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .end-foot .end-actions { width: min(460px, 100%); margin: 0; }
@@ -512,7 +511,6 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   .end-body .unlocks { font-size: 11px; }
   .end-body .res-chip { font-size: 11px; padding: 2px 6px; }
   .end-body .rewards p { font-size: 11px; margin: 4px 0 0; }
-  .end-body .loot-list { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
   .end-body .item-card { padding: 7px; gap: 4px; }
   .end-body .item-card .item-icon { width: 34px; height: 34px; border-radius: 9px; }
   .end-body .item-card .item-name { font-size: 14px; }
