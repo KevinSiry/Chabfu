@@ -61,3 +61,7 @@
   #app .gr-go { min-height: 42px; font-size: 18px; }
   .grt-txt b { font-size: 11px; }
 }
+
+/* L'icône peinte, quand elle existe, masque le repli en initiales. */
+.grx-art:has(> img) .grx-glyph, #app .gr-deck .lb-card:has(> img) .grx-glyph { display: none; }
+#app .grt-card .gr-check { right: auto; left: -6px; }
