@@ -35,9 +35,11 @@ import { isMainThread } from 'node:worker_threads';
 
 /** Decks de référence T1 (niveau 20, 5 sorts). */
 export const PRESET_DECKS: Record<string, string[]> = {
-  'feu-poussee': ['fleche_ardente', 'bond_arriere', 'fleche_fracassante', 'tir_concentre', 'coup_de_pied'],
-  'multi-element': ['fleche_ardente', 'fleche_givree', 'fleche_du_vent', 'pluie_de_fleches', 'fleche_fracassante'],
-  concentration: ['fleche_ardente', 'tir_concentre', 'fleche_givree', 'fleche_du_vent', 'bond_arriere'],
+  feu: ['fleche_ardente', 'tison', 'fleche_explosive', 'embrasement', 'bond_arriere', 'tir_concentre'],
+  eau: ['fleche_givree', 'ressac', 'brume', 'pic_de_glace', 'bond_arriere', 'tir_concentre'],
+  terre: ['fleche_fracassante', 'fleche_rocheuse', 'tir_perforant', 'coup_de_pied', 'bond_arriere', 'roulade'],
+  air: ['tir_de_recul', 'fleche_du_vent', 'pluie_de_fleches', 'fleche_du_zenith', 'bond_arriere', 'tir_concentre'],
+  'multi-element': ['fleche_ardente', 'fleche_givree', 'fleche_rocheuse', 'fleche_du_zenith', 'embrasement', 'bond_arriere'],
 };
 
 function parseArgs(argv: string[]) {
