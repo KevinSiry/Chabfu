@@ -13,6 +13,7 @@ import {
   InvalidActionError,
   applyAction,
   createRun,
+  distance,
   getCastError,
   getMonsters,
   getPlayer,
@@ -75,9 +76,10 @@ export interface RouteStats {
   casts: Record<string, number>;
   /** Cases parcourues à pied. */
   cellsWalked: number;
-  /** Tours où l'Archer n'a pas marché (il gagne alors +1 Concentration au tour suivant). */
+  /** Tours où l'Archer n'a pas marché. */
   turnsStill: number;
-  concentrationMax: number;
+  /** Distance moyenne des sorts de dégâts lancés (portée = puissance), en cases. */
+  avgShotDistance: number;
   /** Dégâts reçus par tour, dans l'ordre. */
   damageTakenPerTurn: number[];
 }
@@ -91,14 +93,14 @@ export interface RouteStats {
  * d'autres : si c'est le cas, il faut les ajouter ici (ou dans STATIC_*), sinon deux états
  * différents pourraient être fusionnés.
  */
-export const KEYED_PLAYER_FIELDS = ['concentration', 'nextShotDouble', 'pmSpentThisTurn', 'spellUses', 'movedLastTurn'];
+export const KEYED_PLAYER_FIELDS = ['nextShotAimed', 'spellUses'];
 export const STATIC_PLAYER_FIELDS = ['deck', 'masteries', 'passives'];
 export const KEYED_UNIT_FIELDS = ['id', 'pos', 'hp', 'pa', 'pm', 'pmMalus', 'burn', 'attackUses', 'turnsPlayed', 'telegraph', 'heat', 'cooled', 'hatchIn', 'waterTurn'];
 export const STATIC_UNIT_FIELDS = ['team', 'templateId', 'name', 'maxHp', 'basePa', 'basePm', 'weakness', 'resistance', 'isBoss'];
 
 export function stateKey(s: RunState): string {
   const p = s.player;
-  const parts: (string | number)[] = [s.roomIndex, s.turn, p.concentration, p.nextShotDouble ? 1 : 0, p.pmSpentThisTurn > 0 ? 1 : 0, p.movedLastTurn ? 1 : 0];
+  const parts: (string | number)[] = [s.roomIndex, s.turn, p.nextShotAimed ? 1 : 0];
   for (const id in p.spellUses) parts.push(id, p.spellUses[id]);
   for (const u of s.units) {
     if (u.hp <= 0) continue;
@@ -135,8 +137,7 @@ export function evaluate(s: RunState, hpWeight = DEFAULT_OPTIONS.hpWeight): numb
     pendingBurn * 0.7 +
     killed * 40 +
     player.hp * hpWeight +
-    s.player.concentration * 3 +
-    (s.player.nextShotDouble ? 10 : 0)
+    (s.player.nextShotAimed ? 6 : 0)
   );
 }
 
@@ -151,7 +152,7 @@ function quickScore(s: RunState): number {
     if (m.hp > 0 && m.burn) score += Math.min(m.hp, m.burn.damage * m.burn.turns) * 0.7;
     if (m.hp > 0) score += m.pmMalus * 4;
   }
-  score += s.player.concentration * 3 + (s.player.nextShotDouble ? 10 : 0);
+  score += s.player.nextShotAimed ? 6 : 0;
   return score;
 }
 
@@ -354,11 +355,17 @@ function finish(config: RunConfig, won: boolean, node: Node, t0: number): SolveR
 /** Rejoue la route pour en tirer des statistiques lisibles. */
 export function computeStats(config: RunConfig, actions: Action[]): { route: RouteStats; minHp: number } {
   let s = createRun(config);
-  const route: RouteStats = { playerActions: 0, casts: {}, cellsWalked: 0, turnsStill: 0, concentrationMax: 0, damageTakenPerTurn: [] };
+  const route: RouteStats = { playerActions: 0, casts: {}, cellsWalked: 0, turnsStill: 0, avgShotDistance: 0, damageTakenPerTurn: [] };
+  let shotDistance = 0;
+  let shots = 0;
   let minHp = getPlayer(s).hp;
   let walkedThisTurn = 0;
   for (const action of actions) {
     const hpBefore = getPlayer(s).hp;
+    if (action.type === 'cast' && getSpell(action.spellId).damage !== undefined) {
+      shotDistance += distance(getPlayer(s).pos, action.target);
+      shots++;
+    }
     const { state, events } = applyAction(s, action);
     s = state;
     if (action.type !== 'endTurn') route.playerActions++;
@@ -368,7 +375,6 @@ export function computeStats(config: RunConfig, actions: Action[]): { route: Rou
         route.cellsWalked += e.path.length;
         walkedThisTurn += e.path.length;
       }
-      if (e.type === 'concentration') route.concentrationMax = Math.max(route.concentrationMax, e.value);
       if (e.type === 'roomEnter') {
         if (walkedThisTurn === 0) route.turnsStill++;
         walkedThisTurn = 0;
@@ -382,6 +388,7 @@ export function computeStats(config: RunConfig, actions: Action[]): { route: Rou
     minHp = Math.min(minHp, getPlayer(s).hp);
     if (s.status !== 'playing') break;
   }
+  route.avgShotDistance = shots ? Math.round((shotDistance / shots) * 10) / 10 : 0;
   return { route, minHp };
 }
 

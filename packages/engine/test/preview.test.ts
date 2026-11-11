@@ -61,7 +61,9 @@ describe('aperçus', () => {
     const ronceau = getMonsters(s)[0];
     const d = spellDamageOn(s, 'fleche_ardente', ronceau)!;
     expect(d.weakness).toBe(true);
-    expect(d.amount).toBe(15);
+    expect(d.distance).toBeGreaterThanOrEqual(8);
+    expect(d.distanceBonus).toBeCloseTo(0.3);
+    expect(d.amount).toBe(Math.floor(12 * 1.3 * 1.3)); // faiblesse Feu, tir à 8 cases ou plus
     expect(d.burn).toEqual({ damage: 5, turns: 2 });
     expect(spellDamageOn(s, 'bond_arriere', ronceau)).toBeNull();
   });
@@ -72,7 +74,6 @@ describe('aperçus', () => {
     const preview = previewEnemyTurn(s)!;
     const after = applyAction(s, { type: 'endTurn' }).state;
     expect(preview.playerHpAfter).toBe(getPlayer(after).hp);
-    expect(preview.concentrationNextTurn).toBe(after.player.concentration);
     for (const intent of preview.intents) {
       const u = after.units.find((x) => x.id === intent.unitId)!;
       const end = intent.path.length ? intent.path[intent.path.length - 1] : s.units.find((x) => x.id === intent.unitId)!.pos;
@@ -101,10 +102,9 @@ describe('aperçus', () => {
   });
 
   it('aperçu de déplacement et ordre des tours', () => {
-    const s = edit(createRun(config), (st) => (st.player.concentration = 5));
+    const s = createRun(config);
     const m = previewMove(s, { x: 1, y: 1 })!;
     expect(m.pmCost).toBe(2);
-    expect(m.concentrationAfter).toBe(3);
     expect(previewMove(s, { x: 9, y: 9 })).toBeNull();
     expect(turnOrder(s).map((u) => u.id)[0]).toBe('archer');
     expect(turnOrder(s)).toHaveLength(4);
@@ -143,14 +143,17 @@ describe('fiche et aperçu détaillé des sorts', () => {
 
   it('compte les passifs et le tir concentré', () => {
     const s = edit(createRun({ ...config, passives: ['instinct_du_chasseur'] }), (st) => {
-      st.player.nextShotDouble = true;
+      st.player.nextShotAimed = true;
       st.player.passives = ['pointes_incendiaires'];
     });
     const p = spellPower(s, 'fleche_ardente');
-    expect(p.doubled).toBe(true);
-    expect(p.damage.normal).toBe(24);
+    expect(p.aimed).toBe(true);
+    expect(p.damage.normal).toBe(12);
+    expect(p.farDistance).toBe(6); // portée max de Flèche ardente
+    expect(p.farBonus).toBeCloseTo(0.36); // 3 cases comptées × 6 % × 2 (visé)
+    expect(p.damageFar.normal).toBe(Math.floor(12 * 1.36));
     expect(p.burn!.turns).toBe(3);
-    expect(spellPower(s, 'bond_arriere').doubled).toBe(false);
+    expect(spellPower(s, 'bond_arriere').aimed).toBe(false);
   });
 
   it('détaille la poussée, la collision et le monstre heurté', () => {
@@ -169,7 +172,7 @@ describe('fiche et aperçu détaillé des sorts', () => {
     expect(other.collisionDamage).toBe(4);
   });
 
-  it('annonce la brûlure, sa mort programmée et le gain de Concentration manqué', () => {
+  it('annonce la brûlure, sa mort programmée et le bonus de distance', () => {
     const s = edit(createRun(config), (st) => {
       st.units[1].pos = { x: st.units[0].pos.x + 3, y: st.units[0].pos.y };
       st.units[1].hp = 20;
@@ -181,7 +184,9 @@ describe('fiche et aperçu détaillé des sorts', () => {
     expect(o.spellDamage).toBe(spellDamageOn(s, 'fleche_ardente', t)!.amount);
     expect(o.burn).toBeTruthy();
     if (o.hpAfter <= o.burn!.damage * o.burn!.turns) expect(o.burnKillsIn).toBe(Math.ceil(o.hpAfter / o.burn!.damage));
-    expect(p.concentrationGainMissed).toEqual({ distance: 3, needed: 5, gain: 1 });
+    expect(p.distanceBonus).toBe(0);
+    expect(o.breakdown!.distance).toBe(3);
+    expect(o.breakdown!.distanceBonus).toBe(0);
   });
 
   it('reste exploitable quand le sort est impossible', () => {

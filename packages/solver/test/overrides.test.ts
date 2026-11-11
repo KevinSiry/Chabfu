@@ -12,11 +12,11 @@ afterEach(() => {
 
 describe('réglages --set', () => {
   it('change une valeur, applique un multiplicateur et traverse les attaques', () => {
-    applyOverrides(['monster.ronceau.hp=30', 'monster.*.pm=x2', 'monster.gardien_racineux.attacks.etreinte.damage=20', 'spell.tir_concentre.concentrationCost=3', 'monster.ronceau.pa=+1']);
+    applyOverrides(['monster.ronceau.hp=30', 'monster.*.pm=x2', 'monster.gardien_racineux.attacks.etreinte.damage=20', 'spell.tir_concentre.pa=1', 'monster.ronceau.pa=+1']);
     expect(getMonster('ronceau').hp).toBe(30);
     expect(getMonster('guepe').pm).toBe(12);
     expect(getMonster('gardien_racineux').attacks.find((a) => a.id === 'etreinte')!.damage).toBe(20);
-    expect(getSpell('tir_concentre').concentrationCost).toBe(3);
+    expect(getSpell('tir_concentre').pa).toBe(1);
     expect(getMonster('ronceau').pa).toBe(7);
   });
 

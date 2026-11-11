@@ -15,7 +15,6 @@ const GLYPH: Record<StatLine['stat'], string> = {
   resistance: '⛨',
   damage: '✸',
   range: '◎',
-  concentration: '◆',
 };
 
 function medal(l: Pick<StatLine, 'stat' | 'element'>): string {
@@ -81,7 +80,6 @@ export function characterStatsHtml(equipment: EquipmentConfig, masteries?: Parti
       <div class="cstat-row small">
         ${big('damage', 'Dommages', s.damage, 0)}
         ${big('range', 'Portée', s.range, 0)}
-        ${big('concentration', 'Conc. par salle', s.concentration, 0)}
       </div>
       <table class="el-table">
         <thead><tr><th></th><th>${medal({ stat: 'mastery' })} Maîtrise</th><th>${medal({ stat: 'resistance' })} Résistance</th></tr></thead>

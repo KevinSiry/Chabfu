@@ -34,15 +34,9 @@ export interface SpellDef {
   push?: number;
   pmRemoval?: number;
   gainPm?: number;
-  /** Concentration requise et consommée. */
-  concentrationCost?: number;
-  /** Concentration perdue (sans prérequis). */
-  concentrationLoss?: number;
-  concentrationGain?: number;
-  /** Distance minimale lanceur → cible pour gagner la Concentration. */
-  concentrationGainMinDistance?: number;
   /** Le lanceur saute sur la case ciblée. */
   jump?: boolean;
+  /** Le prochain sort de dégâts double son bonus de distance. */
   buffNextShot?: boolean;
   /** Longueur d'une zone en ligne (zone 'line'). */
   zoneLength?: number;
@@ -86,10 +80,8 @@ export const SPELLS: SpellDef[] = [
     target: 'unit',
     damage: 12,
     burn: { damage: 4, turns: 2 },
-    concentrationGain: 1,
-    concentrationGainMinDistance: 5,
     role: 'Base',
-    description: 'Dégâts Feu + brûlure 2 tours. +1 Concentration si la cible est à 5 cases ou plus.',
+    description: 'Dégâts Feu + brûlure 2 tours.',
   },
   {
     id: 'bond_arriere',
@@ -104,9 +96,8 @@ export const SPELLS: SpellDef[] = [
     maxPerTurn: 1,
     target: 'emptyCell',
     jump: true,
-    concentrationLoss: 1,
     role: 'Fuite',
-    description: 'Bondit de 2 cases en ligne droite, par-dessus les obstacles. -1 Concentration.',
+    description: 'Bondit de 2 cases en ligne droite, par-dessus les obstacles.',
   },
   {
     id: 'tir_de_recul',
@@ -284,10 +275,9 @@ export const SPELLS: SpellDef[] = [
     los: false,
     maxPerTurn: 1,
     target: 'self',
-    concentrationCost: 4,
     buffNextShot: true,
     role: 'Renfort',
-    description: 'Consomme 4 Concentration : le prochain tir inflige le double de dégâts.',
+    description: 'Le prochain tir double son bonus de distance (jusqu’à +60 % à 8 cases).',
   },
   {
     id: 'tir_perforant',

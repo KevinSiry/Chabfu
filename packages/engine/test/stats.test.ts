@@ -38,9 +38,8 @@ describe('stats des objets', () => {
     const l = itemStats('amulette_braise', 'legendary');
     expect(l.resistances.fire).toBeGreaterThan(c.resistances.fire);
     expect(l.masteries.fire).toBeGreaterThan(c.masteries.fire * 2);
-    expect(c.concentration).toBe(0);
-    expect(itemStats('amulette_braise', 'uncommon').concentration).toBe(1);
-    expect(l.concentration).toBe(1);
+    expect(itemStats('carquois_epines', 'common').range).toBe(0);
+    expect(itemStats('carquois_epines', 'uncommon').range).toBe(1);
     expect(itemStats('arc_racineux', 'legendary').damage).toBeGreaterThan(itemStats('arc_racineux', 'common').damage);
     expect(itemStats('arc_roseau', 'legendary').range).toBe(1);
     expect(itemStats('bottes_batracien', 'legendary').pm).toBe(1);
@@ -56,7 +55,7 @@ describe('stats des objets', () => {
   it('décrit les stats dans un ordre stable', () => {
     const lines = describeBonus(itemStats('amulette_braise', 'mythic'), LABELS);
     expect(lines[0]).toMatch(/PV$/);
-    expect(lines.findIndex((l) => l.includes('Maîtrise'))).toBeLessThan(lines.findIndex((l) => l.includes('Concentration')));
+    expect(lines.findIndex((l) => l.includes('Maîtrise'))).toBeLessThan(lines.findIndex((l) => l.includes('Dommages')));
     expect(lines.at(-1)).toContain('Résistance Feu');
   });
 });
@@ -88,11 +87,6 @@ describe('stats en combat', () => {
     expect(spellMaxRange(getSpell('fleche_ardente'), [], 1)).toBe(getSpell('fleche_ardente').maxRange + 1);
     expect(spellMaxRange(getSpell('coup_de_pied'), [], 1)).toBe(getSpell('coup_de_pied').maxRange);
     expect(s.config.equipment?.range).toBe(1);
-  });
-
-  it('la Concentration de l’équipement est donnée au début de chaque salle', () => {
-    expect(run({}).player.concentration).toBe(0);
-    expect(run({ concentration: 1 }).player.concentration).toBe(1);
   });
 
   it('combatStats additionne la base et le stuff', () => {
