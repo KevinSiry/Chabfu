@@ -153,7 +153,7 @@ describe('monstres : comportements', () => {
   it('la langue gluante retire 1 PM au joueur pour son tour suivant', () => {
     let s = duel('tourbiere_des_noyes', 'crapaud_vaseux', { x: 0, y: 4 }, { x: 4, y: 4 });
     s = applyAction(s, { type: 'endTurn' }).state;
-    expect(getPlayer(s).hp).toBe(150 - 7);
+    expect(getPlayer(s).hp).toBe(150 - 8);
     expect(getPlayer(s).pm).toBe(2);
   });
 

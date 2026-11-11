@@ -1,4 +1,5 @@
 import {
+  applyAction,
   difficultyMultiplier,
   DUNGEONS,
   PASSIVES,
@@ -512,6 +513,23 @@ function finishRun(config: RunConfig, state: RunState, timeMs: number): void {
     sections = renderRunEndSections({ config: v.config, state: v.state, summary, report, character, validated: !!check?.valid });
   }
   showRunEnd({ config, state: { ...state, challenges: summary.challenges }, timeMs, check, loot, rewards, sections });
+}
+
+// Salle du boss d'un donjon, après `turns` fins de tour (outils de développement) : window.__devBoss('caldeira_des_cendres', 2).
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__devBoss = (dungeonId: string, turns = 1, difficulty = 1) => {
+    const c = getCharacter();
+    if (!c) return;
+    const config = withEquipment(characterRunConfig(c, dungeonId, difficulty));
+    let state = createRun(config);
+    const last = DUNGEONS.find((d) => d.id === dungeonId)!.rooms.length - 1;
+    while (state.roomIndex < last) {
+      const s = { ...state, units: state.units.map((u) => (u.team === 'monster' ? { ...u, hp: 0 } : u)) };
+      state = applyAction(s, { type: 'endTurn' }).state;
+    }
+    for (let i = 0; i < turns && state.status === 'playing'; i++) state = applyAction(state, { type: 'endTurn' }).state;
+    startCombat(config, state, { onExit: renderSetup, onFinish: finishRun });
+  };
 }
 
 // Aperçu de l'écran de fin (outils de développement uniquement) : window.__devRunEnd('won' | 'lost').

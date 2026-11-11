@@ -1,7 +1,11 @@
 /** Textes et fiches d'information du combat (sorts, monstres, aperçus). Aucune règle ici. */
 import {
   DAMAGE_FACTORS,
+  MECHANIC_TEXT,
+  MECHANICS,
+  TRAIT_TEXT,
   getMonster,
+  isThornGuarded,
   getSpell,
   monsterBehavior,
   monsterAttacks,
@@ -59,6 +63,7 @@ export function monsterCard(state: RunState, u: Unit, intent: MonsterIntent | un
   const states: string[] = [];
   if (u.burn) states.push(`<span class="chip fire">Brûlure ${u.burn.damage} × ${u.burn.turns} tour${u.burn.turns > 1 ? 's' : ''}</span>`);
   if (u.pmMalus) states.push(`<span class="chip water">−${u.pmMalus} PM au prochain tour</span>`);
+  states.push(...mechanicChips(state, u));
   const attacks = monsterAttacks(state, u);
   const deck = state.player.deck.map(getSpell).filter((s) => s.damage !== undefined);
   return `
@@ -82,6 +87,7 @@ export function monsterCard(state: RunState, u: Unit, intent: MonsterIntent | un
           `<li><span>${el(a.element)} <b>${a.name}</b></span><span class="neg"><b>${a.damage}</b> dégâts${a.resisted ? ` <span class="muted">(−${a.resisted} % résistance)</span>` : ''}</span><span class="muted">${a.pa} PA · ${rangeLabel(a.minRange, a.maxRange)}${a.los ? '' : ' · en cloche (sans ligne de vue)'}${a.maxPerTurn > 1 ? ` · ${a.maxPerTurn}/tour` : ''}${a.burn ? ` · <span class="neg">brûlure ${a.burn.damage} × ${a.burn.turns}</span>` : ''}${a.pmRemoval ? ` · <span class="neg">−${a.pmRemoval} PM</span>` : ''}${a.push ? ` · <span class="neg">pousse de ${a.push}</span>` : ''}</span></li>`,
       )
       .join('')}</ul>
+    ${mechanicBlock(t.mechanic ? MECHANIC_TEXT[t.mechanic] : t.trait ? TRAIT_TEXT[t.trait] : undefined)}
     ${t.description ? `<p class="desc-line">${esc(t.description)}</p>` : ''}
     <h4>À son tour, si vous finissez maintenant</h4>
     <p class="intent">${intentText(intent, u)}</p>
@@ -97,4 +103,31 @@ export function monsterCard(state: RunState, u: Unit, intent: MonsterIntent | un
             .join('')}</table>`
         : ''
     }`;
+}
+
+function mechanicBlock(m: { name: string; text: string } | undefined): string {
+  return m ? `<h4>${escText(m.name)}</h4><p class="desc-line mech-line">${escText(m.text)}</p>` : '';
+}
+const escText = (x: string) => esc(x);
+
+/** États liés aux mécaniques de donjon : chaleur, refroidi, annonce, œuf, épines. */
+export function mechanicChips(state: RunState, u: Unit): string[] {
+  const out: string[] = [];
+  if (u.heat !== undefined) out.push(`<span class="chip fire">Chaleur ${u.heat}/${MECHANICS.overheat.max}</span>`);
+  if (u.cooled) out.push('<span class="chip water">Refroidi : +50 % de dégâts subis</span>');
+  if (u.telegraph?.kind === 'roots') out.push('<span class="chip boss">Racines au prochain tour</span>');
+  if (u.telegraph?.kind === 'blast') out.push('<span class="chip boss">Explosion au prochain tour</span>');
+  if (u.telegraph?.kind === 'gale') out.push(`<span class="chip boss">Grand vent ${dirArrow(u.telegraph.dir)} au prochain tour</span>`);
+  if (u.hatchIn !== undefined) out.push(`<span class="chip boss">Éclot dans ${u.hatchIn} tour${u.hatchIn > 1 ? 's' : ''}</span>`);
+  if (u.hp > 0 && isThornGuarded(state, u)) out.push('<span class="chip earth">Protégé par les épines : −50 % de dégâts</span>');
+  return out;
+}
+
+/** Flèche du sens du vent, dans le repère de l'écran iso (x vers le bas à droite, y vers le bas à gauche). */
+export function dirArrow(d: { x: number; y: number } | undefined): string {
+  if (!d) return '';
+  if (d.x > 0) return '↘';
+  if (d.x < 0) return '↖';
+  if (d.y > 0) return '↙';
+  return '↗';
 }

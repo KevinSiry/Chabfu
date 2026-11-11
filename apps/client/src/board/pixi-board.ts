@@ -118,7 +118,7 @@ interface UnitView {
 }
 
 /** Taille relative des créatures (les sprites remplissent tous leur canevas) : petites bêtes plus petites. */
-const UNIT_SIZE: Record<string, number> = { salamandre: 0.75, sangsue_geante: 0.82, crapaud_vaseux: 0.85, nuee_moustiques: 0.85, guepe: 0.9 };
+const UNIT_SIZE: Record<string, number> = { salamandre: 0.75, sangsue_geante: 0.82, crapaud_vaseux: 0.85, nuee_moustiques: 0.85, guepe: 0.9, oeuf_batracien: 0.62 };
 const INK = 0x140c38;
 const FONT_FUN = "'Lilita One', 'Nunito', system-ui, sans-serif";
 const LABEL_STYLE = new TextStyle({ fontFamily: FONT_FUN, fontSize: 13, fill: 0xffffff, stroke: { color: INK, width: 4, join: 'round' } });

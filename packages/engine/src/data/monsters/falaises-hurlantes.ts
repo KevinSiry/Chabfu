@@ -39,8 +39,9 @@ export const FALAISES_HURLANTES_MONSTERS: MonsterTemplate[] = [
     weakness: 'earth',
     resistance: 'air',
     behavior: 'kiter',
+    trait: 'finisher',
     color: '#4b4038',
-    description: 'Reste loin et tire de 3 à 6 cases. Approchez-le à couvert.',
+    description: 'Reste loin et tire de 3 à 6 cases, +50 % de dégâts si vous êtes sous la moitié de vos PV. Approchez-le à couvert.',
     attacks: [
       { id: 'serres_lointaines', name: 'Plongeon', element: 'air', damage: 10, pa: 3, minRange: 3, maxRange: 6, los: true, maxPerTurn: 1 },
     ],
@@ -54,8 +55,9 @@ export const FALAISES_HURLANTES_MONSTERS: MonsterTemplate[] = [
     weakness: 'earth',
     resistance: 'air',
     isBoss: true,
+    mechanic: 'gale',
     color: '#6d4f9c',
-    description: 'Boss mobile : bourrasque qui repousse de 2 cases, serres au contact.',
+    description: 'Boss mobile : serres, bourrasque, et un tour sur deux un grand vent annoncé qui pousse tout le monde de 2 cases.',
     attacks: [
       { id: 'serres', name: 'Serres', element: 'air', damage: 16, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1 },
       { id: 'bourrasque', name: 'Bourrasque', element: 'air', damage: 10, pa: 4, minRange: 2, maxRange: 5, los: true, maxPerTurn: 1, push: 2 },
