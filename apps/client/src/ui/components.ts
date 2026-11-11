@@ -286,12 +286,15 @@ export function toast(text: string, kind: 'info' | 'success' | 'error' | 'gold' 
 // Bannière plein écran (début de salle, de tour…) : passable d'un toucher
 // ---------------------------------------------------------------------------
 
-export function banner(title: string, kicker = '', ms = 1100): Promise<void> {
+export function banner(title: string, kicker = '', ms = 1100, challenge?: { title: string; rule: string; tier: number }): Promise<void> {
   return new Promise((resolve) => {
     const el = document.createElement('div');
     el.className = 'ui-banner';
     el.setAttribute('role', 'status');
-    el.innerHTML = `<div class="ui-banner__band">${kicker ? `<span class="ui-banner__kicker">${esc(kicker)}</span>` : ''}<span class="ui-banner__title">${esc(title)}</span></div>`;
+    const ch = challenge
+      ? `<span class="ui-banner__chal tier-${challenge.tier}"><b>${esc(challenge.title)}</b><span>${esc(challenge.rule)}</span></span>`
+      : '';
+    el.innerHTML = `<div class="ui-banner__band">${kicker ? `<span class="ui-banner__kicker">${esc(kicker)}</span>` : ''}<span class="ui-banner__title">${esc(title)}</span>${ch}</div>`;
     let done = false;
     const finish = () => {
       if (done) return;

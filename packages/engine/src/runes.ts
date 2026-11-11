@@ -228,14 +228,14 @@ export function breakItems(inv: Inventory, state: CraftingState, uids: string[])
 
 /**
  * Runes trouvées en battant le boss : une chance par niveau (voir RUNE_DROPS), type tiré selon `dropWeight`
- * parmi les types qui existent à ce niveau. Même graine => mêmes runes.
+ * parmi les types qui existent à ce niveau. `bonus` : bonus des défis réussis (0,2 = chances ×1,2). Même graine => mêmes runes.
  */
-export function rollRuneDrops(difficulty: number, seed: number): RuneKey[] {
+export function rollRuneDrops(difficulty: number, seed: number, bonus = 0): RuneKey[] {
   const rng = seededRandom((seed ^ 0x5eed7e11) >>> 0);
   const out: RuneKey[] = [];
   for (const grade of RUNE_GRADES) {
     const d = RUNE_DROPS[grade];
-    const rate = Math.min(1, dropRate(d.baseRate, d.refDifficulty, difficulty));
+    const rate = Math.min(1, dropRate(d.baseRate, d.refDifficulty, difficulty) * (1 + bonus));
     if (rate <= 0 || rng() >= rate) continue;
     const pool = RUNES.filter((r) => r.values[grade] !== null);
     const total = pool.reduce((s, r) => s + r.dropWeight, 0);

@@ -58,14 +58,15 @@ export interface RunRewards {
 /**
  * Récompenses d'une victoire validée : butin du boss (avec recyclage automatique) et ressources du donjon.
  * Les ressources sont tirées avec la graine du run : le serveur pourra refaire exactement le même tirage.
+ * `challengeBonus` : bonus des défis réussis (0,2 = taux de drop et quantités ×1,2), recalculé au replay.
  */
-export function grantRunRewards(config: RunConfig, actions: Action[]): RunRewards {
+export function grantRunRewards(config: RunConfig, actions: Action[], challengeBonus = 0): RunRewards {
   const trancheId = getDungeon(config.dungeonId).tranche;
-  const drops = rollBossLoot(config.dungeonId, config.difficulty, Math.floor(Math.random() * 2 ** 32));
+  const drops = rollBossLoot(config.dungeonId, config.difficulty, Math.floor(Math.random() * 2 ** 32), challengeBonus);
   const res = receiveLoot(getInventory(), crafting, drops);
   const seed = runSeed(config, actions);
-  const resources = rollResourceDrops(config.dungeonId, config.difficulty, seed);
-  const runes = rollRuneDrops(config.difficulty, seed);
+  const resources = rollResourceDrops(config.dungeonId, config.difficulty, seed, challengeBonus);
+  const runes = rollRuneDrops(config.difficulty, seed, challengeBonus);
   setInventory(res.inventory);
   setCrafting(addRunes(addResources(res.crafting, resources), runes));
   return { kept: res.kept, autoRecycled: res.recycled, shardsGained: res.shardsGained, resources, runes, trancheId };

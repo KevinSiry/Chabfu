@@ -1,7 +1,9 @@
 /**
  * Tableau de l'économie du stuff : runs gagnés pour une panoplie complète, par rareté visée et par difficulté.
  *
- *   npm run economy -- [--dungeon bosquet_des_ronces] [--seeds 200] [--no-craft]
+ *   npm run economy -- [--dungeon bosquet_des_ronces] [--seeds 200] [--no-craft] [--bonus 0.2]
+ *
+ * --bonus : bonus de loot des défis de combat réussis à chaque run (0 sans défi, 0,45 au maximum).
  */
 import { RARITIES, RARITY_ORDER, type Rarity } from '@chabfu/engine';
 import { runsForFullSet, runsForRunes } from './economy.js';
@@ -14,15 +16,16 @@ const opt = (name: string, def: string) => {
 const dungeonId = opt('--dungeon', 'bosquet_des_ronces');
 const seeds = Number(opt('--seeds', '200'));
 const craft = !argv.includes('--no-craft');
+const bonus = Number(opt('--bonus', '0'));
 const targets: Rarity[] = RARITY_ORDER.filter((r) => r !== 'common');
 const diffs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 const cell = (v: number | null) => (v === null ? '—' : v < 10 ? v.toFixed(1) : Math.round(v).toString());
-console.log(`Runs gagnés pour une panoplie complète (${dungeonId}, ${craft ? 'drops + atelier' : 'drops seuls'}, moyenne sur ${seeds} graines)\n`);
+console.log(`Runs gagnés pour une panoplie complète (${dungeonId}, ${craft ? 'drops + atelier' : 'drops seuls'}${bonus ? `, défis +${Math.round(bonus * 100)} %` : ''}, moyenne sur ${seeds} graines)\n`);
 console.log(`| Difficulté | ${targets.map((t) => RARITIES[t].label).join(' | ')} |`);
 console.log(`|---|${targets.map(() => '---').join('|')}|`);
 for (const d of diffs) {
-  const row = targets.map((t) => cell(runsForFullSet(dungeonId, d, t, { craft, seeds }).meanRuns));
+  const row = targets.map((t) => cell(runsForFullSet(dungeonId, d, t, { craft, seeds, bonus }).meanRuns));
   console.log(`| D${d} | ${row.join(' | ')} |`);
 }
 

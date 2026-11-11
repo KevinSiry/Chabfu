@@ -1,0 +1,62 @@
+/* ---------- Défis de combat (DA Arène) ---------- */
+
+/* Pastille du HUD, sous la salle et le tour. */
+#app .cb-where { flex-wrap: wrap; }
+#app .cb-chal-slot { flex-basis: 100%; display: flex; min-width: 0; }
+#app .cb-chal-slot:empty { display: none; }
+#app .cb-chal {
+  --chal: var(--c-gold-a);
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; max-width: 100%; padding: 0 10px 0 4px; border-radius: 12px;
+  font: calc(var(--fs-sm) * var(--text-scale)) / 1 var(--font-display); color: #fff; text-shadow: var(--stroke-sm); white-space: nowrap;
+  background: linear-gradient(180deg, rgba(48, 30, 110, 0.92), rgba(28, 16, 70, 0.92)); box-shadow: var(--outline-2), inset 0 0 0 2px color-mix(in srgb, var(--chal) 55%, transparent);
+  cursor: help; transition: box-shadow var(--d-base), background var(--d-base);
+}
+#app .cb-chal.tier-2 { --chal: #ffb347; }
+#app .cb-chal.tier-3 { --chal: #ff7aa8; }
+#app .cb-chal__ico { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; font-size: 14px; color: var(--c-ink); text-shadow: none; background: var(--chal); box-shadow: 0 2px 0 var(--c-ink); }
+#app .cb-chal__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#app .cb-chal small { color: var(--chal); font-size: 0.85em; }
+#app .cb-chal em { font-style: normal; padding: 2px 6px; border-radius: 7px; background: rgba(0, 0, 0, 0.35); font-size: 0.85em; }
+#app .cb-chal i { font-style: normal; font-size: 1.15em; }
+#app .cb-chal.is-success { background: linear-gradient(180deg, #3d9b4f, #23733a); box-shadow: var(--outline-2), inset 0 2px 0 rgba(255, 255, 255, 0.25); animation: chal-pop 0.5s var(--ease-out); }
+#app .cb-chal.is-success i { color: var(--c-gold-a); }
+#app .cb-chal.is-failed { background: linear-gradient(180deg, #5b3446, #3a1f2e); box-shadow: var(--outline-2); color: #e9c9d4; animation: chal-pop 0.5s var(--ease-out); }
+#app .cb-chal.is-failed .cb-chal__ico { filter: grayscale(1) brightness(0.8); }
+#app .cb-chal.is-failed small { text-decoration: line-through; color: #c99aab; }
+#app .cb-chal.is-failed i { color: #ff8f86; }
+@keyframes chal-pop { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@media (max-height: 520px) {
+  #app .cb-chal { height: 26px; font-size: 12px; padding-right: 8px; }
+  #app .cb-chal__ico { width: 20px; height: 20px; font-size: 12px; }
+  #app .cb-where { gap: 4px 6px; }
+}
+
+/* Bandeau d'entrée de salle : le défi sous le titre. */
+.ui-banner__chal { --chal: var(--c-gold-a); display: inline-flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 10px; padding: 8px 18px 9px; border-radius: 14px; background: rgba(14, 8, 40, 0.55); box-shadow: inset 0 0 0 2px var(--chal); }
+.ui-banner__chal.tier-2 { --chal: #ffb347; }
+.ui-banner__chal.tier-3 { --chal: #ff7aa8; }
+.ui-banner__chal b { font: calc(var(--fs-lg) * var(--text-scale)) / 1 var(--font-display); font-weight: 400; color: var(--chal); text-shadow: var(--stroke-sm); }
+.ui-banner__chal span { font: var(--fw-bold) calc(var(--fs-md) * var(--text-scale)) / 1.2 var(--font-body, inherit); color: #fff; text-shadow: var(--stroke-sm); }
+@media (max-height: 520px) {
+  .ui-banner__chal { margin-top: 6px; padding: 5px 12px 6px; }
+  .ui-banner__chal b { font-size: 16px; }
+  .ui-banner__chal span { font-size: 13px; }
+}
+
+/* Écran de fin : une rangée de jetons sous l'en-tête. */
+.end-wrap:has(> .end-chal) { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.end-chal { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; animation: ui-fade-in 0.4s 0.45s both; }
+.end-chal__label { font: calc(var(--fs-md) * var(--text-scale)) / 1 var(--font-display); color: var(--c-gold-a); text-shadow: var(--stroke-sm); }
+.end-chal__chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 11px; font: var(--fw-bold) 14px / 1 var(--font-body, inherit); color: #fff; box-shadow: var(--outline-2); }
+.end-chal__chip i { font-style: normal; font-size: 15px; }
+.end-chal__chip small { color: var(--c-gold-a); font-size: 12px; }
+.end-chal__chip.is-success { background: linear-gradient(180deg, #3d9b4f, #23733a); }
+.end-chal__chip.is-failed { background: linear-gradient(180deg, #5b3446, #3a1f2e); color: #e9c9d4; }
+.end-chal__chip.is-failed i { color: #ff8f86; }
+.end-chal__total { margin-left: auto; padding: 5px 12px 6px; border-radius: 12px; font: calc(var(--fs-md) * var(--text-scale)) / 1 var(--font-display); color: #c9bfe8; background: rgba(20, 12, 56, 0.7); box-shadow: var(--outline-2); }
+.end-chal__total.on { color: var(--c-ink); text-shadow: none; background: linear-gradient(180deg, var(--c-gold-a), #f2b620); }
+@media (max-height: 520px) and (orientation: landscape) {
+  .end-chal { gap: 4px 6px; }
+  .end-chal__chip { height: 24px; font-size: 11px; padding: 0 8px; }
+  .end-chal__total { font-size: 13px; padding: 4px 9px 5px; }
+}

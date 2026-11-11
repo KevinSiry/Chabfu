@@ -46,11 +46,11 @@ export function runSeed(config: RunConfig, actions: Action[]): number {
  * Ressources gagnées en terminant un donjon à une difficulté donnée.
  * Quantité moyenne = dropRate(baseRate, réf., difficulté) : partie entière garantie, partie décimale tirée au sort.
  */
-export function rollResourceDrops(dungeonId: string, difficulty: number, seed: number): Record<string, number> {
+export function rollResourceDrops(dungeonId: string, difficulty: number, seed: number, bonus = 0): Record<string, number> {
   const rand = seededRandom(seed);
   const out: Record<string, number> = {};
   for (const r of dungeonResources(dungeonId)) {
-    const expected = dropRate(r.baseRate, r.refDifficulty, difficulty);
+    const expected = dropRate(r.baseRate, r.refDifficulty, difficulty, bonus);
     const qty = Math.floor(expected) + (rand() < expected - Math.floor(expected) ? 1 : 0);
     if (qty > 0) out[r.id] = qty;
   }
