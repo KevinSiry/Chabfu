@@ -3,7 +3,10 @@ import {
   compareWithEquipped,
   equippedSlotOf,
   getItem,
-  itemStats,
+  instanceStats,
+  itemRunes,
+  runeEffectText,
+  runeLabel,
   type Element,
   type EquipmentBonus,
   type Inventory,
@@ -11,6 +14,7 @@ import {
 } from '@chabfu/engine';
 import { itemIconImg } from '../ui/assets';
 import { statDeltaHtml, statRowsHtml } from './stat-view';
+import { runeGemHtml } from './rune-view';
 
 export const ELEMENT_LABEL: Record<Element, string> = { fire: 'Feu', water: 'Eau', earth: 'Terre', air: 'Air', neutral: 'Neutre' };
 
@@ -45,12 +49,29 @@ export interface ItemCardOptions {
   action?: { label: string; name: string };
   extraClass?: string;
   style?: string;
+  /** Emplacements de runes cliquables (data-rslot sur chaque emplacement). */
+  runeButtons?: boolean;
+}
+
+/** Emplacements de runes d'un objet : pierre sertie ou case vide. */
+export function itemRunesHtml(item: ItemInstance, buttons = false): string {
+  const runes = itemRunes(item);
+  if (!runes.length) return '';
+  const tag = buttons ? 'button' : 'span';
+  return `<div class="item-runes">${runes
+    .map(
+      (k, i) =>
+        `<${tag} ${buttons ? `type="button" data-rslot="${i}"` : ''} class="rune-slot">${runeGemHtml(k, { size: 'sm' })}<span>${
+          k ? `<b>${runeLabel(k)}</b><small>${runeEffectText(k)}</small>` : `<b>Emplacement libre</b>${buttons ? '<small>Toucher pour sertir</small>' : ''}`
+        }</span></${tag}>`,
+    )
+    .join('')}</div>`;
 }
 
 export function itemCardHtml(item: ItemInstance, o: ItemCardOptions): string {
   const def = getItem(item.itemId);
   const r = RARITIES[item.rarity];
-  const stats = itemStats(item.itemId, item.rarity);
+  const stats = instanceStats(item);
   const equipped = equippedSlotOf(o.inv, o.trancheId, item.uid);
   const delta = o.compare && !equipped && def.tranche === o.trancheId ? compareWithEquipped(o.inv, o.trancheId, item.uid) : null;
   const upgrade = delta && bonusScore(delta) > 0;
@@ -61,7 +82,8 @@ export function itemCardHtml(item: ItemInstance, o: ItemCardOptions): string {
         <span class="item-name">${def.name}</span>
         ${equipped ? '<span class="tag tag-eq">Équipé</span>' : upgrade ? '<span class="tag tag-up">▲ Mieux</span>' : ''}
       </div>
-      <div class="item-meta"><span class="rarity-label">${r.label}</span> · ${KIND_LABEL[def.kind]} · T${def.tranche}${r.runeSlots ? ` · ${'◇'.repeat(r.runeSlots)} rune${r.runeSlots > 1 ? 's' : ''}` : ''}</div>
+      <div class="item-meta"><span class="rarity-label">${r.label}</span> · ${KIND_LABEL[def.kind]} · T${def.tranche}${r.runeSlots ? ` · ${r.runeSlots} rune${r.runeSlots > 1 ? 's' : ''}` : ''}</div>
+      ${itemRunesHtml(item, o.runeButtons)}
       ${statRowsHtml(stats)}
       ${delta ? statDeltaHtml(delta) : ''}
       ${o.action && !equipped ? `<button class="secondary item-btn" data-action="${o.action.name}" data-uid="${item.uid}">${o.action.label}</button>` : ''}

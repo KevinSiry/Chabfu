@@ -6,7 +6,7 @@
  * --bonus : bonus de loot des défis de combat réussis à chaque run (0 sans défi, 0,45 au maximum).
  */
 import { RARITIES, RARITY_ORDER, type Rarity } from '@chabfu/engine';
-import { runsForFullSet } from './economy.js';
+import { runsForFullSet, runsForRunes } from './economy.js';
 
 const argv = process.argv.slice(2);
 const opt = (name: string, def: string) => {
@@ -27,4 +27,14 @@ console.log(`|---|${targets.map(() => '---').join('|')}|`);
 for (const d of diffs) {
   const row = targets.map((t) => cell(runsForFullSet(dungeonId, d, t, { craft, seeds, bonus }).meanRuns));
   console.log(`| D${d} | ${row.join(' | ')} |`);
+}
+
+if (!argv.includes('--no-runes')) {
+  console.log(`\nRuns gagnés pour les runes (${dungeonId}, joueur déjà équipé qui brise les objets Rares ou mieux, moyenne sur ${Math.min(seeds, 60)} graines)\n`);
+  console.log('| Difficulté | Première rune | 18 Taillées ou mieux | Jeu parfait (18 Parfaites) |');
+  console.log('|---|---|---|---|');
+  for (const d of [3, 4, 5, 6, 7, 8, 9, 10]) {
+    const r = runsForRunes(dungeonId, d, { seeds: Math.min(seeds, 60) });
+    console.log(`| D${d} | ${cell(r.firstRune)} | ${cell(r.eighteenCut)} | ${cell(r.perfectSet)} |`);
+  }
 }
