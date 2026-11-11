@@ -7,6 +7,38 @@ services:
     image: chabfu-web
     ports:
       - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # API de sauvegarde : reçoit la partie du jeu et la range dans PostgreSQL (servie sous /api par web).
+  api:
+    build:
+      context: .
+      target: api
+    image: chabfu-api
+    environment:
+      - DATABASE_URL=postgres://chabfu:chabfu@db:5432/chabfu
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Base de données : la partie survit aux reconstructions grâce au volume chabfu-db.
+  # Ne pas lancer « docker compose down -v », qui effacerait ce volume.
+  db:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_USER=chabfu
+      - POSTGRES_PASSWORD=chabfu
+      - POSTGRES_DB=chabfu
+    volumes:
+      - chabfu-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chabfu -d chabfu"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
     restart: unless-stopped
 
   # Développement : http://localhost:5173 (docker compose --profile dev up dev)
@@ -19,8 +51,14 @@ services:
       - "5173:5173"
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - API_URL=http://api:3000
+    depends_on:
+      - api
     volumes:
       - ./packages/engine/src:/app/packages/engine/src
       - ./packages/engine/test:/app/packages/engine/test
       - ./apps/client/src:/app/apps/client/src
       - ./apps/client/index.html:/app/apps/client/index.html
+
+volumes:
+  chabfu-db:

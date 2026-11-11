@@ -13,10 +13,18 @@ export function difficultyMultiplier(difficulty: number): number {
 }
 
 /**
+ * Échelle commune de tous les taux de drop (objets du boss et ressources). Baissée de 10 % avec l'arrivée des défis
+ * de combat : un joueur qui réussit ses défis garde à peu près le rythme d'avant, celui qui les ignore farme plus.
+ */
+export const LOOT_RATE_SCALE = 0.9;
+
+/**
  * Taux de drop d'un objet de difficulté de référence `refDifficulty` dans un run de difficulté `difficulty`.
  * Au-dessus de la référence : +25 % du taux de base par palier. À référence - 1 : taux / 10. En dessous : 0.
+ * `bonus` : bonus des défis réussis (0,2 = taux ×1,2).
  */
-export function dropRate(baseRate: number, refDifficulty: number, difficulty: number): number {
+export function dropRate(baseRate0: number, refDifficulty: number, difficulty: number, bonus = 0): number {
+  const baseRate = baseRate0 * LOOT_RATE_SCALE * (1 + bonus);
   if (difficulty >= refDifficulty) return baseRate * (1 + 0.25 * (difficulty - refDifficulty));
   if (difficulty === refDifficulty - 1) return baseRate / 10;
   return 0;

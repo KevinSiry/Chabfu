@@ -8,6 +8,7 @@ import { getDungeon } from './data/dungeons.js';
 import { getMonster } from './data/monsters.js';
 import { PASSIVES, type PassiveDef } from './data/passives.js';
 import { SPELLS, type SpellDef } from './data/spells.js';
+import { challengeBonus, type ChallengeProgress } from './challenges.js';
 import { difficultyMultiplier } from './loot.js';
 import { MAX_LEVEL, TRANCHES, getTranche, type Tranche } from './progression.js';
 import type { Action, RunConfig, RunStatus } from './types.js';
@@ -81,6 +82,11 @@ export interface RunSummary {
   kills: RunKill[];
   xpFromKills: number;
   xpVictoryBonus: number;
+  /** Défis de combat des salles ouvertes, et bonus total (0,25 = +25 %) de ceux réussis. */
+  challenges: ChallengeProgress[];
+  challengeBonus: number;
+  /** XP en plus grâce aux défis : bonus × (XP des monstres + bonus de victoire). */
+  xpChallengeBonus: number;
   xpTotal: number;
 }
 
@@ -108,6 +114,10 @@ export function summarizeRun(config: RunConfig, actions: Action[]): RunSummary {
   }
   const xpFromKills = kills.reduce((s, k) => s + k.xp, 0);
   const xpVictoryBonus = state.status === 'won' ? Math.round(xpFromKills * VICTORY_XP_BONUS) : 0;
+  // Un défi en cours au moment d'un abandon ne compte pas (il n'est ni réussi ni raté) : seuls les réussis rapportent.
+  const challenges = state.challenges ?? [];
+  const bonus = challengeBonus(challenges);
+  const xpChallengeBonus = Math.round((xpFromKills + xpVictoryBonus) * bonus);
   return {
     dungeonId: config.dungeonId,
     difficulty: config.difficulty,
@@ -117,7 +127,10 @@ export function summarizeRun(config: RunConfig, actions: Action[]): RunSummary {
     kills,
     xpFromKills,
     xpVictoryBonus,
-    xpTotal: xpFromKills + xpVictoryBonus,
+    challenges,
+    challengeBonus: bonus,
+    xpChallengeBonus,
+    xpTotal: xpFromKills + xpVictoryBonus + xpChallengeBonus,
   };
 }
 

@@ -7,6 +7,7 @@ import {
   computeDamage,
   createRun,
   dropRate,
+  LOOT_RATE_SCALE,
   effectiveLevel,
   getCastError,
   getMonsters,
@@ -47,9 +48,10 @@ describe('progression', () => {
 
 describe('loot', () => {
   it('suit la règle de drop par difficulté de référence', () => {
-    expect(dropRate(0.1, 4, 4)).toBeCloseTo(0.1);
-    expect(dropRate(0.1, 4, 6)).toBeCloseTo(0.15);
-    expect(dropRate(0.1, 4, 3)).toBeCloseTo(0.01);
+    expect(dropRate(0.1, 4, 4)).toBeCloseTo(0.1 * LOOT_RATE_SCALE);
+    expect(dropRate(0.1, 4, 6)).toBeCloseTo(0.15 * LOOT_RATE_SCALE);
+    expect(dropRate(0.1, 4, 3)).toBeCloseTo(0.01 * LOOT_RATE_SCALE);
+    expect(dropRate(0.1, 4, 4, 0.2)).toBeCloseTo(0.12 * LOOT_RATE_SCALE);
     expect(dropRate(0.1, 4, 2)).toBe(0);
   });
 });
