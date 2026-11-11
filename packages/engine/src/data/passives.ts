@@ -12,6 +12,14 @@ export interface PassiveMods {
   paCostReduction?: Record<string, number>;
   /** Portée maximale en plus pour les tirs à distance (sorts offensifs de portée max ≥ 2). */
   rangeBonus?: number;
+  /** % de dégâts en plus des sorts Feu sur une cible qui brûle. */
+  fireVsBurningPct?: number;
+  /** % de dégâts en plus sur une cible gelée (ses PM retirés couvrent tous ses PM). */
+  frozenBonusPct?: number;
+  /** % de dégâts de collision en plus quand l'Archer pousse un ennemi. */
+  collisionBonusPct?: number;
+  /** PM rendus par un sort Air lancé sur une cible à 5 cases ou plus. */
+  airLongShotPm?: number;
   /** Bonus de distance en plus par case comptée (fraction : 0,02 = +2 % par case). */
   distanceBonusPerCell?: number;
 }
@@ -67,6 +75,35 @@ export const PASSIVES: PassiveDef[] = [
     level: 20,
     description: 'Tir concentré coûte 1 PA au lieu de 2.',
     mods: { paCostReduction: { tir_concentre: 1 } },
+  },
+  // Passifs élémentaires : une synergie par élément.
+  {
+    id: 'braises',
+    name: 'Braises',
+    level: 6,
+    description: 'Vos sorts Feu infligent +20 % de dégâts à une cible qui brûle.',
+    mods: { fireVsBurningPct: 20 },
+  },
+  {
+    id: 'socle',
+    name: 'Socle',
+    level: 10,
+    description: 'Les collisions des ennemis que vous poussez font +50 % de dégâts.',
+    mods: { collisionBonusPct: 50 },
+  },
+  {
+    id: 'eaux_dormantes',
+    name: 'Eaux dormantes',
+    level: 12,
+    description: 'Vos sorts infligent +25 % de dégâts à une cible gelée (ralentie de tous ses PM).',
+    mods: { frozenBonusPct: 25 },
+  },
+  {
+    id: 'vent_arriere',
+    name: 'Vent arrière',
+    level: 16,
+    description: '+1 PM quand un sort Air touche une cible à 5 cases ou plus (une fois par tour).',
+    mods: { airLongShotPm: 1 },
   },
 ];
 

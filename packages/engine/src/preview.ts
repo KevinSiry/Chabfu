@@ -4,7 +4,7 @@
  * mêmes fonctions que le moteur. Les aperçus sont donc exacts (le combat est déterministe).
  */
 import { canUseAttack } from './ai.js';
-import { PLAYER_ID, applyAction, computeDamage, distanceBonus, DISTANCE_BONUS_FROM, DISTANCE_BONUS_MAX_CELLS, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
+import { PLAYER_ID, applyAction, computeDamage, distanceBonus, DISTANCE_BONUS_FROM, DISTANCE_BONUS_MAX_CELLS, equipmentFlatDamage, equipmentRange, playerResistance, getCastError, getPlayer, getReachableCells, getSpellZone, spellHitMultiplier, WEAKNESS_BONUS, RESISTANCE_MALUS } from './combat.js';
 import { getMonster, monsterBehavior } from './data/monsters.js';
 import { getSpell } from './data/spells.js';
 import { distance, isWall, key, reachable, samePos } from './grid.js';
@@ -134,6 +134,8 @@ export interface DamageBreakdown {
   distanceBonus: number;
   /** Tir concentré actif : bonus de distance doublé. */
   aimed: boolean;
+  /** Multiplicateur propre au sort et aux passifs (cible ralentie, obstacle derrière, brûlure…), 1 sinon. */
+  hitBonus: number;
   /** Dégâts de brûlure par tour, s'il y en a. */
   burn?: Burn;
 }
@@ -146,8 +148,10 @@ export function spellDamageOn(state: RunState, spellId: string, target: Unit): D
   const aimed = state.player.nextShotAimed;
   const d = distance(player.pos, target.pos);
   const bonus = distanceBonus(state, d, aimed);
+  const hitBonus = spellHitMultiplier(state, spell, target, player.pos);
   return {
-    amount: computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, target, bonus),
+    amount: computeDamage(state, spell.damage + equipmentFlatDamage(state), spell.element, player, target, bonus, hitBonus),
+    hitBonus,
     base: spell.damage,
     flat: equipmentFlatDamage(state),
     element: spell.element,
