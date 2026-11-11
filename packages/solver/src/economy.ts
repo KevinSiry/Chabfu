@@ -5,6 +5,7 @@
  * à une difficulté fixe et gagne chaque run. Il garde le premier objet de chaque emplacement à la rareté visée
  * ou mieux, recycle tout le reste en éclats, et fabrique à l'atelier dès qu'une recette de la rareté visée
  * (ou mieux) est payable pour un emplacement encore vide. Moyenne sur plusieurs graines.
+ * `bonus` : bonus de loot moyen des défis de combat réussis (0,2 = +20 % sur chaque run).
  */
 import {
   RARITY_ORDER,
@@ -40,11 +41,12 @@ export function runsForFullSet(
   dungeonId: string,
   difficulty: number,
   target: Rarity,
-  opts: { craft?: boolean; seeds?: number; maxRuns?: number } = {},
+  opts: { craft?: boolean; seeds?: number; maxRuns?: number; bonus?: number } = {},
 ): EconomyResult {
   const craft = opts.craft ?? true;
   const seeds = opts.seeds ?? 200;
   const maxRuns = opts.maxRuns ?? 2000;
+  const bonus = opts.bonus ?? 0;
   const recipes = RECIPES.filter((r) => r.dungeonId === dungeonId && atLeast(r.rarity, target)).sort(
     (a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity),
   );
@@ -60,14 +62,14 @@ export function runsForFullSet(
     let n = 0;
     while (missing() && n < maxRuns) {
       n++;
-      for (const d of rollBossLoot(dungeonId, difficulty, Math.floor(rng() * 2 ** 32))) {
+      for (const d of rollBossLoot(dungeonId, difficulty, Math.floor(rng() * 2 ** 32), bonus)) {
         const kind = getItem(d.itemId).kind;
         if (atLeast(d.rarity, target) && (have[kind] ?? 0) < NEEDED[kind]) {
           have[kind] = (have[kind] ?? 0) + 1;
           total++;
         } else shards += SHARDS_BY_RARITY[d.rarity];
       }
-      for (const [id, q] of Object.entries(rollResourceDrops(dungeonId, difficulty, Math.floor(rng() * 2 ** 32))))
+      for (const [id, q] of Object.entries(rollResourceDrops(dungeonId, difficulty, Math.floor(rng() * 2 ** 32), bonus)))
         res[id] = (res[id] ?? 0) + q;
       if (!craft) continue;
       let again = true;

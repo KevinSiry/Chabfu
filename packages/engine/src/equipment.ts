@@ -332,12 +332,12 @@ export function rollRarity(rng: () => number, difficulty: number): Rarity {
 /**
  * Butin du boss d'un donjon gagné. Chaque objet de la table est tiré avec `dropRate` (branché sur la difficulté),
  * puis sa rareté est tirée. Un objet au moins est garanti pour qu'aucune victoire ne reparte les mains vides.
- * Même graine => même butin.
+ * Même graine => même butin. `bonus` : bonus de loot des défis réussis (multiplie les taux, pas la rareté).
  */
-export function rollBossLoot(dungeonId: string, difficulty: number, seed: number): LootDrop[] {
+export function rollBossLoot(dungeonId: string, difficulty: number, seed: number, bonus = 0): LootDrop[] {
   const rng = seededRandom(seed);
   const table = getBossDropTable(dungeonId)
-    .map((e) => ({ ...e, rate: Math.min(1, dropRate(e.baseRate, e.refDifficulty, difficulty)) }))
+    .map((e) => ({ ...e, rate: Math.min(1, dropRate(e.baseRate, e.refDifficulty, difficulty, bonus)) }))
     .filter((e) => e.rate > 0);
   const drops: LootDrop[] = [];
   for (const e of table) {

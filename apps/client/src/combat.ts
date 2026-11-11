@@ -70,6 +70,8 @@ import { openSettings } from './ui/settings-screen';
 import { coachTour } from './ui/coach';
 import { sfx } from './ui/sfx';
 import { banner } from './ui/components';
+import { challengeBannerLine, challengePill } from './challenge-ui';
+import { currentChallenge, getChallenge } from '@chabfu/engine';
 import './combat.css';
 
 export interface RunHooks {
@@ -261,7 +263,7 @@ export function startRun(config: RunConfig, state: RunState, hooks: RunHooks): v
         <div class="cursor-tip" id="cursor-tip" hidden></div>
       </div>
       <header class="cb-top">
-        <div class="cb-where"><span class="cb-pill" id="room"></span><span class="cb-pill" id="turn"></span></div>
+        <div class="cb-where"><span class="cb-pill" id="room"></span><span class="cb-pill" id="turn"></span><span class="cb-chal-slot" id="challenge"></span></div>
         <div class="cb-order turn-order" id="turn-order" aria-label="Ordre des tours"></div>
         <div class="cb-tr">
           <span class="cb-pill num" id="clock"></span>
@@ -781,7 +783,11 @@ function roomBanner(state: RunState): Promise<void> {
   const rooms = getDungeon(state.config.dungeonId).rooms.length;
   const boss = state.roomIndex === rooms - 1;
   sfx(boss ? 'boss' : 'room');
-  return banner(boss ? 'Boss !' : state.room.name, boss ? state.room.name : `Salle ${state.roomIndex + 1} / ${rooms}`, boss ? 1400 : 1000);
+  // Le défi de la salle est annoncé sur le bandeau d'entrée (plus longtemps, pour avoir le temps de le lire).
+  const ch = currentChallenge(state);
+  const line = ch ? challengeBannerLine(state, ch) : null;
+  const ms = (boss ? 1400 : 1000) + (line ? 1600 : 0);
+  return banner(boss ? 'Boss !' : state.room.name, boss ? state.room.name : `Salle ${state.roomIndex + 1} / ${rooms}`, ms, line ?? undefined);
 }
 
 /** Premier combat : visite guidée du HUD (une seule fois). */
@@ -873,6 +879,7 @@ function act(action: Action): void {
   renderHud();
   void animate(v, before, result.events).then(() => {
     if (view !== v) return;
+    announceChallenge(before, v.state);
     v.busy = false;
     v.acting = null;
     v.displayRoom = v.state.room;
@@ -884,6 +891,22 @@ function act(action: Action): void {
       v.hooks.onFinish(v.config, v.state, Math.round(v.endedAt - v.startedAt));
     }
   });
+}
+
+/** Défi réussi ou raté pendant l'action : petit message et son (le résultat reste visible sur la pastille). */
+function announceChallenge(before: RunState, after: RunState): void {
+  for (const p of after.challenges ?? []) {
+    const prev = before.challenges?.find((c) => c.roomIndex === p.roomIndex);
+    if (!prev || prev.status !== 'active' || p.status === 'active') continue;
+    const c = getChallenge(p.id);
+    if (p.status === 'success') {
+      toast(`Défi réussi : ${esc(c.name)} · +${Math.round(c.bonus * 100)} % XP et loot`, 'gold');
+      sfx('coin');
+    } else {
+      toast(`Défi raté : ${esc(c.name)}`, 'error');
+    }
+    view?.log.push({ cls: p.status === 'success' ? 'room' : 'warn', html: `Défi ${p.status === 'success' ? 'réussi' : 'raté'} : ${esc(c.name)}` });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1166,10 +1189,16 @@ function refreshOverlay(): void {
 
 function intentBadges(v: RunView): Map<string, { text: string; color: string }> {
   const out = new Map<string, { text: string; color: string }>();
-  if (v.busy || !v.analysis.enemy) return out;
-  for (const i of v.analysis.enemy.intents) {
+  if (v.busy) return out;
+  for (const i of v.analysis.enemy?.intents ?? []) {
     if (i.diesFromBurn) out.set(i.unitId, { text: 'Brûlure fatale', color: '#f2c14e' });
     else if (i.damageToPlayer) out.set(i.unitId, { text: `−${i.damageToPlayer}`, color: '#ff8a80' });
+  }
+  // Défi « Le chef d'abord » : couronne au-dessus du monstre à abattre en premier.
+  const ch = currentChallenge(v.state);
+  if (ch?.id === 'chef' && ch.status === 'active' && ch.targetId) {
+    const prev = out.get(ch.targetId);
+    out.set(ch.targetId, { text: prev ? `♛ ${prev.text}` : '♛ Chef', color: '#ffd54a' });
   }
   return out;
 }
@@ -1457,6 +1486,8 @@ function renderHud(): void {
   const player = getPlayer(state);
   document.getElementById('room')!.textContent = `Salle ${state.roomIndex + 1}/${getDungeon(state.config.dungeonId).rooms.length} · ${state.room.name}`;
   document.getElementById('turn')!.textContent = `Tour ${state.turn} · Difficulté ${state.config.difficulty}`;
+  const ch = currentChallenge(state);
+  document.getElementById('challenge')!.innerHTML = ch ? challengePill(state, ch, player.maxHp) : '';
 
   const hpPct = (100 * player.hp) / player.maxHp;
   document.getElementById('hud')!.innerHTML = `

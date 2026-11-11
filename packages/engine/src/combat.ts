@@ -1,4 +1,5 @@
 import { canUseAttack, planMonsterMove } from './ai.js';
+import { pickChallenges, startRoomChallenge, trackChallenges } from './challenges.js';
 import { getDungeon } from './data/dungeons.js';
 import { MECHANICS } from './data/mechanics.js';
 import { getMonster, type MonsterAttack } from './data/monsters.js';
@@ -91,6 +92,8 @@ export function createRun(config: RunConfig): RunState {
     turn: 0,
     status: 'playing',
     actionLog: [],
+    // Défis de combat seulement avec une graine (le solveur et les anciens replays n'en ont pas).
+    ...(config.challengeSeed !== undefined ? { challengeIds: pickChallenges(config), challenges: [] } : {}),
   };
   const player: Unit = {
     id: PLAYER_ID,
@@ -124,6 +127,7 @@ function enterRoom(state: RunState, index: number, events: GameEvent[]): void {
   state.units = [player];
   tpl.monsters.forEach((m, i) => state.units.push(createMonsterUnit(state, m.templateId, `r${index}-m${i}`, m.pos)));
   events.push({ type: 'roomEnter', roomIndex: index, name: tpl.name });
+  startRoomChallenge(state);
   const roomConcentration = state.config.equipment?.concentration ?? 0;
   if (roomConcentration) changeConcentration(state, roomConcentration, events);
   startPlayerTurn(state, events);
@@ -671,6 +675,7 @@ export function applyAction(input: RunState, action: Action): { state: RunState;
       throw new InvalidActionError('Action inconnue.');
   }
 
+  trackChallenges(input, state, action, events);
   state.actionLog.push(clone(action));
   return { state, events };
 }
