@@ -18,7 +18,7 @@ export const STUFF_LEVELS: Record<string, Rarity | null> = {
 
 /**
  * Totaux de stats de référence pour la tranche T1. Ils comptent toutes les stats d'objets (résistances,
- * dommages, PM, Concentration par salle), pas seulement PV et maîtrises : un profil sans elles sous-estime
+ * dommages, PM, portée), pas seulement PV et maîtrises : un profil sans elles sous-estime
  * beaucoup un vrai stuff. `faible` ≈ panoplie T1 complète en Commune, `fort` ≈ panoplie complète en Mythique
  * (fil « Ajouter des stats aux items », 2026-11-10).
  */
@@ -31,7 +31,6 @@ export interface StatProfile {
   damage?: number;
   pm?: number;
   range?: number;
-  concentration?: number;
 }
 
 export const STAT_PROFILES: Record<string, StatProfile> = {
@@ -67,7 +66,6 @@ export function statProfileBonus(name: string): EquipmentBonus {
   b.damage = p.damage ?? 0;
   b.pm = p.pm ?? 0;
   b.range = p.range ?? 0;
-  b.concentration = p.concentration ?? 0;
   for (const e of ['fire', 'water', 'earth', 'air'] as const) {
     b.masteries[e] = p.mastery;
     b.resistances[e] = p.resistance ?? 0;
@@ -84,7 +82,7 @@ export function stuffBonus(trancheId: number, name: string): EquipmentBonus {
 
 function score(b: EquipmentBonus): number {
   const sum = (r: Record<string, number>) => Object.values(r).reduce((s, v) => s + v, 0);
-  return b.hp + sum(b.masteries) + 0.8 * sum(b.resistances) + 8 * b.damage + 15 * (b.range + b.concentration) + 50 * (b.pa + b.pm);
+  return b.hp + sum(b.masteries) + 0.8 * sum(b.resistances) + 8 * b.damage + 15 * b.range + 50 * (b.pa + b.pm);
 }
 
 /**

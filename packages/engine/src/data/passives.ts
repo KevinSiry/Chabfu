@@ -4,18 +4,16 @@
  */
 
 export interface PassiveMods {
-  /** Concentration gagnée quand l'Archer tue un monstre. */
-  killConcentration?: number;
-  /** Sorts dont la perte de Concentration est annulée. */
-  noConcentrationLoss?: string[];
+  /** PM rendus quand l'Archer achève un monstre. */
+  killPm?: number;
   /** Tours de brûlure supplémentaires infligés par l'Archer. */
   burnExtraTurns?: number;
-  /** Réduction du coût en Concentration, par sort. */
-  concentrationCostReduction?: Record<string, number>;
+  /** Réduction du coût en PA, par sort (1 PA minimum). */
+  paCostReduction?: Record<string, number>;
   /** Portée maximale en plus pour les tirs à distance (sorts offensifs de portée max ≥ 2). */
   rangeBonus?: number;
-  /** Concentration en plus au début du tour si l'Archer n'a pas bougé au tour précédent. */
-  stillConcentrationBonus?: number;
+  /** Bonus de distance en plus par case comptée (fraction : 0,02 = +2 % par case). */
+  distanceBonusPerCell?: number;
 }
 
 export interface PassiveDef {
@@ -32,22 +30,22 @@ export const PASSIVES: PassiveDef[] = [
     id: 'instinct_du_chasseur',
     name: 'Instinct du chasseur',
     level: 4,
-    description: '+1 Concentration chaque fois que vous achevez un monstre.',
-    mods: { killConcentration: 1 },
+    description: 'Achever un monstre pendant votre tour vous rend 1 PM.',
+    mods: { killPm: 1 },
   },
   {
     id: 'reception_agile',
     name: 'Réception agile',
     level: 8,
-    description: 'Bond arrière ne coûte plus de Concentration.',
-    mods: { noConcentrationLoss: ['bond_arriere'] },
+    description: 'Bond arrière coûte 1 PA au lieu de 2.',
+    mods: { paCostReduction: { bond_arriere: 1 } },
   },
   {
     id: 'patience',
-    name: 'Patience',
+    name: 'Longue-vue',
     level: 11,
-    description: 'Si vous n’avez pas bougé au tour précédent, vous gagnez 2 Concentration au lieu de 1.',
-    mods: { stillConcentrationBonus: 1 },
+    description: 'Bonus de distance porté à +8 % par case (jusqu’à +40 % à 8 cases).',
+    mods: { distanceBonusPerCell: 0.02 },
   },
   {
     id: 'pointes_incendiaires',
@@ -67,8 +65,8 @@ export const PASSIVES: PassiveDef[] = [
     id: 'sang_froid',
     name: 'Sang-froid',
     level: 20,
-    description: 'Tir concentré ne consomme que 3 Concentration.',
-    mods: { concentrationCostReduction: { tir_concentre: 1 } },
+    description: 'Tir concentré coûte 1 PA au lieu de 2.',
+    mods: { paCostReduction: { tir_concentre: 1 } },
   },
 ];
 

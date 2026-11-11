@@ -31,7 +31,7 @@ export function renderGallery(app: HTMLElement): void {
     </section>
 
     <section class="ui-panel"><h2 class="ui-section-title">Typographie</h2>
-      ${[['4xl', 'Victoire'], ['3xl', 'Bosquet des Ronces'], ['2xl', 'Titre d’écran'], ['xl', 'Titre de fiche'], ['lg', 'Sous-titre'], ['md', 'Texte courant : la Concentration monte quand vous restez immobile.'], ['sm', 'Texte secondaire et détails de sort.'], ['xs', 'LÉGENDE · PASTILLE'], ['2xs', 'Micro-texte de badge']]
+      ${[['4xl', 'Victoire'], ['3xl', 'Bosquet des Ronces'], ['2xl', 'Titre d’écran'], ['xl', 'Titre de fiche'], ['lg', 'Sous-titre'], ['md', 'Texte courant : vos tirs frappent plus fort de loin.'], ['sm', 'Texte secondaire et détails de sort.'], ['xs', 'LÉGENDE · PASTILLE'], ['2xs', 'Micro-texte de badge']]
         .map(([k, t]) => `<div class="g-type"><code>--fs-${k}</code><span style="font-size:var(--fs-${k});font-weight:${k.includes('xl') ? 'var(--fw-bold)' : 'var(--fw-medium)'}">${t}</span></div>`).join('')}
       <div class="g-type"><code>chiffres</code><span class="num" style="font-size:var(--fs-xl);font-weight:700">150 / 150 · 0:36.2 · −24</span></div>
     </section>

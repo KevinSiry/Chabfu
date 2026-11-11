@@ -237,7 +237,7 @@ export function rollRuneDrops(difficulty: number, seed: number, bonus = 0): Rune
     const d = RUNE_DROPS[grade];
     const rate = Math.min(1, dropRate(d.baseRate, d.refDifficulty, difficulty) * (1 + bonus));
     if (rate <= 0 || rng() >= rate) continue;
-    const pool = RUNES.filter((r) => r.values[grade] !== null);
+    const pool = RUNES.filter((r) => r.values[grade] !== null && r.dropWeight > 0);
     const total = pool.reduce((s, r) => s + r.dropWeight, 0);
     let x = rng() * total;
     const pick = pool.find((r) => (x -= r.dropWeight) < 0) ?? pool[pool.length - 1];
@@ -266,7 +266,7 @@ const EFFECT_TEXT: Record<string, (v: number) => string> = {
   resistanceAll: (v) => `+${v} % Résistance (4 éléments)`,
   damage: (v) => `+${v} Dommages`,
   range: (v) => `+${v} Portée`,
-  concentration: (v) => `+${v} Concentration par salle`,
+  none: () => 'Sans effet (la Concentration a été retirée)',
 };
 
 /** Effet lisible d'une rune : « +2 % Maîtrise Feu ». */

@@ -2,13 +2,11 @@
  * Totaux de stats du personnage (base de l'Archer + équipement).
  * C'est la référence de l'équilibrage : la rareté d'un objet n'agit que par les stats qu'il donne.
  */
-import { BASE_PA, BASE_PM, MAX_CONCENTRATION, PLAYER_HP } from './combat.js';
+import { BASE_PA, BASE_PM, PLAYER_HP } from './combat.js';
 import { MAX_RESISTANCE, emptyBonus, normalizeBonus, type EquipmentBonus, type EquipmentConfig } from './equipment.js';
 import type { Element } from './types.js';
 
 export interface CombatStats extends EquipmentBonus {
-  /** Concentration maximale (fixe). */
-  maxConcentration: number;
   /** Ce que donne l'équipement seul, pour afficher « (+n) ». */
   fromEquipment: EquipmentBonus;
 }
@@ -27,10 +25,9 @@ export function combatStats(equipment?: EquipmentConfig, masteries?: Partial<Rec
   base.pm = BASE_PM + eq.pm;
   base.damage = eq.damage;
   base.range = eq.range;
-  base.concentration = eq.concentration;
   for (const e of ELEMENTS) {
     base.masteries[e] = (masteries?.[e] ?? 0) + eq.masteries[e];
     base.resistances[e] = Math.min(MAX_RESISTANCE, Math.max(0, eq.resistances[e]));
   }
-  return { ...base, maxConcentration: MAX_CONCENTRATION, fromEquipment: eq };
+  return { ...base, fromEquipment: eq };
 }

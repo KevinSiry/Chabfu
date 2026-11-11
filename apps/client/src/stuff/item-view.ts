@@ -36,7 +36,7 @@ export const KIND_LABEL: Record<string, string> = {
 export function bonusScore(b: EquipmentBonus): number {
   const sum = (r: Record<string, number> | undefined) => Object.values(r ?? {}).reduce((s, v) => s + v, 0);
   return (
-    b.hp * 0.5 + b.pa * 30 + b.pm * 20 + sum(b.masteries) + (b.damage ?? 0) * 8 + (b.range ?? 0) * 15 + (b.concentration ?? 0) * 15 + sum(b.resistances) * 0.8
+    b.hp * 0.5 + b.pa * 30 + b.pm * 20 + sum(b.masteries) + (b.damage ?? 0) * 8 + (b.range ?? 0) * 15 + sum(b.resistances) * 0.8
   );
 }
 

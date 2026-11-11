@@ -17,7 +17,8 @@ export type RuneEffect =
   | { stat: 'resistanceAll' }
   | { stat: 'damage' }
   | { stat: 'range' }
-  | { stat: 'concentration' };
+  /** Sans effet : rune de Focus neutralisée depuis le retrait de la Concentration (gardée pour les sauvegardes). */
+  | { stat: 'none' };
 
 export interface RuneDef {
   type: RuneType;
@@ -40,7 +41,7 @@ export const RUNES: RuneDef[] = [
   { type: 'rempart', name: 'Rune de Rempart', effect: { stat: 'resistanceAll' }, values: { brute: 1, taillee: 1, parfaite: 2 }, dropWeight: 1 },
   { type: 'pointe', name: 'Rune de Pointe', effect: { stat: 'damage' }, values: { brute: null, taillee: 1, parfaite: 2 }, dropWeight: 0.6 },
   { type: 'mire', name: 'Rune de Mire', effect: { stat: 'range' }, values: { brute: null, taillee: null, parfaite: 1 }, unique: true, dropWeight: 0.5 },
-  { type: 'focus', name: 'Rune de Focus', effect: { stat: 'concentration' }, values: { brute: null, taillee: null, parfaite: 1 }, unique: true, dropWeight: 0.5 },
+  { type: 'focus', name: 'Rune de Focus', effect: { stat: 'none' }, values: { brute: null, taillee: null, parfaite: 1 }, unique: true, dropWeight: 0 },
 ];
 
 const BY_TYPE = new Map(RUNES.map((r) => [r.type, r]));

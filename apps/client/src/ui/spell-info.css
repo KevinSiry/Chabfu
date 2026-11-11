@@ -31,6 +31,7 @@
 .ss-dmg-main > b { font-family: var(--ng-title-font); font-size: 34px; line-height: 1; color: var(--c); text-shadow: 0 0 18px color-mix(in srgb, var(--c) 45%, transparent); }
 .ss-dmg-main > span { font-size: 13px; color: var(--ng-text); }
 .ss-dmg-main small { color: var(--ng-muted); font-size: 11px; }
+.ss-dmg-main > b.ss-far { margin-left: auto; color: #f2b632; text-shadow: 0 0 18px rgba(242, 182, 50, 0.45); }
 .ss-dmg-cases { display: flex; gap: 8px; margin-top: 8px; }
 .ss-dmg-cases > span { flex: 1; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; padding: 4px 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.22); font-size: 11.5px; color: var(--ng-muted); }
 .ss-dmg-cases b { font-family: var(--ng-title-font); font-size: 15px; }

@@ -103,10 +103,10 @@ export function buildReport(results: JobResult[], meta: { options: string; decks
         out();
       }
 
-      // Concentration et mobilité.
-      out(`### Concentration et mobilité${sfx}`);
+      // Distance de tir et mobilité.
+      out(`### Distance de tir et mobilité${sfx}`);
       out();
-      out('| Difficulté | Cases marchées | Tours sans marcher | Concentration max | Tirs concentrés | Sorts les plus lancés |');
+      out('| Difficulté | Cases marchées | Tours sans marcher | Distance moyenne de tir | Tirs concentrés | Sorts les plus lancés |');
       out('|---|---|---|---|---|---|');
       for (const [d, r] of bestByDiff) {
         const totalTurns = r.stats.damageTakenPerTurn.length + 1;
@@ -116,7 +116,7 @@ export function buildReport(results: JobResult[], meta: { options: string; decks
           .map(([id, n]) => `${spellName(id)} ×${n}`)
           .join(', ');
         out(
-          `| ${d} | ${r.stats.cellsWalked} | ${r.stats.turnsStill}/${totalTurns} (${pct(r.stats.turnsStill, totalTurns)}) | ${r.stats.concentrationMax} | ${r.stats.casts['tir_concentre'] ?? 0} | ${top} |`,
+          `| ${d} | ${r.stats.cellsWalked} | ${r.stats.turnsStill}/${totalTurns} (${pct(r.stats.turnsStill, totalTurns)}) | ${r.stats.avgShotDistance} | ${r.stats.casts['tir_concentre'] ?? 0} | ${top} |`,
         );
       }
       out();
@@ -167,11 +167,10 @@ function diagnose(best: Map<number, JobResult>, still: JobResult[]): string[] {
     }
     const hpLoss = 1 - rMax.minHp / rMax.maxHp;
     if (rMax.minHp / rMax.maxHp > 0.5) notes.push(`En D${dMax}, l’Archer ne descend pas sous ${rMax.minHp}/${rMax.maxHp} PV : la difficulté ne met pas assez de pression (pertes ${Math.round(hpLoss * 100)} %).`);
-    const stillShare = rMin.stats.turnsStill / (rMin.stats.damageTakenPerTurn.length + 1);
-    if (stillShare < 0.3) notes.push(`La meilleure route marche presque à chaque tour (${pct(rMin.stats.turnsStill, rMin.stats.damageTakenPerTurn.length + 1)} des tours sans marcher en D${dMin}) : rester en place pour charger la Concentration ne paie pas assez.`);
+    if (rMax.stats.avgShotDistance && rMax.stats.avgShotDistance < 4.5) notes.push(`En D${dMax}, la meilleure route tire en moyenne à ${rMax.stats.avgShotDistance} cases : le bonus de distance ne paie pas assez face au risque de se placer loin.`);
   }
   const stillWins = still.filter((r) => r.won);
   if (still.length && stillWins.length === 0) notes.push('Sans marcher, le bot ne gagne à aucune des difficultés testées : la mobilité est obligatoire.');
-  if (still.length && stillWins.length === still.length) notes.push('Le bot gagne même sans marcher : reculer n’est pas nécessaire, la tension Concentration/mobilité est faible.');
+  if (still.length && stillWins.length === still.length) notes.push('Le bot gagne même sans marcher : reculer n’est pas nécessaire, les déplacements ne comptent pas assez.');
   return notes;
 }

@@ -9,7 +9,7 @@ export const MAX_DIFFICULTY = 10;
  */
 export function difficultyMultiplier(difficulty: number): number {
   const d = difficulty - 1;
-  return 1 + 0.15 * d + 0.006 * d * d;
+  return 1 + 0.15 * d + 0.006 * d * d + 0.001 * d * d * d;
 }
 
 /**

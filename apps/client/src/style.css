@@ -173,6 +173,7 @@ table.scores th { font-family: var(--font-title); font-size: 12px; color: var(--
 /* Concentration */
 .conc-wrap { position: relative; }
 .conc { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+.conc.dist { grid-template-columns: repeat(5, 1fr); }
 .conc div { height: 10px; border-radius: 2px; background: var(--wood-950); border: 1px solid var(--gold-900); }
 .conc div.on { background: linear-gradient(180deg, #d9b2f5, var(--conc)); border-color: var(--conc); box-shadow: 0 0 5px rgba(183, 125, 230, 0.6); }
 .conc div.lose { background: repeating-linear-gradient(45deg, var(--conc) 0 3px, var(--hp) 3px 6px); animation: blink 0.9s infinite alternate; }

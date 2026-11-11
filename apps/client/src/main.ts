@@ -671,7 +671,7 @@ if (new URLSearchParams(location.search).get('dev') === 'da') {
 async function boot(): Promise<void> {
   const BOOT_TIPS = [
     'Astuce : finir son tour hors de portée des monstres vaut souvent mieux qu’un coup de plus.',
-    'Astuce : chaque PM dépensé fait perdre 1 de Concentration.',
+    'Astuce : plus vous tirez de loin, plus vos flèches frappent fort.',
     'Astuce : les objets mythiques donnent beaucoup plus de stats que les communs.',
     'Astuce : l’œil du combat montre les zones de menace ennemies.',
     'Astuce : recyclez le butin en trop à l’Atelier pour fabriquer mieux.',
