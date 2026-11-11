@@ -11,6 +11,7 @@ export const CALDEIRA_DES_CENDRES: DungeonDef = {
   tranche: 1,
   dominantElement: 'fire',
   weakElement: 'water',
+  difficultyCurve: { mid: 0, high: 0.35 },
   description: 'Braseros immobiles qui tirent par-dessus les rochers, salamandres brûlantes, puis le Golem de magma. Les monstres craignent l’Eau.',
   rooms: [
     {

@@ -5,7 +5,7 @@ import { MECHANICS } from './data/mechanics.js';
 import { getMonster, type MonsterAttack } from './data/monsters.js';
 import { getSpell, type SpellDef } from './data/spells.js';
 import { DIRS, distance, hasLineOfSight, isFree, isWall, key, reachable, samePos, unitAt } from './grid.js';
-import { MAX_DIFFICULTY, MIN_DIFFICULTY, difficultyMultiplier } from './loot.js';
+import { MAX_DIFFICULTY, MIN_DIFFICULTY, dungeonDifficultyMultiplier } from './loot.js';
 import { MAX_RESISTANCE } from './equipment.js';
 import { combinePassives, spellMaxRange, spellPaCost, validatePassives } from './passives.js';
 import { effectiveLevel, getTranche, validateDeck } from './progression.js';
@@ -133,10 +133,15 @@ function enterRoom(state: RunState, index: number, events: GameEvent[]): void {
   startPlayerTurn(state, events);
 }
 
+/** PV et dégâts des monstres : courbe de difficulté commune et réglage du donjon. */
+export function monsterMultiplier(state: RunState): number {
+  return dungeonDifficultyMultiplier(getDungeon(state.config.dungeonId).difficultyCurve, state.config.difficulty);
+}
+
 /** Nouvelle unité de monstre, PV mis à l'échelle de la difficulté. */
 export function createMonsterUnit(state: RunState, templateId: string, id: string, pos: Pos): Unit {
   const t = getMonster(templateId);
-  const hp = Math.round(t.hp * difficultyMultiplier(state.config.difficulty));
+  const hp = Math.round(t.hp * monsterMultiplier(state));
   const unit: Unit = {
     id,
     team: 'monster',
@@ -299,7 +304,7 @@ export function computeDamage(
 ): number {
   let dmg = base;
   if (attacker?.team === 'player') dmg *= 1 + (state.player.masteries[element] ?? 0) / 100;
-  if (attacker?.team === 'monster') dmg *= difficultyMultiplier(state.config.difficulty);
+  if (attacker?.team === 'monster') dmg *= monsterMultiplier(state);
   if (target.team === 'player') dmg *= 1 - playerResistance(state, element) / 100;
   if (attacker?.team === 'monster' && target.team === 'player' && isFinishing(attacker, target)) dmg *= MECHANICS.finisher.bonus;
   if (target.team === 'monster' && isThornGuarded(state, target)) dmg *= MECHANICS.thornGuard.damageTaken;

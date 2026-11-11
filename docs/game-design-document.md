@@ -197,7 +197,7 @@ La Légendaire est volontairement la plus dure à obtenir : c'est l'aboutissemen
 - **Pas d'amélioration de rareté** : la rareté d'un objet est fixée à son obtention, par craft ou par drop. Un objet ne monte jamais en rareté.
 
 **Rythme d'obtention (cibles du farm, révision du 2026-11-10).** Chabfu est un jeu de farm : une panoplie complète doit se mériter sur des dizaines, puis des centaines de runs. Le boss donne en général un seul objet (de 1,1 objet par run en D1 à 1,7 en D10), surtout en Commune et Inhabituelle. Cibles, drops et atelier compris, pour une panoplie complète de 9 emplacements farmée sur un seul donjon : Inhabituelle ≈ 20 runs (D3–D5), Rare ≈ 70 runs (D5), Mythique ≈ 180 runs (D8) ou ≈ 155 runs (D10), Légendaire hors d'atteinte en panoplie (environ une pièce tous les 150 à 250 runs en D10). L'outil `npm run economy` recalcule ce tableau après chaque changement de taux, de recette ou de recyclage.
-- **Runes** : obtenues dans les donjons, elles se sertissent dans les emplacements et permettent d'affiner le build (maîtrise élémentaire, portée, Concentration, PA/PM).
+- **Runes** (système validé par Kevin, 2026-11-11) : elles se sertissent gratuitement dans les emplacements (Commune 0, Inhabituelle 1, Rare 1, Mythique 2, Légendaire 3) et ajoutent une petite stat fixe, en trois niveaux Brute, Taillée et Parfaite : maîtrise d'un élément (Braise, Marée, Racine, Rafale), PV (Sève), résistance dans les quatre éléments (Rempart), Dommages (Pointe), et deux runes uniques en Parfaite seulement, Mire (+1 portée) et Horizon (le bonus de distance démarre une case plus tôt et va une case plus loin). On les obtient sur le boss (Brute dès la D4, Taillée dès la D6, Parfaite en D9–D10), en brisant un objet Rare ou mieux (une rune liée à sa stat principale, sans éclats), ou en fusionnant trois runes identiques avec des éclats et une ressource de palier. Retirer une rune la détruit, sauf extraction payée en éclats. Rythme visé : 18 Taillées vers 110 runs en D10, 18 Parfaites vers 700 runs.
 
 ### Utilité du surplus de farm
 
@@ -252,4 +252,3 @@ Optimiser son deck et sa route n'est donc pas seulement utile pour le classement
 - **Contenu** : nombre exact de donjons par tranche et de pièces d'équipement.
 - **Taille du deck** et valeurs de PA/PM par tranche.
 - **Modèle économique** : gratuit, achat unique, cosmétiques ?
-- **Système de runes** : obtention, effets, emplacements, et rôle des doublons d'objets.

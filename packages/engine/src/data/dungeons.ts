@@ -13,6 +13,12 @@ export interface DungeonDef {
   /** Élément que craignent la plupart des monstres : oriente le deck optimal. */
   weakElement: Element;
   description: string;
+  /**
+   * Réglage de la courbe de difficulté propre au donjon (PV et dégâts des monstres), en plus de `difficultyMultiplier` :
+   * `mid` s'ajoute à partir de la D4, `high` monte de la D8 à la D10 (plein effet en D10). 0,1 = +10 %.
+   * Sert à caler chaque donjon sur les cibles (D5 perdue sans stuff, D10 serrée avec un stuff presque parfait).
+   */
+  difficultyCurve: { mid: number; high: number };
   rooms: RoomTemplate[];
 }
 
