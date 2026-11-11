@@ -25,8 +25,9 @@ export const CALDEIRA_DES_CENDRES_MONSTERS: MonsterTemplate[] = [
     pm: 6,
     weakness: 'water',
     resistance: 'fire',
+    trait: 'deathBlast',
     color: '#e0782c',
-    description: 'Rapide, mord au contact et brûle. Une Flèche givrée la ralentit.',
+    description: 'Rapide, mord au contact et brûle. Explose à sa mort : tuez-la de loin, ou au milieu de ses alliés.',
     attacks: [
       { id: 'morsure_ardente', name: 'Morsure ardente', element: 'fire', damage: 10, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1, burn: { damage: 3, turns: 2 } },
     ],
@@ -54,8 +55,9 @@ export const CALDEIRA_DES_CENDRES_MONSTERS: MonsterTemplate[] = [
     weakness: 'water',
     resistance: 'fire',
     isBoss: true,
+    mechanic: 'overheat',
     color: '#8e1f0f',
-    description: 'Boss : poing de lave au contact, bombes en cloche jusqu’à 5 cases. Tout brûle.',
+    description: 'Boss : poing de lave, bombes en cloche, et il explose quand sa chaleur atteint 4. Refroidi, il prend +50 % de dégâts.',
     attacks: [
       { id: 'poing_de_lave', name: 'Poing de lave', element: 'fire', damage: 16, pa: 4, minRange: 1, maxRange: 1, los: true, maxPerTurn: 1, burn: { damage: 4, turns: 2 } },
       { id: 'bombe_de_magma', name: 'Bombe de magma', element: 'fire', damage: 10, pa: 4, minRange: 2, maxRange: 5, los: false, maxPerTurn: 1 },

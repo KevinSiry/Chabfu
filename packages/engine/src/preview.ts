@@ -23,7 +23,7 @@ export interface UnitOutcome {
   hpAfter: number;
   /** Dégâts totaux, toutes sources confondues. */
   damage: number;
-  bySource: Partial<Record<'spell' | 'burn' | 'collision' | 'attack', number>>;
+  bySource: Partial<Record<'spell' | 'burn' | 'collision' | 'attack' | 'mechanic', number>>;
   killed: boolean;
   /** Déplacement subi (poussée, saut) : case d'arrivée. */
   movedTo?: Pos;
@@ -446,6 +446,8 @@ export interface EnemyTurnPreview {
 }
 
 /** Simule la fin du tour (depuis `state`, ou après un déplacement vers `moveTo`). */
+const MECHANIC_LABEL: Record<string, string> = { roots: 'racines', blast: 'explosion', gale: 'grand vent', deathBlast: 'explosion' };
+
 export function previewEnemyTurn(state: RunState, moveTo?: Pos): EnemyTurnPreview | null {
   let s = state;
   if (s.status !== 'playing') return null;
@@ -466,6 +468,7 @@ export function previewEnemyTurn(state: RunState, moveTo?: Pos): EnemyTurnPrevie
   let current: MonsterIntent | undefined;
   let playerBurn = 0;
   let playerTurnStarted = false;
+  let lastMechanic = '';
   for (const ev of events) {
     if (ev.type === 'turnStart') {
       current = intents.get(ev.unitId);
@@ -494,6 +497,11 @@ export function previewEnemyTurn(state: RunState, moveTo?: Pos): EnemyTurnPrevie
       current.damageToPlayer += ev.amount;
       current.effects.push(`collision −${ev.amount} PV`);
     }
+    if (ev.type === 'damage' && ev.unitId === PLAYER_ID && ev.source === 'mechanic') {
+      current.damageToPlayer += ev.amount;
+      current.effects.push(`${MECHANIC_LABEL[lastMechanic] ?? 'mécanique'} −${ev.amount} PV`);
+    }
+    if (ev.type === 'mechanic') lastMechanic = ev.kind;
     if (ev.type === 'status' && ev.unitId === PLAYER_ID) current.effects.push(ev.text);
     if (ev.type === 'push' && ev.unitId === PLAYER_ID) {
       const n = Math.abs(ev.to.x - ev.from.x) + Math.abs(ev.to.y - ev.from.y);
