@@ -11,6 +11,7 @@ import {
   RUNE_EXTRACT_COST,
   RUNE_FUSION,
   RUNE_GRADES,
+  canonicalRuneKey,
   parseRuneKey,
   runeExists,
   runeKey,
@@ -22,6 +23,23 @@ import type { CraftingState } from './crafting.js';
 import { isEquipped, recycleCount } from './crafting.js';
 import { findItem, itemRunes, removeItems, type Inventory, type ItemInstance } from './equipment.js';
 import { dropRate, seededRandom, type Rarity } from './loot.js';
+
+/**
+ * Remet les runes d'une sauvegarde à jour (types renommés : Focus → Horizon), dans le stock et sur les objets.
+ * Sans rune à renommer, renvoie les mêmes objets.
+ */
+export function normalizeRuneSave(state: CraftingState, inv: Inventory): { crafting: CraftingState; inventory: Inventory } {
+  let crafting = state;
+  if (state.runes && Object.keys(state.runes).some((k) => canonicalRuneKey(k) !== k)) {
+    const runes: Record<string, number> = {};
+    for (const [k, n] of Object.entries(state.runes)) runes[canonicalRuneKey(k)] = (runes[canonicalRuneKey(k)] ?? 0) + n;
+    crafting = { ...state, runes };
+  }
+  let inventory = inv;
+  if (inv.items.some((it) => it.runes?.some((k) => k && canonicalRuneKey(k) !== k)))
+    inventory = { ...inv, items: inv.items.map((it) => (it.runes ? { ...it, runes: it.runes.map((k) => (k ? canonicalRuneKey(k) : null)) } : it)) };
+  return { crafting, inventory };
+}
 
 export function runeStock(state: CraftingState, key: RuneKey): number {
   return state.runes?.[key] ?? 0;
@@ -266,7 +284,7 @@ const EFFECT_TEXT: Record<string, (v: number) => string> = {
   resistanceAll: (v) => `+${v} % Résistance (4 éléments)`,
   damage: (v) => `+${v} Dommages`,
   range: (v) => `+${v} Portée`,
-  none: () => 'Sans effet (la Concentration a été retirée)',
+  horizon: () => 'Bonus de distance dès 3 cases, jusqu’à +36 %',
 };
 
 /** Effet lisible d'une rune : « +2 % Maîtrise Feu ». */

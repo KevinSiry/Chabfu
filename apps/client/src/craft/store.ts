@@ -1,4 +1,5 @@
 import {
+  normalizeRuneSave,
   createCraftingState,
   getDungeon,
   receiveLoot,
@@ -29,6 +30,12 @@ function load(): CraftingState {
 }
 
 let crafting = load();
+// Anciennes sauvegardes : runes renommées (Focus → Horizon), dans le stock et sur les objets.
+{
+  const n = normalizeRuneSave(crafting, getInventory());
+  if (n.crafting !== crafting) setCrafting(n.crafting);
+  if (n.inventory !== getInventory()) setInventory(n.inventory);
+}
 
 export function getCrafting(): CraftingState {
   return crafting;

@@ -56,7 +56,7 @@ const rep = (key: RuneKey, n: number): RuneKey[] => Array.from({ length: n }, ()
 export const PROFILE_RUNES: Record<string, RuneKey[]> = {
   moyen: [...rep('seve:brute', 3), ...rep('rempart:brute', 2), 'braise:brute', 'maree:brute', 'racine:brute', 'rafale:brute'],
   fort: [...rep('pointe:taillee', 4), ...rep('seve:taillee', 4), ...rep('rempart:taillee', 2), ...rep('braise:taillee', 2), ...rep('maree:taillee', 2), ...rep('racine:taillee', 2), ...rep('rafale:taillee', 2)],
-  parfait: ['mire:parfaite', 'focus:parfaite', ...rep('pointe:parfaite', 4), ...rep('seve:parfaite', 4), ...rep('rempart:parfaite', 2), ...rep('braise:parfaite', 3), ...rep('maree:parfaite', 1), ...rep('racine:parfaite', 1), ...rep('rafale:parfaite', 1)],
+  parfait: ['mire:parfaite', 'horizon:parfaite', ...rep('pointe:parfaite', 4), ...rep('seve:parfaite', 4), ...rep('rempart:parfaite', 2), ...rep('braise:parfaite', 3), ...rep('maree:parfaite', 1), ...rep('racine:parfaite', 1), ...rep('rafale:parfaite', 1)],
 };
 
 export function statProfileBonus(name: string): EquipmentBonus {

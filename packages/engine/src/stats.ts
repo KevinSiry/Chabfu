@@ -25,6 +25,7 @@ export function combatStats(equipment?: EquipmentConfig, masteries?: Partial<Rec
   base.pm = BASE_PM + eq.pm;
   base.damage = eq.damage;
   base.range = eq.range;
+  base.horizon = eq.horizon;
   for (const e of ELEMENTS) {
     base.masteries[e] = (masteries?.[e] ?? 0) + eq.masteries[e];
     base.resistances[e] = Math.min(MAX_RESISTANCE, Math.max(0, eq.resistances[e]));

@@ -128,7 +128,7 @@ function payable(r: Recipe, res: Record<string, number>, shards: number): boolea
  * Jeu de runes de référence du « stuff parfait » (panoplie Mythique : 18 emplacements) :
  * Mire et Focus, puis des Parfaites de maîtrise, de Pointe et de Sève. C'est aussi celui du solveur.
  */
-export const PERFECT_RUNE_SET: Partial<Record<RuneType, number>> = { mire: 1, focus: 1, pointe: 2, braise: 8, seve: 3, rempart: 3 };
+export const PERFECT_RUNE_SET: Partial<Record<RuneType, number>> = { mire: 1, horizon: 1, pointe: 2, braise: 8, seve: 3, rempart: 3 };
 
 export interface RuneEconomyResult {
   dungeonId: string;

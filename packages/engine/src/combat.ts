@@ -177,6 +177,11 @@ export function equipmentRange(state: RunState): number {
 }
 
 /** Dégâts fixes ajoutés à chaque coup de sort de l'Archer (pas aux brûlures). */
+/** Cases d'avance du bonus de distance données par l'équipement (rune d'Horizon). */
+export function equipmentHorizon(state: RunState): number {
+  return state.config.equipment?.horizon ?? 0;
+}
+
 export function equipmentFlatDamage(state: RunState): number {
   return state.config.equipment?.damage ?? 0;
 }
@@ -271,7 +276,9 @@ export function getSpellZone(state: RunState, spellId: string, target: Pos): Pos
  * Un tir visé (Tir concentré) double le bonus. Les passifs peuvent augmenter le bonus par case.
  */
 export function distanceBonus(state: RunState, cells: number, aimed = false): number {
-  const counted = Math.max(0, Math.min(DISTANCE_BONUS_MAX_CELLS, cells - DISTANCE_BONUS_FROM));
+  // Rune d'Horizon : le bonus démarre `h` cases plus tôt et compte `h` cases de plus.
+  const h = equipmentHorizon(state);
+  const counted = Math.max(0, Math.min(DISTANCE_BONUS_MAX_CELLS + h, cells - DISTANCE_BONUS_FROM + h));
   const perCell = DISTANCE_BONUS_PER_CELL + combinePassives(state.player.passives).distanceBonusPerCell;
   return Math.round(counted * perCell * (aimed ? 2 : 1) * 100) / 100;
 }

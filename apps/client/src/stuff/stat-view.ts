@@ -15,6 +15,7 @@ const GLYPH: Record<StatLine['stat'], string> = {
   resistance: '⛨',
   damage: '✸',
   range: '◎',
+  horizon: '⇥',
 };
 
 function medal(l: Pick<StatLine, 'stat' | 'element'>): string {
