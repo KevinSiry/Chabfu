@@ -55,7 +55,6 @@
 .overlay .card.with-loot { max-width: 760px; }
 .loot { margin: 14px 0 6px; text-align: left; }
 .loot h3 { text-align: center; }
-.loot-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; max-height: 50vh; overflow-y: auto; padding: 4px; }
 .reveal { opacity: 0; transform: translateY(8px) scale(0.96); animation: loot-in 0.35s ease-out forwards; }
 @keyframes loot-in { to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .reveal { animation: none; opacity: 1; transform: none; } }
