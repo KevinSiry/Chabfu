@@ -19,4 +19,6 @@ export { PASSIVES, getPassive, type PassiveDef, type PassiveMods } from './data/
 export * from './crafting.js';
 export { RESOURCES, RESOURCE_TIERS, getResource, dungeonResources, type ResourceDef, type ResourceTier } from './data/resources.js';
 export { RECIPES, CRAFTABLE_ITEMS, CRAFT_RARITIES, getRecipe, recipesForTranche, type Recipe, type CraftRarity, type CraftableItem } from './data/recipes.js';
+export * from './runes.js';
+export { RUNES, RUNE_GRADES, RUNE_GRADE_LABEL, RUNE_DROPS, RUNE_FUSION, RUNE_EXTRACT_COST, ALL_RUNE_KEYS, getRune, runeKey, parseRuneKey, runeExists, type RuneDef, type RuneType, type RuneGrade, type RuneKey, type RuneEffect } from './data/runes.js';
 export * from './save.js';

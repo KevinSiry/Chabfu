@@ -17,6 +17,8 @@ import {
 import { KIND_LABEL, bonusScore, itemCardHtml } from './item-view';
 import { characterStatsHtml, statRowsHtml } from './stat-view';
 import { getInventory, setInventory } from './store';
+import { openRuneSlotSheet } from './rune-sheet';
+import { runeDropChances, RUNE_GRADES, RUNE_GRADE_LABEL } from '@chabfu/engine';
 import { assetUrl, itemIconImg, kindIconImg } from '../ui/assets';
 import { bindSegmented, openSheet, segmented } from '../ui/components';
 import { pageAll, pagerHtml } from '../ui/pager';
@@ -104,28 +106,34 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
   });
 
   const rerender = () => renderEquipmentScreen(app, o);
-  app.querySelectorAll<HTMLElement>('[data-item]').forEach((el) =>
-    el.addEventListener('click', () => {
-      const uid = el.dataset.item!;
-      const cur = getInventory();
-      const item = findItem(cur, uid);
-      if (!item) return;
-      const slot = (Object.entries(getLoadout(cur, o.trancheId)) as [string, string | undefined][]).find(([, u]) => u === uid)?.[0];
-      const action = slot
-        ? `<button class="ui-btn ui-btn--danger ui-btn--block" id="eq-act">Retirer</button>`
-        : `<button class="ui-btn ui-btn--primary ui-btn--block" id="eq-act">Équiper</button>`;
-      const sheet = openSheet({
-        title: 'Objet',
-        html: `${itemCardHtml(item, { inv: cur, trancheId: o.trancheId, compare: true })}<div class="gr-sheet-action">${action}</div>`,
-      });
-      sheet.el.querySelector('#eq-act')!.addEventListener('click', () => {
-        const now = getInventory();
-        setInventory(slot ? unequipSlot(now, o.trancheId, slot as (typeof SLOTS)[number]['id']) : equipItem(now, o.trancheId, uid));
-        sheet.close();
-        rerender();
-      });
-    }),
-  );
+  const openItem = (uid: string) => {
+    const cur = getInventory();
+    const item = findItem(cur, uid);
+    if (!item) return;
+    const slot = (Object.entries(getLoadout(cur, o.trancheId)) as [string, string | undefined][]).find(([, u]) => u === uid)?.[0];
+    const action = slot
+      ? `<button class="ui-btn ui-btn--danger ui-btn--block" id="eq-act">Retirer</button>`
+      : `<button class="ui-btn ui-btn--primary ui-btn--block" id="eq-act">Équiper</button>`;
+    const sheet = openSheet({
+      title: 'Objet',
+      html: `${itemCardHtml(item, { inv: cur, trancheId: o.trancheId, compare: true, runeButtons: true })}<div class="gr-sheet-action">${action}</div>`,
+    });
+    sheet.el.querySelector('#eq-act')!.addEventListener('click', () => {
+      const now = getInventory();
+      setInventory(slot ? unequipSlot(now, o.trancheId, slot as (typeof SLOTS)[number]['id']) : equipItem(now, o.trancheId, uid));
+      sheet.close();
+      rerender();
+    });
+    sheet.el.querySelectorAll<HTMLButtonElement>('[data-rslot]').forEach((b) =>
+      b.addEventListener('click', () =>
+        openRuneSlotSheet(uid, Number(b.dataset.rslot), () => {
+          rerender();
+          openItem(uid);
+        }),
+      ),
+    );
+  };
+  app.querySelectorAll<HTMLElement>('[data-item]').forEach((el) => el.addEventListener('click', () => openItem(el.dataset.item!)));
   app.querySelector('#eq-loot')!.addEventListener('click', () =>
     openSheet({
       title: `Butin du boss · difficulté ${o.difficulty}`,
@@ -133,6 +141,8 @@ export function renderEquipmentScreen(app: HTMLElement, o: EquipmentScreenOption
         <table class="scores">${rates.map((r) => `<tr><td><span class="drop-name">${itemIconImg(r.item.id, 'asset-res')}${r.item.name}</span></td><td>${pct(r.rate)}</td></tr>`).join('')}</table>
         <h3 class="ui-section-title">Rareté de chaque drop</h3>
         <table class="scores">${RARITY_ORDER.map((r) => `<tr><td class="rarity-${r}"><span class="rarity-label">${RARITIES[r].label}</span></td><td>${pct(chances[r])}</td></tr>`).join('')}</table>
+        <h3 class="ui-section-title">Runes</h3>
+        <table class="scores">${RUNE_GRADES.map((g) => `<tr><td>Rune ${RUNE_GRADE_LABEL[g]}</td><td>${pct(runeDropChances(o.difficulty)[g])}</td></tr>`).join('')}</table>
         <p class="muted">Au moins un objet par victoire. Plus la difficulté est haute, plus il y a de drops et de raretés hautes. Légendaire à partir de la difficulté 6.</p>`,
     }),
   );

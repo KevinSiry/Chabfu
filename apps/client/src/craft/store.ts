@@ -6,6 +6,9 @@ import {
   rollResourceDrops,
   runSeed,
   addResources,
+  addRunes,
+  rollRuneDrops,
+  type RuneKey,
   type Action,
   type CraftingState,
   type ItemInstance,
@@ -47,6 +50,8 @@ export interface RunRewards {
   autoRecycled: ItemInstance[];
   shardsGained: Record<number, number>;
   resources: Record<string, number>;
+  /** Runes trouvées sur le boss. */
+  runes: RuneKey[];
   trancheId: number;
 }
 
@@ -59,8 +64,10 @@ export function grantRunRewards(config: RunConfig, actions: Action[], challengeB
   const trancheId = getDungeon(config.dungeonId).tranche;
   const drops = rollBossLoot(config.dungeonId, config.difficulty, Math.floor(Math.random() * 2 ** 32), challengeBonus);
   const res = receiveLoot(getInventory(), crafting, drops);
-  const resources = rollResourceDrops(config.dungeonId, config.difficulty, runSeed(config, actions), challengeBonus);
+  const seed = runSeed(config, actions);
+  const resources = rollResourceDrops(config.dungeonId, config.difficulty, seed, challengeBonus);
+  const runes = rollRuneDrops(config.difficulty, seed, challengeBonus);
   setInventory(res.inventory);
-  setCrafting(addResources(res.crafting, resources));
-  return { kept: res.kept, autoRecycled: res.recycled, shardsGained: res.shardsGained, resources, trancheId };
+  setCrafting(addRunes(addResources(res.crafting, resources), runes));
+  return { kept: res.kept, autoRecycled: res.recycled, shardsGained: res.shardsGained, resources, runes, trancheId };
 }

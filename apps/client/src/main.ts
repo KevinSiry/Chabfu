@@ -551,7 +551,7 @@ if (import.meta.env.DEV) {
     const { character, report } = applyRunSummary(c, { ...summary, xpTotal: 900, xpFromKills: 290, xpVictoryBonus: 610 });
     const sections = renderRunEndSections({ config, state, summary: { ...summary, xpVictoryBonus: 610, challengeBonus: 0.2, xpChallengeBonus: 180 }, report: { ...report, xpGained: 1080 }, character, validated: status === 'won' });
     const rewards: RunRewards | null =
-      status === 'won' ? { kept: loot, autoRecycled: [{ uid: 'dev-r', itemId: loot[0]?.itemId ?? 'arc_racineux', rarity: 'common' }], shardsGained: { [c.trancheId]: 6 }, resources: Object.fromEntries(dungeonResources(dungeon.id).map((r, i) => [r.id, 3 - (i % 3)])), trancheId: c.trancheId } : null;
+      status === 'won' ? { kept: loot, autoRecycled: [{ uid: 'dev-r', itemId: loot[0]?.itemId ?? 'arc_racineux', rarity: 'common' }], shardsGained: { [c.trancheId]: 6 }, resources: Object.fromEntries(dungeonResources(dungeon.id).map((r, i) => [r.id, 3 - (i % 3)])), runes: ['braise:taillee'], trancheId: c.trancheId } : null;
     showRunEnd({ config, state, timeMs: 83000, check: status === 'won' ? { valid: true } as ReturnType<typeof verifyRun> : null, loot, rewards, sections });
   };
 }
